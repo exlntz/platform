@@ -1,10 +1,22 @@
-from fastapi import FastAPI, HTTPException, status
+#uvicorn main:app --reload запуск приложения, перед этим нужно быть в папке app -> cd app в терминале
+from fastapi import FastAPI
 from pydantic import BaseModel, Field, EmailStr
 import uvicorn
+from contextlib import asynccontextmanager
+from database import engine,Model,SessionDep
 
-app=FastAPI(version='666.666.666')
 
-#uvicorn main:app --reload запуск приложения, перед этим нужно быть в папке app -> cd app в терминале
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with engine.begin() as conn:
+        await conn.run_sync(Model.metadata.create_all)
+
+    print('База данных готова')
+    yield
+    print('Выключение сервера')
+
+app=FastAPI(title='Платформа для подготовки к олимпиадам',version='666.666.666',lifespan=lifespan)
+
 
 
 data={
@@ -27,7 +39,7 @@ async def home() -> str:
 
 users=[]
 @app.post('/users',tags=['Пользователи'],summary='Создание пользователя')
-async def create_user(user: UserSchema):
+async def create_user(user: UserSchema,session: SessionDep):
     users.append(user)
     return 'True'
 
