@@ -1,11 +1,10 @@
 from fastapi import APIRouter,HTTPException,status
-from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-
-from app.database import SessionDep, new_session
+from sqlalchemy import select
+from app.database import SessionDep
 from app.models import UserModel
-from app.security import get_password_hash
-from app.schemas.user import UserRegister
+from app.security import get_password_hash,is_password_correct,create_access_token
+from app.schemas.user import UserRegister,UserLogin,Token
 
 router=APIRouter(prefix='/auth',tags=['Авторизация'])
 
@@ -16,7 +15,7 @@ async def register_user(new_user: UserRegister,session: SessionDep):
 
     user_db=UserModel(
         username=new_user.username,
-        email=new_user.email,
+        email=str(new_user.email),
         hashed_password=hashed_pass,
         rating=1000.0
     )
@@ -31,3 +30,18 @@ async def register_user(new_user: UserRegister,session: SessionDep):
             detail='Пользователем с таким логином или Email уже существует'
         )
     return {"status": "ok", "message": "Регистрация прошла успешно!"}
+
+
+@router.post('/login')
+async def login_user(user_data: UserLogin,session: SessionDep) -> Token:
+    query=select(UserModel).where(UserModel.email == str(user_data.email))
+    result=await session.execute(query)
+    user=result.scalar_one_or_none()
+    if not user or not is_password_correct(user_data.password,user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail='Неверная почта или пароль!'
+        )
+    token=create_access_token(data={'sub': user.email})
+
+    return Token(access_token=token,token_type='bearer')

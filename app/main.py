@@ -1,4 +1,5 @@
 #uvicorn app.main:app --reload запуск приложения, запускать строго из case
+#можно также запустить просто main.py
 #вся документация тут http://127.0.0.1:8000/docs либо http://127.0.0.1:8000/redoc
 from fastapi import FastAPI
 from pydantic import BaseModel, Field, EmailStr
