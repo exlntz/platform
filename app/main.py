@@ -1,4 +1,5 @@
 #uvicorn main:app --reload запуск приложения, перед этим нужно быть в папке app -> cd app в терминале
+#вся документация тут http://127.0.0.1:8000/docs либо http://127.0.0.1:8000/redoc
 from fastapi import FastAPI
 from pydantic import BaseModel, Field, EmailStr
 import uvicorn
