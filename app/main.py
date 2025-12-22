@@ -2,6 +2,7 @@
 #можно также запустить просто main.py
 #вся документация тут http://127.0.0.1:8000/docs либо http://127.0.0.1:8000/redoc
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, EmailStr
 import uvicorn
 from contextlib import asynccontextmanager
@@ -20,6 +21,19 @@ async def lifespan(app: FastAPI):
     print('Выключение сервера')
 
 app=FastAPI(title='Платформа для подготовки к олимпиадам',version='666.666.666',lifespan=lifespan)
+
+
+origins=['*']
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 app.include_router(auth_router)
 app.include_router(tasks_router)
