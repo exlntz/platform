@@ -14,10 +14,11 @@ async def register_user(new_user: UserRegister,session: SessionDep):
     hashed_pass=get_password_hash(new_user.password)
 
     user_db=UserModel(
+        #id сам создается
         username=new_user.username,
         email=str(new_user.email),
         hashed_password=hashed_pass,
-        rating=1000.0
+        # рейтинг = 1000, сам создается в models.py
     )
     try:
         session.add(user_db)

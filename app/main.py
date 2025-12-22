@@ -53,12 +53,12 @@ class UserSchema(BaseModel):
     bio: str | None
     elo: int = Field(ge=0)
 
-@app.get('/')
+@app.get('/',tags=['не нужно'])
 async def home() -> str:
     return 'главная страница'
 
 users=[]
-@app.post('/users',tags=['Пользователи'],summary='Создание пользователя')
+@app.post('/users',tags=['не нужно'],summary='Создание пользователя')
 async def create_user(user: UserSchema,session: SessionDep):
     users.append(user)
     return 'True'
