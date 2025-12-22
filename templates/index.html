@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Платформа подготовки к олимпиадам</title>
     <link rel="stylesheet" href="/static/style.css">
-    <link rel="stylesheet" href="/static/style.css">
 
 </head>
 
@@ -13,11 +12,11 @@
     <nav class = "navbar">
     <div class="logo"> Title </div>
         <div class="nav-links">
-            <button onclick="showPage('home')">Home</button>
-            <button onclick="showPage('tasks')">Tasks</button>
-            <button onclick="showPage('training')">Train</button>
-            <button onclick="showPage('PvP')">PvP</button>
-            <button onclick="showPage('auth')" style="color: var(--danger)">Выход</button>
+            <a href="#" onclick="showPage('#home')">дом</a>
+            <a href="#" onclick="showPage('#tasks')">таски</a>
+            <a href="#" onclick="showPage('#training')">трейн</a>
+            <a href="#" onclick="showPage('#PvP')">Впв</a>
+            <a href="#" onclick="showPage('#auth')">Выход</a>
         </div>
     </nav>
 
@@ -38,7 +37,7 @@
                     <a href="#">Забыли пароль?</a>
                 </div>
 
-                <button type="submit" class="btn">Войти</button>
+                <button type="button" class="btn" onclick="showPage('home')">Войти</button>
 
                 <div class="register-link">
                     <p>Нет аккаунта? <a href="#" onclick="showPage('reg')">Зарегистрироваться</a>

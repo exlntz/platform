@@ -2,9 +2,8 @@
 
 
 .active{
-    display: flex;
+    display: flex; !important;
 }
 .page{
-    display: flex;
+    display: none; !important;
 
-}
