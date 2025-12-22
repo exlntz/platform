@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Платформа подготовки к олимпиадам</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css">
+
+</head>
+
+<body>
+    <nav class = "navbar">
+    <div class="logo"> Title </div>
+        <div class="nav-links">
+            <button onclick="showPage('home')">Home</button>
+            <button onclick="showPage('tasks')">Tasks</button>
+            <button onclick="showPage('training')">Train</button>
+            <button onclick="showPage('PvP')">PvP</button>
+            <button onclick="showPage('auth')" style="color: var(--danger)">Выход</button>
+        </div>
+    </nav>
+
+    <main id="app">
+
+        <section id="auth" class="page active">
+            <div class="main">
+                <form action="">
+                    <h1>Вход</h1>
+                <div class="input-box">
+                    <input type="text" placeholder="Имя пользователя" required>
+                </div>
+                <div class="input-box">
+                    <input type="password" placeholder="Пароль" required>
+                </div>
+                <div class="remember">
+                    <label fot=""> <input type="checkbox">Запомнить меня</label>
+                    <a href="#">Забыли пароль?</a>
+                </div>
+
+                <button type="submit" class="btn">Войти</button>
+
+                <div class="register-link">
+                    <p>Нет аккаунта? <a href="#" onclick="showPage('reg')">Зарегистрироваться</a>
+                </div>
+                </form>
+            </div>
+        </section>
+
+        <section id="reg" class="page">
+            <div class="main">
+                <form action="">
+                    <h1>Регистрация</h1>
+                <div class="input-box">
+                    <input type="text" placeholder="Имя" required>
+                </div>
+                <div class="input-box">
+                    <input type="text" placeholder="Фамилия" required>
+                </div>
+                <div class="input-box">
+                    <input type="text" placeholder="Имя пользователя" required>
+                </div>
+                <div class="input-box">
+                    <input type="password" placeholder="Пароль" required>
+                </div>
+                <div class="input-box">
+                    <input type="password" placeholder="Повтор пароля" required>
+                </div>
+                <hr>
+                <button type="submit" class="btn">Зарегистрироваться</button>
+
+                <div class="register-link">
+                    <p>Есть аккаунт? <a href="#" onclick="showPage('auth')">Войти</a>
+                </div>
+                </form>
+            </div>
+        </section>
+
+        <section id="home" class="page">
+            <h1>Home page</h1>
+            <div class="stats">
+                <div class="stat-card">
+                    <p>stat1</p>
+                </div>
+                <div class="stat-card">
+                    <p>stat2</p>
+                </div>
+                <div class="stat-card">
+                    <p>stat3</p>
+                </div>
+            </div>
+        </section>
+
+
+        <section id="tasks" class="page">
+            <h1>Tasks</h1>
+        </section>
+
+
+        <section id="training" class="page">
+            <h1>Pick a task</h1>
+        </section>
+
+
+        <section id="PvP" class="page">
+            <h1>0-0</h1>
+        </section>
+    </main>
+<script src="./static/program.js"></script>
+</body>
+</html>
