@@ -29,8 +29,8 @@ async def get_tasks(
 
 @router.post('/')
 async def create_task(
-        new_task:TaskCreate,
-        session:SessionDep
+        new_task: TaskCreate,
+        session: SessionDep
 ) -> TaskRead:
     task_db=TaskModel(
         title=new_task.title,
