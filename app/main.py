@@ -1,10 +1,26 @@
-from fastapi import FastAPI, HTTPException, status
+#uvicorn app.main:app --reload запуск приложения, запускать строго из case
+#можно также запустить просто main.py
+#вся документация тут http://127.0.0.1:8000/docs либо http://127.0.0.1:8000/redoc
+from fastapi import FastAPI
 from pydantic import BaseModel, Field, EmailStr
 import uvicorn
+from contextlib import asynccontextmanager
+from app.database import engine,Model,SessionDep
+from app.api.auth import router as auth_router
 
-app=FastAPI(version='666.666.666')
 
-#uvicorn main:app --reload запуск приложения, перед этим нужно быть в папке app -> cd app в терминале
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with engine.begin() as conn:
+        await conn.run_sync(Model.metadata.create_all)
+
+    print('База данных готова')
+    yield
+    print('Выключение сервера')
+
+app=FastAPI(title='Платформа для подготовки к олимпиадам',version='666.666.666',lifespan=lifespan)
+
+app.include_router(auth_router)
 
 
 data={
@@ -27,7 +43,7 @@ async def home() -> str:
 
 users=[]
 @app.post('/users',tags=['Пользователи'],summary='Создание пользователя')
-async def create_user(user: UserSchema):
+async def create_user(user: UserSchema,session: SessionDep):
     users.append(user)
     return 'True'
 

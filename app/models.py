@@ -1,9 +1,22 @@
-from sqlalchemy import Table,Column,Integer,String,MetaData
+from sqlalchemy.orm import Mapped,mapped_column
+from app.database import Model
+from sqlalchemy import Text
 
-metadata_obj=MetaData()
+class UserModel(Model):
+    __tablename__ = 'users'
+    id: Mapped[int] = mapped_column(primary_key=True,init=False)
+    username: Mapped[str] = mapped_column(unique=True,index=True)
+    email: Mapped[str] = mapped_column(unique=True,index=True)
+    hashed_password: Mapped[str]
+    rating: Mapped[float] = mapped_column(default=1000.0)
 
-users_table = Table(
-    'users',
-    metadata_obj,
 
-)
+class TaskModel(Model):
+    __tablename__='tasks'
+    id: Mapped[int] = mapped_column(primary_key=True,init=False)
+    title: Mapped[str] = mapped_column(index=True)
+    description: Mapped[str] = mapped_column(Text)
+    subject: Mapped[str] = mapped_column(index=True)
+    theme: Mapped[str] = mapped_column(index=True)
+    difficulty: Mapped[str] = mapped_column(index=True)
+    correct_answer: Mapped[str]
