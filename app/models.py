@@ -7,7 +7,7 @@ class UserModel(Model):
     id: Mapped[int] = mapped_column(primary_key=True,init=False)
     username: Mapped[str] = mapped_column(unique=True,index=True)
     email: Mapped[str] = mapped_column(unique=True,index=True)
-    hashed_password: Mapped[str]
+    hashed_password: Mapped[str] = mapped_column()
     rating: Mapped[float] = mapped_column(default=1000.0)
 
 
@@ -18,5 +18,5 @@ class TaskModel(Model):
     description: Mapped[str] = mapped_column(Text)
     subject: Mapped[str] = mapped_column(index=True)
     theme: Mapped[str] = mapped_column(index=True)
-    difficulty: Mapped[str] = mapped_column(index=True)
-    correct_answer: Mapped[str]
+    difficulty: Mapped[str] = mapped_column()
+    correct_answer: Mapped[str] = mapped_column(index=True)
