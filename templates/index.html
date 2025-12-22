@@ -12,11 +12,11 @@
     <nav class = "navbar">
     <div class="logo"> Title </div>
         <div class="nav-links">
-            <a href="#" onclick="showPage('#home')">дом</a>
-            <a href="#" onclick="showPage('#tasks')">таски</a>
-            <a href="#" onclick="showPage('#training')">трейн</a>
-            <a href="#" onclick="showPage('#PvP')">Впв</a>
-            <a href="#" onclick="showPage('#auth')">Выход</a>
+            <a href="javascript:void(0)" onclick="showPage('home')">дом</a>
+            <a href="javascript:void(0)" onclick="showPage('tasks')">таски</a>
+            <a href="javascript:void(0)" onclick="showPage('training')">трейн</a>
+            <a href="javascript:void(0)" onclick="showPage('PvP')">Впв</a>
+            <a href="javascript:void(0)" onclick="showPage('auth')">Выход</a>
         </div>
     </nav>
 
@@ -34,13 +34,13 @@
                 </div>
                 <div class="remember">
                     <label fot=""> <input type="checkbox">Запомнить меня</label>
-                    <a href="#">Забыли пароль?</a>
+                    <a href="javascript:void(0)">Забыли пароль?</a>
                 </div>
 
                 <button type="button" class="btn" onclick="showPage('home')">Войти</button>
 
                 <div class="register-link">
-                    <p>Нет аккаунта? <a href="#" onclick="showPage('reg')">Зарегистрироваться</a>
+                    <p>Нет аккаунта? <a href="javascript:void(0)" onclick="showPage('reg')">Зарегистрироваться</a>
                 </div>
                 </form>
             </div>
@@ -69,7 +69,7 @@
                 <button type="submit" class="btn">Зарегистрироваться</button>
 
                 <div class="register-link">
-                    <p>Есть аккаунт? <a href="#" onclick="showPage('auth')">Войти</a>
+                    <p>Есть аккаунт? <a href="javascript:void(0)" onclick="showPage('auth')">Войти</a>
                 </div>
                 </form>
             </div>
@@ -105,6 +105,34 @@
             <h1>0-0</h1>
         </section>
     </main>
-<script src="./static/program.js"></script>
+<script>
+
+    function showPage(pageId) {
+    // 1. Скрываем все секции с классом .page
+    document.querySelectorAll('.page').forEach(section => {
+        section.classList.remove('active');
+    });
+
+    // 2. Показываем нужную страницу по ID
+    const target = document.getElementById(pageId);
+    if (target) {
+        target.classList.add('active');
+    }
+
+    // 3. Управляем видимостью навигации (скрываем на входе и регистрации)
+    const nav = document.querySelector('.navbar'); // Поиск по классу
+    if (nav) {
+        if (pageId === 'auth' || pageId === 'reg') {
+            nav.style.display = 'none';
+        } else {
+            nav.style.display = 'flex';
+        }
+    }
+}
+
+// Устанавливаем стартовую страницу при загрузке скрипта
+showPage('auth');
+
+</script>
 </body>
 </html>
