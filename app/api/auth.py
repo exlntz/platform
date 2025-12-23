@@ -46,3 +46,31 @@ async def login_user(user_data: UserLogin,session: SessionDep) -> Token:
     token=create_access_token(data={'sub': user.email})
 
     return Token(access_token=token,token_type='bearer')
+
+
+@router.get('/login/{name}')
+async def get_user_by_name(
+        name: str,
+        session: SessionDep
+):
+    """
+    Пример функции для поиска пользователя по имени из URL.
+    """
+    # 1. Формируем запрос: "Выбрать всё из таблицы User, где поле username равно нашему name"
+    query = select(UserModel).where(UserModel.username == name)
+
+    # 2. Выполняем запрос в базу данных
+    result = await session.execute(query)
+
+    # 3. Извлекаем первого найденного пользователя или None
+    user = result.scalar_one_or_none()
+
+    # 4. Если пользователь не найден — выдаем ошибку 404 (как на твоем скрине)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with name '{name}' not found"
+        )
+
+    # 5. Возвращаем данные пользователя фронтенду
+    return user
