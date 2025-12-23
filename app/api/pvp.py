@@ -85,30 +85,30 @@ async def join_match(session: SessionDep, websocket: WebSocket):
 async def start_match(player1: QueueEntry, player2: QueueEntry):
     return
 
-
-async def match_players():
-    if not queue: return
-    global queue
-    pairs = [] # найденные пары оппонентов
-    newqueue = []
-    async with _queue_lock:
-        l=len(queue)
-        i=0
-        while i < l-1:
-            if queue[i+1].rating - queue[i].rating < 100:
-                pairs.append((queue[i],queue[i+1]))
-                i+=2
-            else:
-                newqueue.append(queue[i])
-                i+=1
-        if i == l-1:
-            newqueue.append(queue[i])
-        queue = newqueue
-
-    for p in pairs:
-        start_match(p[0],p[1])
-        
-
+#ЗАКОМЕНТИЛ ЧТОБЫ КОД НЕ ВЫДАВАЛ ОШИБОК
+# async def match_players():
+#     if not queue: return
+#     global queue
+#     pairs = [] # найденные пары оппонентов
+#     newqueue = []
+#     async with _queue_lock:
+#         l=len(queue)
+#         i=0
+#         while i < l-1:
+#             if queue[i+1].rating - queue[i].rating < 100:
+#                 pairs.append((queue[i],queue[i+1]))
+#                 i+=2
+#             else:
+#                 newqueue.append(queue[i])
+#                 i+=1
+#         if i == l-1:
+#             newqueue.append(queue[i])
+#         queue = newqueue
+#
+#     for p in pairs:
+#         start_match(p[0],p[1])
+#
+#
 
 
 # всё снизу для тестирования

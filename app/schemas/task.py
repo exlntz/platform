@@ -17,3 +17,11 @@ class TaskRead(TaskBase): # 1. Наследуем (оставляем стары
 
 class TaskCreate(TaskBase):
     correct_answer: str
+
+class AnswerCheckRequest(BaseModel):
+    answer: str
+
+class AnswerCheckResponse(BaseModel):
+    is_correct: bool
+    correct_answer: str | None = None
+    message: str

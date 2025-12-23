@@ -58,7 +58,7 @@ async def home() -> str:
     return 'главная страница'
 
 users=[]
-@app.post('/users',tags=['не нужно'],summary='Создание пользователя')
+@app.post('/users',tags=['не нужноo'],summary='Создание пользователя')
 async def create_user(user: UserSchema,session: SessionDep):
     users.append(user)
     return 'True'
