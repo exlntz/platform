@@ -1,9 +1,13 @@
 from fastapi import APIRouter,HTTPException,status,WebSocket
 import asyncio
+import jwt
+from sqlalchemy import select
 from app.schemas.matchmaking import QueueEntry
 from app.database import SessionDep
-# from app.main import UserSchema
-from time import time
+from app.security import SECRET_KEY
+from app.models import UserModel
+from app.schemas.user import Token
+import time
 import bisect
 
 from fastapi.responses import HTMLResponse
@@ -27,29 +31,37 @@ async def add_player(entry: QueueEntry):
 async def remove_player(entry: QueueEntry):
     print('removing',QueueEntry)
     async with _queue_lock:
-        if not index[entry.user_id]:
+        if entry.user_id not in index:
             return
         queue.remove(entry)
-        index[entry.user_id]=None
+        del index[entry.user_id]
     print('removed')
 
 
 @router.websocket('/join') # начать поиск оппонента
 async def join_match(session: SessionDep, websocket: WebSocket):
     await websocket.accept()
-    await websocket.send_text(f"Connected")
-    user = {
-        'id': 1,
-        'name': 'John',
-        'mail': 'aomosm@mail.ru',
-        'bio': None,
-        'elo': 1000
-    }
+    await websocket.send_text("Connected")
+
+    token = await websocket.receive_text()
+    try:
+        tokenData = jwt.decode(token,SECRET_KEY,algorithms=['HS256'])
+        await websocket.send_text("token accepted")
+    except Exception as e:
+        print(e)
+        await websocket.send_text("invalid token")
+        await websocket.close()
+
+    query=select(UserModel).where(UserModel.email == str(tokenData['sub']))
+    result=await session.execute(query)
+    user=result.scalar_one_or_none()
+
     entry = QueueEntry(
-        rating=user['elo'],
-        joined_at=time(),
-        user_id=user['id']
+        rating=user.rating,
+        joined_at=time.time(),
+        user_id=user.id
     )
+    entry._ws = websocket
     await add_player(entry)
     print(queue)
     await websocket.send_text(f"Search started")
@@ -59,9 +71,14 @@ async def join_match(session: SessionDep, websocket: WebSocket):
             if data == "cancel":
                 await remove_player(entry)
                 print(queue)
+                await websocket.close()
+            elif data == "ping":
+                await websocket.send_text("pong")
         except Exception as e:
             await remove_player(entry)
+            await websocket.close()
             break
+    await websocket.close()
 
 
 
