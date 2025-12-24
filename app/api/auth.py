@@ -35,7 +35,7 @@ async def register_user(new_user: UserRegister,session: SessionDep):
 
 @router.post('/login')
 async def login_user(user_data: UserLogin,session: SessionDep) -> Token:
-    query=select(UserModel).where(UserModel.email == str(user_data.email)) # тут бы я сделал вход по юзеру вместо почты
+    query=select(UserModel).where(UserModel.email == str(user_data.email))
     result=await session.execute(query)
     user=result.scalar_one_or_none()
     if not user or not is_password_correct(user_data.password,user.hashed_password):
