@@ -42,3 +42,8 @@ class UserStats(BaseModel):
 class FullProfileResponse(BaseModel):
     user: UserProfile
     stats: UserStats
+
+
+class LeaderboardPlayer(BaseModel):
+    username: str
+    rating: float

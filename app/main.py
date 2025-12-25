@@ -5,11 +5,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from contextlib import asynccontextmanager
-from app.database import engine,Model,SessionDep
+from app.database import engine,Model
 from app.api.auth import router as auth_router
 from app.api.tasks import router as tasks_router
 from app.api.pvp import router as pvp_router
 from app.api.profile import router as profile_router
+from app.api.leaderboard import router as leaderboard_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -43,6 +44,7 @@ app.include_router(auth_router)
 app.include_router(tasks_router)
 app.include_router(pvp_router)
 app.include_router(profile_router)
+app.include_router(leaderboard_router)
 
 
 
