@@ -20,14 +20,14 @@ async def get_current_user(
     try:
         payload = jwt.decode(token,SECRET_KEY,algorithms=[ALGORITHM])
 
-        email: str | None = payload.get('sub')
+        username: str | None = payload.get('sub')
 
-        if email is None:
+        if username is None:
             raise unauthorized_error
     except:
         raise unauthorized_error
 
-    query=select(UserModel).where(UserModel.email == email)
+    query=select(UserModel).where(UserModel.username == username)
     result = await session.execute(query)
     user = result.scalar_one_or_none()
 

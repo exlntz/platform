@@ -52,7 +52,7 @@ async def join_match(session: SessionDep, websocket: WebSocket):
         await websocket.send_text("invalid token")
         await websocket.close()
 
-    query=select(UserModel).where(UserModel.email == str(tokenData['sub']))
+    query=select(UserModel).where(UserModel.username == str(tokenData['sub']))
     result=await session.execute(query)
     user=result.scalar_one_or_none()
 

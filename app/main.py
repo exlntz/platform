@@ -9,6 +9,7 @@ from app.database import engine,Model,SessionDep
 from app.api.auth import router as auth_router
 from app.api.tasks import router as tasks_router
 from app.api.pvp import router as pvp_router
+from app.api.profile import router as profile_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -37,6 +38,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(tasks_router)
 app.include_router(pvp_router)
+app.include_router(profile_router)
 
 
 

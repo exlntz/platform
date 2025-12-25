@@ -5,15 +5,18 @@ from datetime import datetime
 
 class UserModel(Model):
     __tablename__ = 'users'
+
     id: Mapped[int] = mapped_column(primary_key=True,init=False)
     username: Mapped[str] = mapped_column(unique=True,index=True)
     email: Mapped[str] = mapped_column(unique=True,index=True)
     hashed_password: Mapped[str] = mapped_column()
     rating: Mapped[float] = mapped_column(default=1000.0)
+    created_at: datetime = mapped_column(server_default=func.now(),init=False)
 
 
 class TaskModel(Model):
     __tablename__ = 'tasks'
+
     id: Mapped[int] = mapped_column(primary_key=True,init=False)
     title: Mapped[str] = mapped_column(index=True)
     description: Mapped[str] = mapped_column(Text)

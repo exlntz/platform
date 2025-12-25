@@ -4,7 +4,7 @@ from typing import Annotated
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-DATABASE_URL = "sqlite+aiosqlite:///tasks.db"
+DATABASE_URL = "sqlite+aiosqlite:///DB_MAIN.db"
 
 
 engine = create_async_engine(DATABASE_URL)

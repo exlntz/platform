@@ -1,10 +1,13 @@
-from fastapi import APIRouter,HTTPException,status
+from fastapi import APIRouter,HTTPException,status,Depends
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select
+from typing import Annotated
+
 from app.database import SessionDep
 from app.models import UserModel
 from app.security import get_password_hash,is_password_correct,create_access_token
-from app.schemas.user import UserRegister,UserLogin,Token
+from app.schemas.user import UserRegister,Token
 
 router=APIRouter(prefix='/auth',tags=['Авторизация'])
 
@@ -34,43 +37,20 @@ async def register_user(new_user: UserRegister,session: SessionDep):
 
 
 @router.post('/login')
-async def login_user(user_data: UserLogin,session: SessionDep) -> Token:
-    query=select(UserModel).where(UserModel.email == str(user_data.email))
+async def login_user(
+        session: SessionDep,
+        form_data: Annotated[OAuth2PasswordRequestForm,Depends()]
+) -> Token:
+    query=select(UserModel).where(UserModel.username == str(form_data.username))
     result=await session.execute(query)
     user=result.scalar_one_or_none()
-    if not user or not is_password_correct(user_data.password,user.hashed_password):
+    if not user or not is_password_correct(form_data.password,user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail='Неверная почта или пароль!'
         )
-    token=create_access_token(data={'sub': user.email})
+    token=create_access_token(data={'sub': user.username})
 
     return Token(access_token=token,token_type='bearer')
 
 
-@router.get('/login/{name}')
-async def get_user_by_name(
-        name: str,
-        session: SessionDep
-):
-    """
-    Пример функции для поиска пользователя по имени из URL.
-    """
-    # 1. Формируем запрос: "Выбрать всё из таблицы User, где поле username равно нашему name"
-    query = select(UserModel).where(UserModel.username == name)
-
-    # 2. Выполняем запрос в базу данных
-    result = await session.execute(query)
-
-    # 3. Извлекаем первого найденного пользователя или None
-    user = result.scalar_one_or_none()
-
-    # 4. Если пользователь не найден — выдаем ошибку 404 (как на твоем скрине)
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User with name '{name}' not found"
-        )
-
-    # 5. Возвращаем данные пользователя фронтенду
-    return user
