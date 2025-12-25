@@ -23,7 +23,11 @@ async def lifespan(app: FastAPI):
 app=FastAPI(title='Платформа для подготовки к олимпиадам',version='666.666.666',lifespan=lifespan)
 
 
-origins=['*']
+origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+]
 
 
 app.add_middleware(
