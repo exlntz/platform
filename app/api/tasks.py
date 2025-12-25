@@ -4,7 +4,7 @@ from sqlalchemy import select
 from app.database import SessionDep
 from app.models import TaskModel, AttemptModel,UserModel
 from app.schemas.task import TaskRead,TaskCreate, AnswerCheckRequest, AnswerCheckResponse
-from app.dependencies import get_current_user
+from app.token_to_userdata import get_current_user
 
 
 router=APIRouter(prefix='/tasks',tags=['Задачи'])
