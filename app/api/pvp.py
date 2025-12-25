@@ -29,7 +29,7 @@ async def add_player(entry: QueueEntry):
 
 
 async def remove_player(entry: QueueEntry):
-    print('removing',QueueEntry)
+    print('removing',entry)
     async with _queue_lock:
         if entry.user_id not in index:
             return
@@ -83,32 +83,53 @@ async def join_match(session: SessionDep, websocket: WebSocket):
 
 
 async def start_match(player1: QueueEntry, player2: QueueEntry):
+    ws1 = player1._ws
+    ws2 = player2._ws
+    await ws1.send_text(f"Match started {player1.user_id}")
+    await ws2.send_text(f"Match started {player2.user_id}")
     return
 
 #ЗАКОМЕНТИЛ ЧТОБЫ КОД НЕ ВЫДАВАЛ ОШИБОК
-# async def match_players():
-#     if not queue: return
-#     global queue
-#     pairs = [] # найденные пары оппонентов
-#     newqueue = []
-#     async with _queue_lock:
-#         l=len(queue)
-#         i=0
-#         while i < l-1:
-#             if queue[i+1].rating - queue[i].rating < 100:
-#                 pairs.append((queue[i],queue[i+1]))
-#                 i+=2
-#             else:
-#                 newqueue.append(queue[i])
-#                 i+=1
-#         if i == l-1:
-#             newqueue.append(queue[i])
-#         queue = newqueue
-#
-#     for p in pairs:
-#         start_match(p[0],p[1])
-#
-#
+async def match_players():
+    global queue
+    global index
+    async with _queue_lock:
+        if not queue: return
+        pairs = [] # найденные пары оппонентов
+        newqueue = []
+        newindex = dict()
+        l = len(queue)
+        i = 0
+        while i < l-1:
+            if queue[i+1].rating - queue[i].rating < 100:
+                pairs.append((queue[i],queue[i+1]))
+                i+=2
+            else:
+                newqueue.append(queue[i])
+                newindex[queue[i].user_id] = queue[i]
+                i+=1
+        if i == l-1:
+            newqueue.append(queue[i])
+            newindex[queue[i].user_id] = queue[i]
+        queue = newqueue
+        index = newindex
+
+    for p in pairs:
+        asyncio.create_task(start_match(p[0], p[1]))
+
+
+async def matchmaking_loop():
+    while True:
+        try:
+            await match_players()
+        except Exception as e:
+            print(e)
+        await asyncio.sleep(3)
+
+# при запуске начинаем постоянно подбирать всем матчи
+@router.on_event("startup")
+async def start_matchmaking():
+    asyncio.create_task(matchmaking_loop())
 
 
 # всё снизу для тестирования
