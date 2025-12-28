@@ -1,0 +1,26 @@
+services:
+  db:
+    image: postgres:18
+    container_name: db_platform_container
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASS} # Берет пароль из твоего .env
+      POSTGRES_DB: DB_PLATFORM     # Твое название базы
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  app:
+    build: .
+    container_name: fastapi_app
+    ports:
+      - "8000:8000" # Пробрасываем порт
+    env_file:
+      - .env
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:
