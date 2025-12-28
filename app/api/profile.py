@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select, func, Integer
 from app.database import SessionDep
 from app.models import UserModel, AttemptModel
-from app.token_to_userdata import get_current_user
+from app.dependencies import get_current_user
 from app.schemas.user import FullProfileResponse, UserProfile, UserStats
 
 router = APIRouter(prefix='/profile',tags=['Профиль'])
