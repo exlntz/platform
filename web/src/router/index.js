@@ -16,6 +16,7 @@ const router = createRouter({
       // this generates a separate chunk (About.[hash].js) for this route
       // which is lazy-loaded when the route is visited.
       component: () => import('../views/ProfileView.vue'),
+      meta: { requiresAuth: true},
     },
     {
       path: '/tasks',
@@ -24,6 +25,7 @@ const router = createRouter({
       // this generates a separate chunk (About.[hash].js) for this route
       // which is lazy-loaded when the route is visited.
       component: () => import('../views/TasksView.vue'),
+      meta: { requiresAuth: true},
     },
     {
       path: '/tasks/:id',
@@ -32,6 +34,7 @@ const router = createRouter({
       // this generates a separate chunk (About.[hash].js) for this route
       // which is lazy-loaded when the route is visited.
       component: () => import('../views/TaskView.vue'),
+      meta: { requiresAuth: true},
     },
     {
       path: '/pvp',
@@ -40,6 +43,7 @@ const router = createRouter({
       // this generates a separate chunk (About.[hash].js) for this route
       // which is lazy-loaded when the route is visited.
       component: () => import('../views/PvpView.vue'),
+      meta: { requiresAuth: true},
     },
     {
       path: '/auth',
@@ -60,4 +64,12 @@ const router = createRouter({
   ],
 })
 
+router.beforeEach((to, from, next) => {
+  const token = localStorage.getItem('user-token')
+  if (to.meta.requiresAuth && !token) {
+    next('/auth/login')
+  } else {
+    next()
+  }
+})
 export default router
