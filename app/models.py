@@ -3,6 +3,7 @@ from app.database import Model
 from sqlalchemy import Text, ForeignKey, func
 from datetime import datetime
 
+
 class UserModel(Model):
     __tablename__ = 'users'
 
@@ -11,6 +12,7 @@ class UserModel(Model):
     email: Mapped[str] = mapped_column(unique=True,index=True)
     hashed_password: Mapped[str] = mapped_column()
     rating: Mapped[float] = mapped_column(default=1000.0)
+    is_admin: Mapped[bool] = mapped_column(default=False)
     created_at: datetime = mapped_column(server_default=func.now(),init=False)
 
 
