@@ -5,7 +5,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from contextlib import asynccontextmanager
-from app.database import engine,Model
 from app.api.auth import router as auth_router
 from app.api.tasks import router as tasks_router
 from app.api.pvp import router as pvp_router
@@ -14,10 +13,8 @@ from app.api.leaderboard import router as leaderboard_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with engine.begin() as conn:
-        await conn.run_sync(Model.metadata.create_all)
-
-    print('База данных готова')
+    # Теперь здесь не нужно вызывать Model.metadata.create_all
+    print('Приложение запущено, база данных управляется через Alembic')
     yield
     print('Выключение сервера')
 

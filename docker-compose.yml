@@ -1,12 +1,12 @@
 services:
   db:
-    image: postgres:18
+    image: postgres:17-alpine # Используем стабильную 17-ю версию
     container_name: db_platform_container
     restart: always
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${DB_PASS} # Берет пароль из твоего .env
-      POSTGRES_DB: DB_PLATFORM     # Твое название базы
+      POSTGRES_USER: ${DB_USER}     # Берем из .env
+      POSTGRES_PASSWORD: ${DB_PASS} # Берем из .env
+      POSTGRES_DB: ${DB_NAME}       # Берем из .env
     ports:
       - "5432:5432"
     volumes:
@@ -16,7 +16,9 @@ services:
     build: .
     container_name: fastapi_app
     ports:
-      - "8000:8000" # Пробрасываем порт
+      - "8000:8000"
+    volumes:
+      - .:/app # СВЯЗЫВАЕМ ПАПКИ (Windows <-> Docker)
     env_file:
       - .env
     depends_on:
