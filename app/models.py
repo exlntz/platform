@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Mapped,mapped_column
 from app.database import Model
-from sqlalchemy import Text, ForeignKey, func
+from sqlalchemy import Text, ForeignKey, func, Enum as SQLEnum
 from datetime import datetime
 from enum import Enum
 
@@ -29,8 +29,9 @@ class TaskModel(Model):
     description: Mapped[str] = mapped_column(Text)
     subject: Mapped[str] = mapped_column(index=True)
     theme: Mapped[str] = mapped_column(index=True)
-    difficulty: Mapped[DifficultyLevel] = mapped_column(index=True,default=DifficultyLevel.easy)
     correct_answer: Mapped[str] = mapped_column()
+    difficulty: Mapped[DifficultyLevel] = mapped_column(SQLEnum(DifficultyLevel,native_enum=False),default=DifficultyLevel.easy,index=True)
+
 
 
 class AttemptModel(Model):

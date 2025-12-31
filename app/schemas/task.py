@@ -1,11 +1,12 @@
 from pydantic import BaseModel
+from app.models import DifficultyLevel
 
 class TaskBase(BaseModel):
     title: str
     description: str
     subject: str
     theme: str
-    difficulty: str
+    difficulty: DifficultyLevel
 
 class TaskRead(TaskBase): # 1. Наследуем (оставляем старые поля)
     id: int               # 2. Приписываем новое поле (id)
