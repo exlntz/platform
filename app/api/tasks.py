@@ -61,7 +61,7 @@ async def check_task_answer(
     result = await session.execute(query)
     task = result.scalar_one_or_none()
 
-    if not task:
+    if task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail='Задача не найдена')
 
     is_correct = task.correct_answer.strip().lower() == user_data.answer.strip().lower()
@@ -85,3 +85,18 @@ async def check_task_answer(
             is_correct=False,
             message='Неверно! Попробуй еще раз.'
         )
+
+
+@router.get('/{task_id}')
+async def get_task_by_id(
+        task_id: int,
+        session: SessionDep
+) -> TaskRead:
+    query = select(TaskModel).where(TaskModel.id == task_id)
+    result = await session.execute(query)
+    task = result.scalar_one_or_none()
+
+    if task is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail='Задача не найдена')
+
+    return task
