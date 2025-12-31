@@ -1,12 +1,12 @@
 services:
   db:
-    image: postgres:17-alpine # Используем стабильную 17-ю версию
+    image: postgres:17-alpine
     container_name: db_platform_container
     restart: always
     environment:
-      POSTGRES_USER: ${DB_USER}     # Берем из .env
-      POSTGRES_PASSWORD: ${DB_PASS} # Берем из .env
-      POSTGRES_DB: ${DB_NAME}       # Берем из .env
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: ${DB_NAME}
     ports:
       - "5432:5432"
     volumes:
@@ -18,11 +18,24 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - .:/app # СВЯЗЫВАЕМ ПАПКИ (Windows <-> Docker)
+      - .:/app
     env_file:
       - .env
     depends_on:
       - db
+
+  # НОВЫЙ СЕРВИС ДЛЯ ФРОНТЕНДА
+  web:
+    build: ./web
+    container_name: vue_frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./web:/app
+      # Игнорируем node_modules в контейнере, чтобы не было конфликтов с Windows
+      - /app/node_modules
+    depends_on:
+      - app
 
 volumes:
   postgres_data:
