@@ -50,7 +50,3 @@ async def home() -> str:
     return 'главная страница'
 
 
-
-
-if __name__=='__main__':
-    uvicorn.run('main:app',reload=True)
