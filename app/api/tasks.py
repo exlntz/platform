@@ -5,6 +5,7 @@ from app.database import SessionDep
 from app.models import TaskModel, AttemptModel,UserModel
 from app.schemas.task import TaskRead,TaskCreate, AnswerCheckRequest, AnswerCheckResponse
 from app.dependencies import get_current_user
+from app.models import DifficultyLevel
 
 
 router=APIRouter(prefix='/tasks',tags=['Задачи'])
@@ -13,7 +14,7 @@ router=APIRouter(prefix='/tasks',tags=['Задачи'])
 async def get_tasks(
         session: SessionDep,
         subject: str | None = None,
-        difficulty: str | None = None
+        difficulty: DifficultyLevel | None = None
 
 ) -> list[TaskRead]:
     query= select(TaskModel)

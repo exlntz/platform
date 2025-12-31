@@ -2,7 +2,12 @@ from sqlalchemy.orm import Mapped,mapped_column
 from app.database import Model
 from sqlalchemy import Text, ForeignKey, func
 from datetime import datetime
+from enum import Enum
 
+class DifficultyLevel(str, Enum):
+    easy = 'easy'
+    medium = 'medium'
+    hard = 'hard'
 
 class UserModel(Model):
     __tablename__ = 'users'
@@ -24,7 +29,7 @@ class TaskModel(Model):
     description: Mapped[str] = mapped_column(Text)
     subject: Mapped[str] = mapped_column(index=True)
     theme: Mapped[str] = mapped_column(index=True)
-    difficulty: Mapped[str] = mapped_column(index=True)
+    difficulty: Mapped[DifficultyLevel] = mapped_column(index=True,default=DifficultyLevel.easy)
     correct_answer: Mapped[str] = mapped_column()
 
 
