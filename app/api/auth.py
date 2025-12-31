@@ -12,7 +12,7 @@ from app.schemas.user import UserRegister,Token
 router=APIRouter(prefix='/auth',tags=['Авторизация'])
 
 
-@router.post('/register')
+@router.post('/register',summary='Регистрация')
 async def register_user(new_user: UserRegister,session: SessionDep):
     hashed_pass=get_password_hash(new_user.password)
 
@@ -36,7 +36,7 @@ async def register_user(new_user: UserRegister,session: SessionDep):
     return {"status": "ok", "message": "Регистрация прошла успешно!"}
 
 
-@router.post('/login')
+@router.post('/login',summary='Логин')
 async def login_user(
         session: SessionDep,
         form_data: Annotated[OAuth2PasswordRequestForm,Depends()]

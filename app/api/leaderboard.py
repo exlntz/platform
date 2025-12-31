@@ -6,7 +6,7 @@ from app.schemas.user import LeaderboardPlayer
 
 router = APIRouter(prefix='/leaderboard',tags=['Таблица лидеров'])
 
-@router.get('/')
+@router.get('/',summary='Таблица лидеров',description='Вывод первых 10 пользователей с наибольшим рейтингом')
 async def get_leaderboard(
         session: SessionDep,
         limit: int = 10

@@ -14,7 +14,7 @@ from app.dependencies import AdminDep
 
 router=APIRouter(prefix='/tasks',tags=['Задачи'])
 
-@router.get('/')
+@router.get('/',summary='Получить задачи',description='Возвращает задачи в соответствии с фильтрами')
 async def get_tasks(
         session: SessionDep,
         subject: str | None = None,
@@ -35,7 +35,7 @@ async def get_tasks(
 
     return tasks # FastAPI превратит это в [TaskRead, TaskRead...]
 
-@router.post('/')
+@router.post('/',summary='Создать задачу (для админов)')
 async def create_task(
         new_task: TaskCreate,
         session: SessionDep,
@@ -57,7 +57,7 @@ async def create_task(
 
 
 
-@router.get('/export')
+@router.get('/export',summary='Экспорт задач (для админов)',description='Получение JSON файла со всеми задачами')
 async def export_tasks(
         admin: AdminDep,
         session: SessionDep
@@ -88,7 +88,7 @@ async def export_tasks(
 
 
 
-@router.post('/import')
+@router.post('/import',summary='Импорт задач (для админов)',description='Импорт задач. Если задача с таким названием существует, то обновляем ее, если нет, то создаем новую')
 async def import_tasks(
         session: SessionDep,
         admin: AdminDep,
@@ -99,27 +99,54 @@ async def import_tasks(
 
     try:
         content = await file.read()
-        tasks = json.loads(content)
+        data = json.loads(content)
 
-        if not isinstance(tasks,list):
+        if not isinstance(data,list):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail='Ожидался список задач')
 
-        count_new_tasks = 0
-        for item in tasks:
-            task = TaskModel(
-                title=item.get("title"),
-                description=item.get("description"),
-                subject=item.get("subject"),
-                theme=item.get("theme"),
-                difficulty=item.get("difficulty"),
-                correct_answer=item.get("correct_answer")
-            )
-            session.add(task)
-            count_new_tasks+=1
+
+        incoming_titles = [item.get("title") for item in data if item.get("title")]
+
+        query = select(TaskModel).where(TaskModel.title.in_(incoming_titles))
+        result = await session.execute(query)
+        existing_tasks = {t.title: t for t in result.scalars().all()}
+
+        created_count = 0
+        updated_count = 0
+
+
+        for item in data:
+            title = item.get('title')
+            if not title:
+                continue
+
+            if title in existing_tasks:
+                task = existing_tasks[title]
+                task.description = item.get("description", task.description)
+                task.subject = item.get("subject", task.subject)
+                task.theme = item.get("theme", task.theme)
+                task.difficulty = item.get("difficulty", task.difficulty)
+                task.correct_answer = item.get("correct_answer", task.correct_answer)
+                updated_count += 1
+            else:
+                new_task = TaskModel(
+                    title=title,
+                    description=item.get("description"),
+                    subject=item.get("subject"),
+                    theme=item.get("theme"),
+                    difficulty=item.get("difficulty"),
+                    correct_answer=item.get("correct_answer")
+                )
+                session.add(new_task)
+                created_count += 1
 
         await session.commit()
 
-        return {'message': f'Успешно импортировано задач: {count_new_tasks}'}
+        return {
+            "message": "Импорт завершен успешно",
+            "created": created_count,
+            "updated": updated_count
+        }
 
     except json.JSONDecodeError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ошибка в структуре JSON-файла")
@@ -129,7 +156,7 @@ async def import_tasks(
 
 
 
-@router.post('/{task_id}/check') #проверка правильного ответа
+@router.post('/{task_id}/check',summary='Проверка правильного ответа по id задачи')
 async def check_task_answer(
         task_id: int,
         user_data: AnswerCheckRequest,
@@ -166,7 +193,7 @@ async def check_task_answer(
         )
 
 
-@router.get('/{task_id}')
+@router.get('/{task_id}',summary='Получение задачи по ее id')
 async def get_task_by_id(
         task_id: int,
         session: SessionDep

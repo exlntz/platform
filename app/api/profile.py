@@ -8,7 +8,7 @@ from app.schemas.user import FullProfileResponse, UserProfile, UserStats
 
 router = APIRouter(prefix='/profile',tags=['Профиль'])
 
-@router.get('/',description='Возвращает данные пользователя и его статистику в одном структурированном ответе.')
+@router.get('/',summary='Профиль пользователя',description='Возвращает данные пользователя и его статистику в одном структурированном ответе.')
 async def get_full_profile(
         session: SessionDep,
         current_user: Annotated[UserModel,Depends(get_current_user)]
