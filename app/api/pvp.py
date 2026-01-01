@@ -1,12 +1,11 @@
-from fastapi import APIRouter,HTTPException,status,WebSocket
+from fastapi import APIRouter, WebSocket
 import asyncio
 import jwt
 from sqlalchemy import select
 from app.schemas.matchmaking import QueueEntry
-from app.database import SessionDep
-from app.security import SECRET_KEY
+from app.core.database import SessionDep
+from app.core.security import SECRET_KEY
 from app.models import UserModel
-from app.schemas.user import Token
 import time
 import bisect
 

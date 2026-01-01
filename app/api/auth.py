@@ -4,9 +4,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select
 from typing import Annotated
 
-from app.database import SessionDep
+from app.core.database import SessionDep
 from app.models import UserModel
-from app.security import get_password_hash,is_password_correct,create_access_token
+from app.core.security import get_password_hash,is_password_correct,create_access_token
 from app.schemas.user import UserRegister,Token
 
 router=APIRouter(prefix='/auth',tags=['Авторизация'])

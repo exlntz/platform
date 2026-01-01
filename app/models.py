@@ -1,13 +1,22 @@
 from sqlalchemy.orm import Mapped,mapped_column
-from app.database import Model
+from app.core.database import Model
 from sqlalchemy import Text, ForeignKey, func, Enum as SQLEnum
 from datetime import datetime
 from enum import Enum
 
 class DifficultyLevel(str, Enum):
-    easy = 'easy'
-    medium = 'medium'
-    hard = 'hard'
+    easy = 'Easy'
+    medium = 'Medium'
+    hard = 'Hard'
+
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value,str):
+            v_lower = value.lower()
+            for member in cls:
+                if member.value.lower() == v_lower:
+                    return member
+        return None
 
 class UserModel(Model):
     __tablename__ = 'users'

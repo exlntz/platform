@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.database import SessionDep
+from app.core.database import SessionDep
 from sqlalchemy import select
 from app.models import UserModel
 from app.schemas.user import LeaderboardPlayer

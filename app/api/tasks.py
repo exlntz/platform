@@ -3,7 +3,7 @@ import json
 from fastapi import APIRouter,HTTPException,status,Depends,Response,File,UploadFile
 from typing import Annotated
 from sqlalchemy import select
-from app.database import SessionDep
+from app.core.database import SessionDep
 from app.models import TaskModel, AttemptModel,UserModel
 from app.schemas.task import TaskRead,TaskCreate, AnswerCheckRequest, AnswerCheckResponse
 from app.dependencies import get_current_user
@@ -46,7 +46,7 @@ async def create_task(
         description=new_task.description,
         subject=new_task.subject,
         theme=new_task.theme,
-        difficulty=new_task.difficulty,
+        difficulty=new_task.difficulty.capitalize(),
         correct_answer=new_task.correct_answer)
 
     session.add(task_db)
@@ -120,12 +120,18 @@ async def import_tasks(
             if not title:
                 continue
 
+            raw_difficulty = item.get('difficulty')
+            clean_difficulty = raw_difficulty.capitalize() if raw_difficulty else None
+
             if title in existing_tasks:
                 task = existing_tasks[title]
                 task.description = item.get("description", task.description)
                 task.subject = item.get("subject", task.subject)
                 task.theme = item.get("theme", task.theme)
-                task.difficulty = item.get("difficulty", task.difficulty)
+
+                if raw_difficulty:
+                    task.difficulty = clean_difficulty
+
                 task.correct_answer = item.get("correct_answer", task.correct_answer)
                 updated_count += 1
             else:
@@ -134,7 +140,7 @@ async def import_tasks(
                     description=item.get("description"),
                     subject=item.get("subject"),
                     theme=item.get("theme"),
-                    difficulty=item.get("difficulty"),
+                    difficulty=clean_difficulty,
                     correct_answer=item.get("correct_answer")
                 )
                 session.add(new_task)
