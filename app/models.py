@@ -27,6 +27,7 @@ class UserModel(Model):
     hashed_password: Mapped[str] = mapped_column()
     rating: Mapped[float] = mapped_column(default=1000.0)
     is_admin: Mapped[bool] = mapped_column(default=False)
+    is_banned: Mapped[bool] = mapped_column(default=False)
     created_at: datetime = mapped_column(server_default=func.now(),init=False)
 
 
