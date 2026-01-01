@@ -31,6 +31,9 @@ async def get_current_user(
     result = await session.execute(query)
     user = result.scalar_one_or_none()
 
+    if user.is_banned:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,detail='Ваш аккаунт заблокирован.')
+
     if not user:
         raise unauthorized_error
     return user
