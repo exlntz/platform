@@ -42,6 +42,12 @@ const router = createRouter({
       // Оставляем без requiresAuth, чтобы рейтинг был доступен всем
     },
     {
+      path: '/admin',
+      name: 'admin',
+      component: () => import('../views/AdminView.vue'),
+      meta: {requiresAuth: true} // Можно добавить проверку роли внутри компонента
+    },
+    {
       path: '/auth',
       name: 'auth',
       component: () => import('../views/AuthView.vue'),

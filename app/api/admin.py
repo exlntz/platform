@@ -5,6 +5,7 @@ from app.models import UserModel, TaskModel, AttemptModel
 from app.schemas.admin_schemas import UserAdminRead, AdminDashboardStats
 from app.dependencies import AdminDep
 from datetime import datetime, timedelta
+from app.schemas.task import TaskAdminRead
 
 
 router = APIRouter(prefix='/admin',tags=['Админ панель'])
@@ -49,7 +50,7 @@ async def ban_user(
     return {'message': f'Пользователь {user.username} {status_text}'}
 
 
-@router.patch('users/{user_id}/role',summary='Изменить роль пользователя (для админов)')
+@router.patch('/users/{user_id}/role',summary='Изменить роль пользователя (для админов)')
 async def change_role(
         user_id: int,
         session: SessionDep,
@@ -100,3 +101,17 @@ async def get_admin_stats(
         new_users_24h=new_users,
         most_popular_subject=popular_subject
     )
+
+
+@router.get('/tasks/{task_id}', summary='Получить полную задачу с ответом (для админов)')
+async def get_admin_task_details(
+        task_id: int,
+        session: SessionDep,
+        admin: AdminDep
+) -> TaskAdminRead:
+    task = await session.get(TaskModel, task_id)
+
+    if not task:
+        raise HTTPException(status_code=404, detail='Задача не найдена')
+
+    return TaskAdminRead.model_validate(task)

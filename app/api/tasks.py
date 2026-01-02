@@ -199,7 +199,7 @@ async def check_task_answer(
         )
 
 
-@router.get('/{task_id}',summary='Получение задачи по ее id')
+@router.get('/{task_id}',summary='Получение задачи по ее id без ответа')
 async def get_task_by_id(
         task_id: int,
         session: SessionDep
@@ -212,3 +212,45 @@ async def get_task_by_id(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail='Задача не найдена')
 
     return task
+
+
+@router.delete('/{task_id}', summary='Удалить задачу (для админов)')
+async def delete_task(
+        task_id: int,
+        session: SessionDep,
+        admin: AdminDep
+):
+    task = await session.get(TaskModel, task_id)
+
+    if not task:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail='Задача не найдена')
+
+    await session.delete(task)
+    await session.commit()
+
+    return {'message': f'Задача #{task_id} успешно удалена'}
+
+
+@router.patch('/{task_id}', summary='Редактировать задачу (для админов)')
+async def update_task(
+        task_id: int,
+        task_update: TaskCreate,
+        session: SessionDep,
+        admin: AdminDep
+) -> TaskRead:
+    task = await session.get(TaskModel, task_id)
+
+    if not task:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Задача не найдена")
+
+    task.title = task_update.title
+    task.description = task_update.description
+    task.subject = task_update.subject
+    task.theme = task_update.theme
+    task.difficulty = task_update.difficulty.capitalize()
+    task.correct_answer = task_update.correct_answer
+
+    await session.commit()
+    await session.refresh(task)
+
+    return TaskRead.model_validate(task)
