@@ -43,6 +43,14 @@ onMounted(() => {
         >
           PvP Дуэли
         </RouterLink>
+
+        <RouterLink
+          to="/leaderboard"
+          active-class="text-indigo-600"
+          class="text-sm font-bold text-slate-500 hover:text-indigo-600 transition-colors flex items-center gap-1.5"
+        >
+          <span>🏆</span> Рейтинг
+        </RouterLink>
       </div>
 
       <div class="flex items-center gap-x-4">
@@ -76,7 +84,3 @@ onMounted(() => {
     <RouterView />
   </main>
 </template>
-
-<style scoped>
-/* Благодаря Tailwind 4 и CDN дополнительные стили не нужны */
-</style>
