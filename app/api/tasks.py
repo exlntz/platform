@@ -1,20 +1,16 @@
-import json
-
-from fastapi import APIRouter,HTTPException,status,Depends,Response,File,UploadFile
+from fastapi import APIRouter,HTTPException,status,Depends
 from typing import Annotated
 from sqlalchemy import select
 from app.core.database import SessionDep
 from app.models import TaskModel, AttemptModel,UserModel
-from app.schemas.task import TaskRead,TaskCreate, AnswerCheckRequest, AnswerCheckResponse
+from app.schemas.task import TaskRead, AnswerCheckRequest, AnswerCheckResponse
 from app.dependencies import get_current_user
 from app.models import DifficultyLevel
-from json import dumps
-from app.dependencies import AdminDep
 
 
 router=APIRouter(prefix='/tasks',tags=['Задачи'])
 
-@router.get('/',summary='Получить задачи',description='Возвращает задачи в соответствии с фильтрами')
+@router.get('/',summary='Получить все задачи',description='Возвращает задачи в соответствии с фильтрами')
 async def get_tasks(
         session: SessionDep,
         subject: str | None = None,
@@ -34,131 +30,6 @@ async def get_tasks(
     tasks = result.scalars().all() # Здесь мы получаем [TaskModel, TaskModel...]
 
     return tasks # FastAPI превратит это в [TaskRead, TaskRead...]
-
-@router.post('/',summary='Создать задачу (для админов)')
-async def create_task(
-        new_task: TaskCreate,
-        session: SessionDep,
-        admin: AdminDep
-) -> TaskRead:
-    task_db=TaskModel(
-        title=new_task.title,
-        description=new_task.description,
-        subject=new_task.subject,
-        theme=new_task.theme,
-        difficulty=new_task.difficulty.capitalize(),
-        correct_answer=new_task.correct_answer)
-
-    session.add(task_db)
-    await session.commit()
-    await session.refresh(task_db)
-
-    return TaskRead.model_validate(task_db)
-
-
-
-@router.get('/export',summary='Экспорт задач (для админов)',description='Получение JSON файла со всеми задачами')
-async def export_tasks(
-        admin: AdminDep,
-        session: SessionDep
-):
-    query=select(TaskModel)
-    result = await session.execute(query)
-    tasks = result.scalars().all()
-
-    export_data = [
-        {
-            "title": t.title,
-            "description": t.description,
-            "subject": t.subject,
-            "theme": t.theme,
-            "difficulty": t.difficulty,
-            "correct_answer": t.correct_answer
-        } for t in tasks
-    ]
-
-    content = dumps(export_data,ensure_ascii=False,indent=4)
-
-    return Response(
-        content=content,
-        media_type='application/json',
-        headers={'Content-Disposition': 'attachment; filename="tasks_export.json"'}
-    )
-
-
-
-
-@router.post('/import',summary='Импорт задач (для админов)',description='Импорт задач. Если задача с таким названием существует, то обновляем ее, если нет, то создаем новую')
-async def import_tasks(
-        session: SessionDep,
-        admin: AdminDep,
-        file: UploadFile = File(...)
-):
-    if not file.filename.endswith('.json'):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail='Файл должен быть в формате JSON')
-
-    try:
-        content = await file.read()
-        data = json.loads(content)
-
-        if not isinstance(data,list):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail='Ожидался список задач')
-
-
-        incoming_titles = [item.get("title") for item in data if item.get("title")]
-
-        query = select(TaskModel).where(TaskModel.title.in_(incoming_titles))
-        result = await session.execute(query)
-        existing_tasks = {t.title: t for t in result.scalars().all()}
-
-        created_count = 0
-        updated_count = 0
-
-
-        for item in data:
-            title = item.get('title')
-            if not title:
-                continue
-
-            raw_difficulty = item.get('difficulty')
-            clean_difficulty = raw_difficulty.capitalize() if raw_difficulty else None
-
-            if title in existing_tasks:
-                task = existing_tasks[title]
-                task.description = item.get("description", task.description)
-                task.subject = item.get("subject", task.subject)
-                task.theme = item.get("theme", task.theme)
-
-                if raw_difficulty:
-                    task.difficulty = clean_difficulty
-
-                task.correct_answer = item.get("correct_answer", task.correct_answer)
-                updated_count += 1
-            else:
-                new_task = TaskModel(
-                    title=title,
-                    description=item.get("description"),
-                    subject=item.get("subject"),
-                    theme=item.get("theme"),
-                    difficulty=clean_difficulty,
-                    correct_answer=item.get("correct_answer")
-                )
-                session.add(new_task)
-                created_count += 1
-
-        await session.commit()
-
-        return {
-            "message": "Импорт завершен успешно",
-            "created": created_count,
-            "updated": updated_count
-        }
-
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ошибка в структуре JSON-файла")
-    except Exception as e:
-        await session.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Произошла ошибка при импорте: {str(e)}")
 
 
 
@@ -214,43 +85,3 @@ async def get_task_by_id(
     return task
 
 
-@router.delete('/{task_id}', summary='Удалить задачу (для админов)')
-async def delete_task(
-        task_id: int,
-        session: SessionDep,
-        admin: AdminDep
-):
-    task = await session.get(TaskModel, task_id)
-
-    if not task:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail='Задача не найдена')
-
-    await session.delete(task)
-    await session.commit()
-
-    return {'message': f'Задача #{task_id} успешно удалена'}
-
-
-@router.patch('/{task_id}', summary='Редактировать задачу (для админов)')
-async def update_task(
-        task_id: int,
-        task_update: TaskCreate,
-        session: SessionDep,
-        admin: AdminDep
-) -> TaskRead:
-    task = await session.get(TaskModel, task_id)
-
-    if not task:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Задача не найдена")
-
-    task.title = task_update.title
-    task.description = task_update.description
-    task.subject = task_update.subject
-    task.theme = task_update.theme
-    task.difficulty = task_update.difficulty.capitalize()
-    task.correct_answer = task_update.correct_answer
-
-    await session.commit()
-    await session.refresh(task)
-
-    return TaskRead.model_validate(task)

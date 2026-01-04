@@ -1,9 +1,9 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue' // Добавили computed
 import axios from 'axios'
 
 // --- СОСТОЯНИЕ ---
-const currentTab = ref('dashboard') // 'dashboard' | 'users' | 'tasks'
+const currentTab = ref('dashboard')
 const accessDenied = ref(false)
 const loading = ref(false)
 const showTaskModal = ref(false)
@@ -12,6 +12,10 @@ const fileInput = ref(null)
 // --- НОВОЕ ДЛЯ РЕДАКТИРОВАНИЯ ---
 const isEditMode = ref(false)
 const currentEditId = ref(null)
+
+// --- НОВОЕ ДЛЯ СОРТИРОВКИ ---
+const sortKey = ref('id') // По умолчанию сортируем по ID
+const sortOrder = ref('asc') // По возрастанию (1, 2, 3...)
 
 // Данные
 const stats = ref({
@@ -36,6 +40,48 @@ const taskForm = ref({
 
 const difficultyOptions = ['Easy', 'Medium', 'Hard']
 const subjectOptions = ['Математика', 'Информатика', 'Физика', 'Алгоритмы']
+
+// --- ЛОГИКА СОРТИРОВКИ ---
+// Эта функция автоматически пересчитывает список при изменении tasks, sortKey или sortOrder
+const sortedTasks = computed(() => {
+  return [...tasks.value].sort((a, b) => {
+    let modifier = sortOrder.value === 'asc' ? 1 : -1
+
+    // Получаем значения для сравнения
+    let valA = a[sortKey.value]
+    let valB = b[sortKey.value]
+
+    // Если сортируем по сложности, присваиваем веса
+    if (sortKey.value === 'difficulty') {
+      const weights = { 'Easy': 1, 'Medium': 2, 'Hard': 3 }
+      valA = weights[valA] || 0
+      valB = weights[valB] || 0
+    }
+
+    // Сравнение чисел (ID)
+    if (typeof valA === 'number' && typeof valB === 'number') {
+      return (valA - valB) * modifier
+    }
+
+    // Сравнение строк
+    if (typeof valA === 'string' && typeof valB === 'string') {
+      return valA.localeCompare(valB) * modifier
+    }
+
+    return 0
+  })
+})
+
+const sortBy = (key) => {
+  if (sortKey.value === key) {
+    // Если кликнули по той же колонке, меняем направление
+    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    // Если новая колонка, ставим сортировку по возрастанию
+    sortKey.value = key
+    sortOrder.value = 'asc'
+  }
+}
 
 // --- API ---
 const getAuthHeader = () => {
@@ -79,10 +125,6 @@ const toggleBan = async (user) => {
   } catch (err) { alert('Ошибка: ' + (err.response?.data?.detail || err.message)) }
 }
 
-/**
- * НОВОЕ: Смена роли пользователя (Админ/Юзер)
- * Вызывает эндпоинт PATCH /admin/users/{id}/role
- */
 const changeRole = async (user) => {
   const action = user.is_admin ? 'снять права администратора с' : 'сделать администратором'
   if (!confirm(`Вы уверены, что хотите ${action} ${user.username}?`)) return
@@ -97,6 +139,7 @@ const fetchTasks = async () => {
   if (accessDenied.value) return
   loading.value = true
   try {
+    // ВАЖНО: Мы получаем задачи как есть, а sortedTasks их отсортирует
     const response = await axios.get('http://127.0.0.1:8000/tasks/', getAuthHeader())
     tasks.value = response.data
   } catch (err) { handleApiError(err) }
@@ -111,27 +154,20 @@ const openCreateModal = () => {
   showTaskModal.value = true
 }
 
-// ИЗМЕНЕНО: Запрос теперь идет на защищенный админский эндпоинт для получения ответа
 const openEditModal = async (task) => {
   isEditMode.value = true
   currentEditId.value = task.id
-
-  // 1. Предварительно заполняем тем, что есть в таблице (чтобы интерфейс не "моргал")
   taskForm.value = { ...task }
   showTaskModal.value = true
-
-  // 2. Делаем безопасный запрос к админке за полными данными (включая correct_answer)
   try {
     const { data } = await axios.get(`http://127.0.0.1:8000/admin/tasks/${task.id}`, getAuthHeader())
-
-    // Обновляем форму полными данными, включая ответ
     taskForm.value = {
       title: data.title,
       description: data.description,
       subject: data.subject,
       theme: data.theme,
       difficulty: data.difficulty,
-      correct_answer: data.correct_answer // Теперь это поле точно заполнится
+      correct_answer: data.correct_answer
     }
   } catch (e) {
     console.error('Не удалось загрузить детали задачи', e)
@@ -141,16 +177,16 @@ const openEditModal = async (task) => {
   }
 }
 
-// Сохранение (Создание или Обновление)
+// Сохранение
 const saveTask = async () => {
   try {
     if (isEditMode.value) {
-      // PATCH запрос для обновления
-      await axios.patch(`http://127.0.0.1:8000/tasks/${currentEditId.value}`, taskForm.value, getAuthHeader())
+      // ИСПОЛЬЗУЕМ ПРАВИЛЬНЫЙ ЭНДПОИНТ (см. предыдущее обсуждение про admin.py)
+      // Если ты еще не перенес в admin.py, используй /tasks/, если перенес - /admin/tasks/
+      await axios.patch(`http://127.0.0.1:8000/admin/tasks/${currentEditId.value}`, taskForm.value, getAuthHeader())
       alert('Задача успешно обновлена!')
     } else {
-      // POST запрос для создания
-      await axios.post('http://127.0.0.1:8000/tasks/', taskForm.value, getAuthHeader())
+      await axios.post('http://127.0.0.1:8000/admin/tasks/', taskForm.value, getAuthHeader())
       alert('Задача успешно создана!')
     }
     showTaskModal.value = false
@@ -159,21 +195,19 @@ const saveTask = async () => {
   } catch (err) { handleApiError(err) }
 }
 
-// Метод удаления задачи
+// Удаление
 const deleteTask = async (taskId) => {
   if (!confirm(`Вы уверены, что хотите безвозвратно удалить задачу #${taskId}?`)) return
   try {
-    await axios.delete(`http://127.0.0.1:8000/tasks/${taskId}`, getAuthHeader())
-    // Обновляем локальный список
+    await axios.delete(`http://127.0.0.1:8000/admin/tasks/${taskId}`, getAuthHeader())
     tasks.value = tasks.value.filter(t => t.id !== taskId)
-    // Обновляем общую статистику
     fetchStats()
   } catch (err) { handleApiError(err) }
 }
 
 const exportTasks = async () => {
   try {
-    const response = await axios.get('http://127.0.0.1:8000/tasks/export', {
+    const response = await axios.get('http://127.0.0.1:8000/admin/tasks/export', {
       ...getAuthHeader(),
       responseType: 'blob'
     })
@@ -196,7 +230,7 @@ const handleImport = async (event) => {
   formData.append('file', file)
   try {
     loading.value = true
-    const response = await axios.post('http://127.0.0.1:8000/tasks/import', formData, {
+    const response = await axios.post('http://127.0.0.1:8000/admin/tasks/import', formData, {
       headers: { ...getAuthHeader().headers, 'Content-Type': 'multipart/form-data' }
     })
     alert(`Импорт завершен!\nСоздано: ${response.data.created}\nОбновлено: ${response.data.updated}`)
@@ -436,16 +470,25 @@ onMounted(() => {
           <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
               <thead>
-                <tr class="bg-slate-50/50 border-b border-slate-100 text-[10px] uppercase text-slate-400 font-black tracking-widest">
-                  <th class="px-8 py-5">ID</th>
-                  <th class="px-8 py-5">Задача</th>
-                  <th class="px-8 py-5">Предмет</th>
-                  <th class="px-8 py-5">Сложность</th>
+                <tr class="bg-slate-50/50 border-b border-slate-100 text-[10px] uppercase text-slate-400 font-black tracking-widest cursor-pointer select-none">
+                  <th @click="sortBy('id')" class="px-8 py-5 hover:bg-slate-100 transition-colors">
+                    ID <span v-if="sortKey === 'id'">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
+                  </th>
+                  <th @click="sortBy('title')" class="px-8 py-5 hover:bg-slate-100 transition-colors">
+                    Задача <span v-if="sortKey === 'title'">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
+                  </th>
+                  <th @click="sortBy('subject')" class="px-8 py-5 hover:bg-slate-100 transition-colors">
+                    Предмет <span v-if="sortKey === 'subject'">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
+                  </th>
+                  <th @click="sortBy('difficulty')" class="px-8 py-5 hover:bg-slate-100 transition-colors">
+                    Сложность <span v-if="sortKey === 'difficulty'">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
+                  </th>
+                  <th class="px-8 py-5">Ответ</th>
                   <th class="px-8 py-5 text-right">Действие</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-50">
-                <tr v-for="task in tasks" :key="task.id" class="hover:bg-slate-50 group transition-colors">
+                <tr v-for="task in sortedTasks" :key="task.id" class="hover:bg-slate-50 group transition-colors">
                   <td class="px-8 py-5 text-xs font-mono text-slate-300 font-bold">#{{ task.id }}</td>
                   <td class="px-8 py-5">
                     <p class="font-bold text-slate-900 text-sm line-clamp-1">{{ task.title }}</p>
@@ -465,6 +508,12 @@ onMounted(() => {
                     >
                       {{ task.difficulty }}
                     </span>
+                  </td>
+                  <td class="px-8 py-5">
+                    <code class="bg-slate-100 px-2 py-1 rounded text-xs text-slate-500 font-mono font-bold hidden group-hover:inline-block border border-slate-200">
+                      {{ task.correct_answer || '***' }}
+                    </code>
+                    <span class="text-xs text-slate-300 font-black tracking-widest group-hover:hidden">***</span>
                   </td>
                   <td class="px-8 py-5 text-right flex justify-end gap-2">
                     <button
