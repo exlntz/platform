@@ -10,3 +10,9 @@ class QueueEntry(BaseModel):
 
     def __lt__(self, other: "QueueEntry"):
         return (self.rating, self.joined_at) < (other.rating, other.joined_at)
+
+
+class AnswerEvent(BaseModel):
+    user_id: int
+    answer: str
+    ts: float # timestamp

@@ -1,14 +1,15 @@
 from fastapi import APIRouter, WebSocket
 import asyncio
 import jwt
-from sqlalchemy import select
-from app.schemas.matchmaking import QueueEntry
+from sqlalchemy import select, func
+from app.schemas.matchmaking import QueueEntry, AnswerEvent
 from app.core.database import SessionDep
 from app.core.security import SECRET_KEY
-from app.models import UserModel
+from app.models import UserModel, TaskModel
+from app.utils.elo import calculate_elo_change, WIN, DRAW, LOSS
 import time
 import bisect
-
+from app.core.database import new_session
 from fastapi.responses import HTMLResponse
 
 
@@ -41,54 +42,152 @@ async def remove_player(entry: QueueEntry):
 async def join_match(session: SessionDep, websocket: WebSocket):
     await websocket.accept()
     await websocket.send_text("Connected")
+    entry = None
 
-    token = await websocket.receive_text()
     try:
-        tokenData = jwt.decode(token,SECRET_KEY,algorithms=['HS256'])
-        await websocket.send_text("token accepted")
-    except Exception as e:
-        print(e)
-        await websocket.send_text("invalid token")
-        await websocket.close()
-
-    query=select(UserModel).where(UserModel.username == str(tokenData['sub']))
-    result=await session.execute(query)
-    user=result.scalar_one_or_none()
-
-    entry = QueueEntry(
-        rating=user.rating,
-        joined_at=time.time(),
-        user_id=user.id
-    )
-    entry._ws = websocket
-
-    await add_player(entry)
-    print(queue)
-    await websocket.send_text(f"Search started")
-    while True:
+        token = await websocket.receive_text()
         try:
+            tokenData = jwt.decode(token,SECRET_KEY,algorithms=['HS256'])
+            await websocket.send_text("token accepted")
+        except Exception as e:
+            print(e)
+            await websocket.send_text("invalid token")
+            await websocket.close()
+            return
+
+        query=select(UserModel).where(UserModel.username == str(tokenData['sub']))
+        result=await session.execute(query)
+        user=result.scalar_one_or_none()
+
+        entry = QueueEntry(
+            rating=user.rating,
+            joined_at=time.time(),
+            user_id=user.id
+        )
+        entry._ws = websocket
+
+        await add_player(entry)
+        await websocket.send_text(f"Search started")
+
+        while True:
             data = await websocket.receive_text()
             if data == "cancel":
-                await remove_player(entry)
-                print(queue)
-                await websocket.close()
+                break
             elif data == "ping":
                 await websocket.send_text("pong")
-        except Exception as e:
-            await remove_player(entry)
-            await websocket.close()
-            break
-    await websocket.close()
 
+    except Exception as e:
+        print('/pvp/join',e)
+        pass
+    
+    finally:
+        if entry is not None:
+            await remove_player(entry)
+        try:
+            await websocket.close()
+        except Exception as e:
+            print('/pvp/join',e)
+            pass
+
+
+async def listen_answers(player: QueueEntry, out: asyncio.Queue,):
+    ws = player._ws
+    try:
+        while True:
+            msg = await ws.receive_text()
+            print(msg)
+            await out.put(
+                AnswerEvent(
+                    user_id=player.user_id,
+                    answer=msg,
+                    ts=time.time(),
+                )
+            )
+    except Exception:
+        pass  # вебсокет закрылся
+        
 
 async def start_match(player1: QueueEntry, player2: QueueEntry):
     ws1 = player1._ws
     ws2 = player2._ws
-    await ws1.send_text(f"Match started {player1.user_id}")
-    await ws2.send_text(f"Match started {player2.user_id}")
+    try:
+        # выбираем рандомную задачу
+        async with new_session() as session:
+            query = select(TaskModel).order_by(func.random()).limit(1)
+            res = await session.execute(query)
+            task = res.scalar_one_or_none()
+
+        if task is None:
+            await ws1.send_text(f"нет задач")
+            await ws2.send_text(f"нет задач")
+            return
+
+        # отправляем id задачи пользователям
+        await ws1.send_text(f"{task.id}")
+        await ws2.send_text(f"{task.id}")
+        
+        # ответы обоих игроков добавляются в очередь и обрабатываются по порядку
+        answers = asyncio.Queue()
+
+        # ждём ответы
+        t1 = asyncio.create_task(listen_answers(player1, answers))
+        t2 = asyncio.create_task(listen_answers(player2, answers))
+
+        try:
+            while True:
+                ans = await answers.get()
+            
+                if ans is None: # нет ответов
+                    asyncio.sleep(1)
+                    continue
+                print('ANS',ans)
+                if ans.answer == task.correct_answer:
+                    if ans.user_id == player1.user_id:
+                        elochange = calculate_elo_change(player1.rating, player2.rating, WIN)
+                        #TODO сделать функцию change_elo
+                        #await change_elo(player1.user_id,elochange)
+                        #await change_elo(player2.user_id,-elochange)
+                    else:
+                        elochange = calculate_elo_change(player1.rating, player2.rating, LOSS)
+                        #TODO сделать функцию change_elo
+                        #await change_elo(player1.user_id,elochange)
+                        #await change_elo(player2.user_id,-elochange)
+                    await ws1.send_text("win" if player1.user_id == ans.user_id else "loss")
+                    await ws2.send_text("win" if player2.user_id == ans.user_id else "loss")
+                    await ws1.close()
+                    await ws2.close()
+                    return
+
+                else:
+                    if ans.user_id == player1.user_id:
+                        await ws1.send_text(f"ответ {ans.answer} неправильный")
+                    else:
+                        await ws2.send_text(f"ответ {ans.answer} неправильный")
+        finally: # завершаем слушатели ответов
+            print('END_T')
+            t1.cancel()
+            t2.cancel()
+        
+
+    except Exception as e: # если кто-то отключился
+        print('pvp start_match,',e)
+        # мы не знаем, кто отключился, поэтому пытаемся отправить сообщение обоим.
+        try:
+            await ws1.send_text("opponent disconnected")
+            await ws1.close()
+        except Exception:
+            pass
+
+        try:
+            await ws2.send_text("opponent disconnected")
+            await ws2.close()
+        except Exception:
+            pass
+
+
     return
 
-#ЗАКОМЕНТИЛ ЧТОБЫ КОД НЕ ВЫДАВАЛ ОШИБОК
+
 async def match_players():
     global queue
     global index
