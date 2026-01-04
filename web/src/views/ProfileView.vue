@@ -7,6 +7,7 @@ const router = useRouter()
 const loading = ref(true)
 const profile = ref(null)
 const error = ref(null)
+const fileInput = ref(null) // Ссылка на скрытый инпут для выбора файла
 
 // --- ЛОГИКА РАНГОВ ---
 const getRankInfo = (elo) => {
@@ -29,6 +30,35 @@ const progressToNextRank = computed(() => {
   const percent = Math.min((currentElo / next) * 100, 100)
   return percent
 })
+
+// --- ЛОГИКА АВАТАРКИ ---
+const triggerAvatarUpload = () => {
+  fileInput.value.click() // Симулируем клик по скрытому инпуту
+}
+
+const handleFileChange = async (event) => {
+  const file = event.target.files[0]
+  if (!file) return
+
+  const formData = new FormData()
+  formData.append('file', file)
+
+  try {
+    const token = localStorage.getItem('user-token')
+    const response = await axios.post('http://127.0.0.1:8000/profile/avatar', formData, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+
+    // Обновляем ссылку на аватар в текущем состоянии профиля
+    profile.value.user.avatar_url = response.data.url
+  } catch (err) {
+    console.error('Ошибка загрузки аватара:', err)
+    alert('Не удалось загрузить изображение')
+  }
+}
 
 // --- API ---
 const fetchProfile = async () => {
@@ -88,9 +118,27 @@ onMounted(() => {
         <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 opacity-50 group-hover:opacity-100 transition-opacity duration-700"></div>
 
         <div class="relative z-10 flex flex-col md:flex-row items-center gap-8 md:gap-12 text-center md:text-left">
-          <div class="relative shrink-0">
-            <div class="w-32 h-32 md:w-40 md:h-40 bg-indigo-600 rounded-[2.5rem] flex items-center justify-center text-white text-5xl font-black shadow-2xl shadow-indigo-200 rotate-3 group-hover:rotate-0 transition-transform duration-500">
-              {{ profile.user.username.charAt(0).toUpperCase() }}
+
+          <div class="relative shrink-0 group cursor-pointer" @click="triggerAvatarUpload">
+            <input
+              type="file"
+              ref="fileInput"
+              class="hidden"
+              accept="image/*"
+              @change="handleFileChange"
+            >
+            <div class="w-32 h-32 md:w-40 md:h-40 bg-indigo-600 rounded-[2.5rem] flex items-center justify-center text-white text-5xl font-black shadow-2xl shadow-indigo-200 rotate-3 group-hover:rotate-0 transition-all duration-500 overflow-hidden relative">
+              <img
+                v-if="profile.user.avatar_url"
+                :src="`http://127.0.0.1:8000${profile.user.avatar_url}`"
+                class="w-full h-full object-cover"
+                alt="Avatar"
+              />
+              <span v-else>{{ profile.user.username.charAt(0).toUpperCase() }}</span>
+
+              <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <span class="text-2xl">📷</span>
+              </div>
             </div>
             <div class="absolute -bottom-2 -right-2 bg-emerald-500 border-4 border-white w-8 h-8 rounded-full shadow-lg"></div>
           </div>
@@ -129,8 +177,8 @@ onMounted(() => {
           </div>
 
           <div class="flex flex-col gap-3 min-w-[140px]">
-            <button class="px-6 py-3 bg-slate-900 text-white font-bold rounded-2xl shadow-lg hover:bg-slate-800 transition-all active:scale-95">
-              ✏️ Редактировать
+            <button @click="triggerAvatarUpload" class="px-6 py-3 bg-slate-900 text-white font-bold rounded-2xl shadow-lg hover:bg-slate-800 transition-all active:scale-95">
+              📷 Сменить фото
             </button>
             <button
               @click="logout"
@@ -143,7 +191,6 @@ onMounted(() => {
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-
         <div class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 hover:-translate-y-1 transition-transform duration-300">
           <div class="flex items-center justify-between mb-6">
             <div class="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-2xl">📈</div>
@@ -152,7 +199,7 @@ onMounted(() => {
           <div class="space-y-5">
             <div>
               <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Задач решено</p>
-              <p class="text-4xl font-black text-slate-900 tracking-tight">{{ profile.stats.correct_solutions }}</p>
+              <p class="text-4xl font-black text-slate-900 tracking-tight">{{ profile.stats.correct_attempts }}</p>
             </div>
             <div class="pt-4 border-t border-slate-50">
               <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Всего попыток</p>

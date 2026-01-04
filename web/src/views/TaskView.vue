@@ -8,14 +8,14 @@ const task = ref(null)
 const loading = ref(true)
 const answer = ref('')
 const checkLoading = ref(false)
-const checkResult = ref(null) // { is_correct: boolean, message: string }
+const checkResult = ref(null)
+const isSolved = ref(false) // НОВОЕ: Локальный флаг решения (сбрасывается при обновлении страницы)
 
-// Получение заголовка авторизации
 const getAuthHeader = () => {
   return { headers: { Authorization: `Bearer ${localStorage.getItem('user-token')}` } }
 }
 
-// Загрузка одной задачи
+// Загрузка задачи
 const fetchTask = async () => {
   try {
     const response = await axios.get(`http://127.0.0.1:8000/tasks/${route.params.id}`, getAuthHeader())
@@ -27,7 +27,7 @@ const fetchTask = async () => {
   }
 }
 
-// Проверка ответа
+// Отправка ответа
 const submitAnswer = async () => {
   if (!answer.value.trim()) return
 
@@ -43,10 +43,10 @@ const submitAnswer = async () => {
 
     checkResult.value = response.data
 
-    // Если правильно - очищаем поле через пару секунд (опционально)
     if (response.data.is_correct) {
-      // Здесь можно добавить логику обновления очков пользователя, если она не на бэке
+      isSolved.value = true // БЛОКИРУЕМ интерфейс (только до перезагрузки)
     }
+    // Если ответ неверный, isSolved остается false, можно пробовать дальше
   } catch (err) {
     checkResult.value = {
       is_correct: false,
@@ -54,17 +54,6 @@ const submitAnswer = async () => {
     }
   } finally {
     checkLoading.value = false
-  }
-}
-
-// Цвет сложности для бейджа
-const getDifficultyColor = (diff) => {
-  if (!diff) return ''
-  switch(diff.toLowerCase()) {
-    case 'easy': return 'text-green-600 bg-green-50 border-green-100'
-    case 'medium': return 'text-amber-600 bg-amber-50 border-amber-100'
-    case 'hard': return 'text-red-600 bg-red-50 border-red-100'
-    default: return 'text-slate-600'
   }
 }
 
@@ -96,9 +85,7 @@ onMounted(() => {
               <span class="px-3 py-1 bg-white/10 backdrop-blur-md rounded-lg text-xs font-bold uppercase tracking-widest text-indigo-200 border border-white/10">
                 {{ task.subject }}
               </span>
-              <span
-                class="px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-widest border border-white/10 bg-white/5"
-              >
+              <span class="px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-widest border border-white/10 bg-white/5">
                 {{ task.difficulty }}
               </span>
             </div>
@@ -119,36 +106,52 @@ onMounted(() => {
           <hr class="border-slate-100">
 
           <div class="space-y-4">
-            <label class="block text-sm font-black text-slate-900">Ваш ответ</label>
 
-            <div class="relative">
-              <textarea
-                v-model="answer"
-                rows="4"
-                placeholder="Введите решение или ответ..."
-                class="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl p-5 text-slate-900 font-medium focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all resize-none"
-                :class="{'border-green-500 focus:border-green-500 focus:ring-green-500/10': checkResult?.is_correct, 'border-red-500 focus:border-red-500 focus:ring-red-500/10': checkResult?.is_correct === false}"
-              ></textarea>
-
-              <div v-if="checkResult" class="absolute top-4 right-4 text-2xl animate-bounce-short">
-                {{ checkResult.is_correct ? '🎉' : '❌' }}
+            <div v-if="checkResult"
+                 class="p-5 rounded-2xl text-sm font-black flex items-center justify-between animate-fade-in-up"
+                 :class="checkResult.is_correct ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'"
+            >
+              <div class="flex items-center gap-3">
+                <span class="text-2xl">{{ checkResult.is_correct ? '🎉' : '❌' }}</span>
+                <span>{{ checkResult.message }}</span>
               </div>
             </div>
 
-            <div v-if="checkResult" class="p-4 rounded-xl text-sm font-bold flex items-center gap-2"
-              :class="checkResult.is_correct ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'"
-            >
-              <span>{{ checkResult.message }}</span>
+            <div class="relative">
+              <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Ваш ответ</label>
+              <textarea
+                v-model="answer"
+                rows="3"
+                :disabled="isSolved"
+                placeholder="Введите решение..."
+                class="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl p-5 text-slate-900 font-medium focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all resize-none disabled:bg-slate-50 disabled:text-slate-500 disabled:border-slate-100 disabled:cursor-not-allowed"
+                :class="{
+                  'border-green-500 bg-green-50/10': isSolved,
+                  'border-red-300 bg-red-50/30': checkResult && !checkResult.is_correct
+                }"
+              ></textarea>
             </div>
 
-            <button
-              @click="submitAnswer"
-              :disabled="checkLoading || !answer"
-              class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl shadow-xl shadow-indigo-100 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
-            >
-              <span v-if="checkLoading" class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-              <span>{{ checkLoading ? 'Проверка...' : 'Отправить решение' }}</span>
-            </button>
+            <div class="pt-2">
+                <router-link
+                    v-if="isSolved"
+                    to="/tasks"
+                    class="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-2xl shadow-xl transition-all active:scale-[0.98] flex justify-center items-center gap-2"
+                >
+                    <span>← Вернуться ко всем задачам</span>
+                </router-link>
+
+                <button
+                    v-else
+                    @click="submitAnswer"
+                    :disabled="checkLoading || !answer"
+                    class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl shadow-xl shadow-indigo-200 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+                >
+                    <span v-if="checkLoading" class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                    <span>{{ checkLoading ? 'Проверка...' : 'Отправить решение' }}</span>
+                </button>
+            </div>
+
           </div>
         </div>
 
@@ -158,12 +161,11 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* Анимация для иконки результата */
-@keyframes bounce-short {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-5px); }
+.animate-fade-in-up {
+  animation: fadeInUp 0.4s ease-out;
 }
-.animate-bounce-short {
-  animation: bounce-short 0.3s ease-in-out;
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 </style>

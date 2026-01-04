@@ -30,11 +30,12 @@ class UserProfile(BaseModel):
     email: str
     rating: float
     created_at: datetime
+    avatar_url: str | None = None
 
 
 class UserStats(BaseModel):
     total_attempts: int
-    correct_attempts: int
+    correct_solutions: int
     success_rate: float
     message: str
 

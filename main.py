@@ -3,7 +3,6 @@
 #вся документация тут http://127.0.0.1:8000/docs либо http://127.0.0.1:8000/redoc
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
 from contextlib import asynccontextmanager
 from app.api.auth import router as auth_router
 from app.api.tasks import router as tasks_router
@@ -11,6 +10,9 @@ from app.api.pvp import router as pvp_router
 from app.api.profile import router as profile_router
 from app.api.leaderboard import router as leaderboard_router
 from app.api.admin import router as admin_router
+from fastapi.staticfiles import StaticFiles
+import os
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -20,6 +22,10 @@ async def lifespan(app: FastAPI):
     print('Выключение сервера')
 
 app=FastAPI(title='Платформа для подготовки к олимпиадам',version='666.666.666',lifespan=lifespan)
+
+
+os.makedirs('static/avatars',exist_ok=True)
+app.mount('/static',StaticFiles(directory='static'),name='static')
 
 
 origins = [
@@ -47,7 +53,7 @@ app.include_router(admin_router)
 
 
 
-@app.get('/',tags=['главная страница'])
+@app.get('/',tags=['Главная страница'])
 async def home() -> str:
     return 'главная страница'
 
