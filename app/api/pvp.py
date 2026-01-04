@@ -5,8 +5,8 @@ from sqlalchemy import select, func
 from app.schemas.matchmaking import QueueEntry, AnswerEvent
 from app.core.database import SessionDep
 from app.core.security import SECRET_KEY
-from app.models import UserModel, TaskModel
-from app.utils.elo import calculate_elo_change, WIN, DRAW, LOSS
+from app.core.models import UserModel, TaskModel
+from app.utils.elo import calculate_elo_change, WIN, LOSS
 import time
 import bisect
 from app.core.database import new_session

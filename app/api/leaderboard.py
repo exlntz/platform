@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from app.core.database import SessionDep
 from sqlalchemy import select
-from app.models import UserModel
+from app.core.models import UserModel
 from app.schemas.user import LeaderboardPlayer
 
 router = APIRouter(prefix='/leaderboard',tags=['Таблица лидеров'])

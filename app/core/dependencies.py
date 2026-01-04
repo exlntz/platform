@@ -2,7 +2,7 @@ from typing import Annotated
 from fastapi import Depends,HTTPException,status
 import jwt
 from app.core.database import SessionDep
-from app.models import UserModel
+from app.core.models import UserModel
 from app.core.security import SECRET_KEY,ALGORITHM,oauth2_scheme
 from sqlalchemy import select
 

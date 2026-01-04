@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from app.models import DifficultyLevel
+from app.core.models import DifficultyLevel
 
 class TaskBase(BaseModel):
     title: str

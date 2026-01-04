@@ -2,8 +2,8 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from sqlalchemy import select, func, Integer
 from app.core.database import SessionDep
-from app.models import UserModel, AttemptModel
-from app.dependencies import get_current_user
+from app.core.models import UserModel, AttemptModel
+from app.core.dependencies import get_current_user
 from app.schemas.user import FullProfileResponse, UserProfile, UserStats
 
 router = APIRouter(prefix='/profile',tags=['Профиль'])

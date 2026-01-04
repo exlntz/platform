@@ -2,10 +2,10 @@ from fastapi import APIRouter,HTTPException,status,Depends
 from typing import Annotated
 from sqlalchemy import select
 from app.core.database import SessionDep
-from app.models import TaskModel, AttemptModel,UserModel
+from app.core.models import TaskModel, AttemptModel,UserModel
 from app.schemas.task import TaskRead, AnswerCheckRequest, AnswerCheckResponse
-from app.dependencies import get_current_user
-from app.models import DifficultyLevel
+from app.core.dependencies import get_current_user
+from app.core.models import DifficultyLevel
 
 
 router=APIRouter(prefix='/tasks',tags=['Задачи'])

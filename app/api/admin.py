@@ -1,12 +1,12 @@
 from fastapi import APIRouter, HTTPException, status, Response, File, UploadFile
 from sqlalchemy import select, func, desc
 from app.core.database import SessionDep
-from app.models import UserModel, TaskModel, AttemptModel
+from app.core.models import UserModel, TaskModel, AttemptModel
 from app.schemas.admin_schemas import UserAdminRead, AdminDashboardStats
 from datetime import datetime, timedelta
 from app.schemas.task import TaskAdminRead, TaskRead, TaskCreate
 import json
-from app.dependencies import AdminDep
+from app.core.dependencies import AdminDep
 
 
 router = APIRouter(prefix='/admin',tags=['Админ панель'])

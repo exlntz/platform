@@ -5,7 +5,7 @@ from sqlalchemy import select
 from typing import Annotated
 
 from app.core.database import SessionDep
-from app.models import UserModel
+from app.core.models import UserModel
 from app.core.security import get_password_hash,is_password_correct,create_access_token
 from app.schemas.user import UserRegister,Token
 
