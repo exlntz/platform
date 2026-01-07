@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import APIRouter, Depends, UploadFile, File
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException,status
 from sqlalchemy import select, func, Integer
 from app.core.database import SessionDep
 from app.core.models import UserModel, AttemptModel
@@ -62,6 +62,9 @@ async def upload_avatar(
         current_user: Annotated[UserModel,Depends(get_current_user)],
         file: UploadFile = File(...)
 ):
+    if not file.content_type.startswith('image/'):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail='Файл должен быть изображением')
+
     file_path = f'static/avatars/user_{current_user.id}_{file.filename}'
 
     with open(file_path,'wb') as buffer:

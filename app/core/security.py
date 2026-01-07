@@ -9,7 +9,7 @@ SECRET_KEY = "kirpich"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
-pwd_context=CryptContext(schemes=['bcrypt'])
+pwd_context=CryptContext(schemes=['argon2'])
 
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
