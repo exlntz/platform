@@ -11,8 +11,10 @@ import time
 import bisect
 from app.core.database import new_session
 from fastapi.responses import HTMLResponse
+from collections import defaultdict
 
 
+is_connected = defaultdict(bool) # для отслеживания подключенных пользователей т.к. в fastapi'ной имплементации вебсокетов нельзя проверить отключился ли пользователь
 queue = [] # комната ожидания, отсортирована по рейтингу
 index = dict() # словарь user_id-QueueEntry
 _queue_lock = asyncio.Lock()
@@ -67,23 +69,22 @@ async def join_match(session: SessionDep, websocket: WebSocket):
         entry._ws = websocket
 
         await add_player(entry)
+        is_connected[entry.user_id] = True
         await websocket.send_text(f"Search started")
 
-        while True:
-            data = await websocket.receive_text()
-            if data == "cancel":
-                break
-            elif data == "ping":
-                await websocket.send_text("pong")
+        # если функция завершится, то она закроет соединение, поэтому ждём пока пользователь отключится
+        while is_connected[entry.user_id]:
+            await asyncio.sleep(10)
+        
+        # убираем чтобы не тратить память зря
+        del is_connected[entry.user_id]
 
     except Exception as e:
         print('/pvp/join',e)
-        pass
-    
-    finally:
         if entry is not None:
             await remove_player(entry)
         try:
+            is_connected[user_id] = False
             await websocket.close()
         except Exception as e:
             print('/pvp/join',e)
@@ -110,6 +111,8 @@ async def listen_answers(player: QueueEntry, out: asyncio.Queue,):
 async def start_match(player1: QueueEntry, player2: QueueEntry):
     ws1 = player1._ws
     ws2 = player2._ws
+    await ws1.send_text(f"match started")
+    await ws2.send_text(f"match started")
     try:
         # выбираем рандомную задачу
         async with new_session() as session:
@@ -156,6 +159,8 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
                     await ws2.send_text("win" if player2.user_id == ans.user_id else "loss")
                     await ws1.close()
                     await ws2.close()
+                    is_connected[player1.user_id] = False
+                    is_connected[player2.user_id] = False
                     return
 
                 else:
@@ -164,13 +169,14 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
                     else:
                         await ws2.send_text(f"ответ {ans.answer} неправильный")
         finally: # завершаем слушатели ответов
-            print('END_T')
             t1.cancel()
             t2.cancel()
         
 
     except Exception as e: # если кто-то отключился
         print('pvp start_match,',e)
+        is_connected[player1.user_id] = False
+        is_connected[player2.user_id] = False
         # мы не знаем, кто отключился, поэтому пытаемся отправить сообщение обоим.
         try:
             await ws1.send_text("opponent disconnected")
