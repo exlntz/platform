@@ -199,7 +199,7 @@ onMounted(() => {
           <div class="space-y-5">
             <div>
               <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Задач решено</p>
-              <p class="text-4xl font-black text-slate-900 tracking-tight">{{ profile.stats.correct_attempts }}</p>
+              <p class="text-4xl font-black text-slate-900 tracking-tight">{{ profile.stats.correct_solutions }}</p>
             </div>
             <div class="pt-4 border-t border-slate-50">
               <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Всего попыток</p>
