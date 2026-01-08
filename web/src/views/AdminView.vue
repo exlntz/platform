@@ -1,23 +1,28 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue' // Добавили computed
+import { ref, onMounted, computed } from 'vue'
 import axios from 'axios'
 
-// --- СОСТОЯНИЕ ---
+// --- СОСТОЯНИЕ ИНТЕРФЕЙСА ---
 const currentTab = ref('dashboard')
 const accessDenied = ref(false)
 const loading = ref(false)
 const showTaskModal = ref(false)
 const fileInput = ref(null)
 
-// --- НОВОЕ ДЛЯ РЕДАКТИРОВАНИЯ ---
+// --- НОВОЕ: УПРАВЛЕНИЕ ПОЛЬЗОВАТЕЛЯМИ ---
+const activeMenuId = ref(null) // ID пользователя, у которого открыто меню действий
+const showUserEditModal = ref(false) // Флаг показа модалки редактирования профиля
+const userEditForm = ref({ id: null, username: '', email: '', rating: 0 })
+
+// --- РЕДАКТИРОВАНИЕ ЗАДАЧ ---
 const isEditMode = ref(false)
 const currentEditId = ref(null)
 
-// --- НОВОЕ ДЛЯ СОРТИРОВКИ ---
+// --- СОРТИРОВКА ЗАДАЧ ---
 const sortKey = ref('id') // По умолчанию сортируем по ID
 const sortOrder = ref('asc') // По возрастанию (1, 2, 3...)
 
-// Данные
+// --- ДАННЫЕ ---
 const stats = ref({
   total_users: 0,
   total_tasks: 0,
@@ -41,29 +46,27 @@ const taskForm = ref({
 const difficultyOptions = ['Easy', 'Medium', 'Hard']
 const subjectOptions = ['Математика', 'Информатика', 'Физика', 'Алгоритмы']
 
-// --- ЛОГИКА СОРТИРОВКИ ---
-// Эта функция автоматически пересчитывает список при изменении tasks, sortKey или sortOrder
+// --- ВЫЧИСЛЯЕМЫЕ СВОЙСТВА (СОРТИРОВКА) ---
 const sortedTasks = computed(() => {
   return [...tasks.value].sort((a, b) => {
     let modifier = sortOrder.value === 'asc' ? 1 : -1
 
-    // Получаем значения для сравнения
     let valA = a[sortKey.value]
     let valB = b[sortKey.value]
 
-    // Если сортируем по сложности, присваиваем веса
+    // Веса для сложности
     if (sortKey.value === 'difficulty') {
       const weights = { 'Easy': 1, 'Medium': 2, 'Hard': 3 }
       valA = weights[valA] || 0
       valB = weights[valB] || 0
     }
 
-    // Сравнение чисел (ID)
+    // Числа
     if (typeof valA === 'number' && typeof valB === 'number') {
       return (valA - valB) * modifier
     }
 
-    // Сравнение строк
+    // Строки
     if (typeof valA === 'string' && typeof valB === 'string') {
       return valA.localeCompare(valB) * modifier
     }
@@ -74,16 +77,14 @@ const sortedTasks = computed(() => {
 
 const sortBy = (key) => {
   if (sortKey.value === key) {
-    // Если кликнули по той же колонке, меняем направление
     sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
   } else {
-    // Если новая колонка, ставим сортировку по возрастанию
     sortKey.value = key
     sortOrder.value = 'asc'
   }
 }
 
-// --- API ---
+// --- API ХЕЛПЕРЫ ---
 const getAuthHeader = () => {
   return { headers: { Authorization: `Bearer ${localStorage.getItem('user-token')}` } }
 }
@@ -93,11 +94,12 @@ const handleApiError = (err) => {
     accessDenied.value = true
   } else {
     console.error('API Error:', err)
+    // Показываем сообщение об ошибке (например, "Имя пользователя занято")
     alert('Ошибка: ' + (err.response?.data?.detail || err.message))
   }
 }
 
-// 1. Статистика
+// --- ЗАГРУЗКА ДАННЫХ ---
 const fetchStats = async () => {
   try {
     const response = await axios.get('http://127.0.0.1:8000/admin/stats', getAuthHeader())
@@ -106,7 +108,6 @@ const fetchStats = async () => {
   } catch (err) { handleApiError(err) }
 }
 
-// 2. Пользователи
 const fetchUsers = async () => {
   if (accessDenied.value) return
   loading.value = true
@@ -117,36 +118,58 @@ const fetchUsers = async () => {
   finally { loading.value = false }
 }
 
-const toggleBan = async (user) => {
-  if (!confirm(`Вы уверены, что хотите ${user.is_banned ? 'разбанить' : 'забанить'} ${user.username}?`)) return
-  try {
-    await axios.patch(`http://127.0.0.1:8000/admin/users/${user.id}/ban`, {}, getAuthHeader())
-    user.is_banned = !user.is_banned
-  } catch (err) { alert('Ошибка: ' + (err.response?.data?.detail || err.message)) }
-}
-
-const changeRole = async (user) => {
-  const action = user.is_admin ? 'снять права администратора с' : 'сделать администратором'
-  if (!confirm(`Вы уверены, что хотите ${action} ${user.username}?`)) return
-  try {
-    await axios.patch(`http://127.0.0.1:8000/admin/users/${user.id}/role`, {}, getAuthHeader())
-    user.is_admin = !user.is_admin
-  } catch (err) { handleApiError(err) }
-}
-
-// 3. Задачи
 const fetchTasks = async () => {
   if (accessDenied.value) return
   loading.value = true
   try {
-    // ВАЖНО: Мы получаем задачи как есть, а sortedTasks их отсортирует
     const response = await axios.get('http://127.0.0.1:8000/tasks/', getAuthHeader())
     tasks.value = response.data
   } catch (err) { handleApiError(err) }
   finally { loading.value = false }
 }
 
-// Функции открытия модалки
+// --- УПРАВЛЕНИЕ ПОЛЬЗОВАТЕЛЯМИ (НОВОЕ) ---
+
+// Переключение меню действий
+const toggleMenu = (event, id) => {
+  event.stopPropagation()
+  activeMenuId.value = activeMenuId.value === id ? null : id
+}
+
+// Открытие модалки редактирования
+const openEditUser = (user) => {
+  userEditForm.value = { ...user }
+  showUserEditModal.value = true
+  activeMenuId.value = null // Закрыть меню
+}
+
+// Универсальное обновление пользователя (Бан, Роль, Данные)
+const updateUserAction = async (userId, data, successMessage = null) => {
+  try {
+    await axios.patch(`http://127.0.0.1:8000/admin/users/${userId}`, data, getAuthHeader())
+
+    if (successMessage) alert(successMessage)
+
+    fetchUsers() // Обновляем таблицу
+    showUserEditModal.value = false // Закрываем модалку при успехе
+  } catch (err) {
+    // Здесь ловится 400 Bad Request, если имя занято
+    handleApiError(err)
+  }
+}
+
+// Удаление пользователя
+const deleteUser = async (user) => {
+  if (!confirm(`Вы уверены, что хотите безвозвратно удалить пользователя ${user.username}?`)) return
+  try {
+    await axios.delete(`http://127.0.0.1:8000/admin/users/${user.id}`, getAuthHeader())
+    users.value = users.value.filter(u => u.id !== user.id)
+    fetchStats()
+  } catch (err) { handleApiError(err) }
+}
+
+// --- УПРАВЛЕНИЕ ЗАДАЧАМИ ---
+
 const openCreateModal = () => {
   isEditMode.value = false
   currentEditId.value = null
@@ -161,43 +184,29 @@ const openEditModal = async (task) => {
   showTaskModal.value = true
   try {
     const { data } = await axios.get(`http://127.0.0.1:8000/admin/tasks/${task.id}`, getAuthHeader())
-    taskForm.value = {
-      title: data.title,
-      description: data.description,
-      subject: data.subject,
-      theme: data.theme,
-      difficulty: data.difficulty,
-      correct_answer: data.correct_answer
-    }
-  } catch (e) {
-    console.error('Не удалось загрузить детали задачи', e)
-    if (e.response?.status === 403) {
-        alert('У вас нет прав на просмотр ответа')
-    }
-  }
+    taskForm.value = { ...data }
+  } catch (e) { handleApiError(e) }
 }
 
-// Сохранение
 const saveTask = async () => {
   try {
-    if (isEditMode.value) {
-      // ИСПОЛЬЗУЕМ ПРАВИЛЬНЫЙ ЭНДПОИНТ (см. предыдущее обсуждение про admin.py)
-      // Если ты еще не перенес в admin.py, используй /tasks/, если перенес - /admin/tasks/
-      await axios.patch(`http://127.0.0.1:8000/admin/tasks/${currentEditId.value}`, taskForm.value, getAuthHeader())
-      alert('Задача успешно обновлена!')
-    } else {
-      await axios.post('http://127.0.0.1:8000/admin/tasks/', taskForm.value, getAuthHeader())
-      alert('Задача успешно создана!')
-    }
+    const finalUrl = isEditMode.value
+       ? `http://127.0.0.1:8000/admin/tasks/${currentEditId.value}`
+       : 'http://127.0.0.1:8000/admin/tasks/create'
+
+    const method = isEditMode.value ? 'patch' : 'post'
+
+    await axios[method](finalUrl, taskForm.value, getAuthHeader())
+
+    alert(isEditMode.value ? 'Задача обновлена!' : 'Задача создана!')
     showTaskModal.value = false
     fetchTasks()
     fetchStats()
   } catch (err) { handleApiError(err) }
 }
 
-// Удаление
 const deleteTask = async (taskId) => {
-  if (!confirm(`Вы уверены, что хотите безвозвратно удалить задачу #${taskId}?`)) return
+  if (!confirm(`Вы уверены, что хотите удалить задачу #${taskId}?`)) return
   try {
     await axios.delete(`http://127.0.0.1:8000/admin/tasks/${taskId}`, getAuthHeader())
     tasks.value = tasks.value.filter(t => t.id !== taskId)
@@ -207,17 +216,12 @@ const deleteTask = async (taskId) => {
 
 const exportTasks = async () => {
   try {
-    const response = await axios.get('http://127.0.0.1:8000/admin/tasks/export', {
-      ...getAuthHeader(),
-      responseType: 'blob'
-    })
+    const response = await axios.get('http://127.0.0.1:8000/admin/tasks/export', { ...getAuthHeader(), responseType: 'blob' })
     const url = window.URL.createObjectURL(new Blob([response.data]))
     const link = document.createElement('a')
     link.href = url
     link.setAttribute('download', `tasks_export_${new Date().toISOString().slice(0,10)}.json`)
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
+    document.body.appendChild(link); link.click(); link.remove()
   } catch (err) { handleApiError(err) }
 }
 
@@ -226,31 +230,26 @@ const triggerImport = () => fileInput.value.click()
 const handleImport = async (event) => {
   const file = event.target.files[0]
   if (!file) return
-  const formData = new FormData()
-  formData.append('file', file)
+  const formData = new FormData(); formData.append('file', file)
   try {
     loading.value = true
     const response = await axios.post('http://127.0.0.1:8000/admin/tasks/import', formData, {
       headers: { ...getAuthHeader().headers, 'Content-Type': 'multipart/form-data' }
     })
     alert(`Импорт завершен!\nСоздано: ${response.data.created}\nОбновлено: ${response.data.updated}`)
-    fetchTasks()
-    fetchStats()
+    fetchTasks(); fetchStats()
   } catch (err) { handleApiError(err) }
-  finally {
-    loading.value = false
-    event.target.value = ''
-  }
+  finally { loading.value = false; event.target.value = '' }
 }
 
 const formatDate = (dateString) => {
   if (!dateString) return '-'
-  return new Date(dateString).toLocaleDateString('ru-RU', {
-    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
-  })
+  return new Date(dateString).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
+// Жизненный цикл
 onMounted(() => {
+  window.addEventListener('click', () => { activeMenuId.value = null }) // Закрываем меню при клике вне
   fetchStats()
   fetchUsers()
 })
@@ -418,21 +417,30 @@ onMounted(() => {
                         </span>
                     </div>
                   </td>
-                  <td class="px-8 py-5 text-right flex justify-end gap-2">
+
+                  <td class="px-8 py-5 text-right relative">
                     <button
-                      @click="changeRole(user)"
-                      class="text-xs font-bold px-4 py-2 rounded-xl transition-all active:scale-95 shadow-sm border"
-                      :class="user.is_admin ? 'bg-indigo-50 text-indigo-600 border-indigo-100 hover:bg-indigo-100' : 'bg-white text-slate-600 border-slate-100 hover:bg-slate-50'"
+                      @click="toggleMenu($event, user.id)"
+                      class="px-4 py-2 bg-slate-100 text-slate-600 text-xs font-black rounded-xl hover:bg-slate-200 transition-colors"
                     >
-                      {{ user.is_admin ? 'Снять админа' : 'Сделать админом' }}
+                      Действия ▾
                     </button>
-                    <button
-                      @click="toggleBan(user)"
-                      class="text-xs font-bold px-4 py-2 rounded-xl transition-all active:scale-95 shadow-sm border"
-                      :class="user.is_banned ? 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100' : 'bg-white text-red-500 border-slate-100 hover:bg-red-50 hover:border-red-100'"
-                    >
-                      {{ user.is_banned ? 'Разблокировать' : 'Заблокировать' }}
-                    </button>
+
+                    <div v-if="activeMenuId === user.id" class="absolute right-8 top-14 w-52 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 py-2 text-left animate-fade-in">
+                      <button @click="openEditUser(user)" class="w-full text-left px-5 py-3 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                        <span>✏️</span> Изменить данные
+                      </button>
+                      <button @click="updateUserAction(user.id, { is_admin: !user.is_admin })" class="w-full text-left px-5 py-3 text-xs font-bold text-indigo-600 hover:bg-indigo-50 flex items-center gap-2">
+                         <span>{{ user.is_admin ? '⭐' : '👑' }}</span> {{ user.is_admin ? 'Снять админа' : 'Сделать админом' }}
+                      </button>
+                      <button @click="updateUserAction(user.id, { is_banned: !user.is_banned })" class="w-full text-left px-5 py-3 text-xs font-bold text-amber-600 hover:bg-amber-50 flex items-center gap-2">
+                         <span>{{ user.is_banned ? '🔓' : '🚫' }}</span> {{ user.is_banned ? 'Разблокировать' : 'Заблокировать' }}
+                      </button>
+                      <hr class="my-1 border-slate-50">
+                      <button @click="deleteUser(user)" class="w-full text-left px-5 py-3 text-xs font-bold text-red-500 hover:bg-red-50 flex items-center gap-2">
+                         <span>🗑️</span> Удалить
+                      </button>
+                    </div>
                   </td>
                 </tr>
               </tbody>
@@ -591,6 +599,30 @@ onMounted(() => {
             <button type="submit" class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl shadow-xl shadow-indigo-200 transition-all active:scale-[0.98]">
               {{ isEditMode ? 'Сохранить изменения' : 'Создать задачу' }}
             </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div v-if="showUserEditModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+      <div class="bg-white rounded-[2rem] w-full max-w-md shadow-2xl p-8 space-y-6 animate-fade-in-up">
+        <h2 class="text-2xl font-black text-slate-900">Редактировать профиль</h2>
+        <form @submit.prevent="updateUserAction(userEditForm.id, userEditForm, 'Данные сохранены')" class="space-y-4">
+          <div>
+            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Имя пользователя</label>
+            <input v-model="userEditForm.username" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold focus:ring-2 focus:ring-indigo-500 outline-none">
+          </div>
+          <div>
+            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email</label>
+            <input v-model="userEditForm.email" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold focus:ring-2 focus:ring-indigo-500 outline-none">
+          </div>
+          <div>
+            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Рейтинг ELO</label>
+            <input v-model.number="userEditForm.rating" type="number" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold focus:ring-2 focus:ring-indigo-500 outline-none">
+          </div>
+          <div class="flex gap-3 pt-4">
+            <button type="submit" class="flex-1 py-4 bg-indigo-600 text-white font-black rounded-xl hover:bg-indigo-700 transition-colors">Сохранить</button>
+            <button @click="showUserEditModal = false" type="button" class="px-6 py-4 bg-slate-100 text-slate-500 font-black rounded-xl hover:bg-slate-200 transition-colors">Отмена</button>
           </div>
         </form>
       </div>

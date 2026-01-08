@@ -1,8 +1,9 @@
 from fastapi import APIRouter, HTTPException, status, Response, File, UploadFile
+from pydantic import model_validator
 from sqlalchemy import select, func, desc
 from app.core.database import SessionDep
 from app.core.models import UserModel, TaskModel, AttemptModel
-from app.schemas.admin_schemas import UserAdminRead, AdminDashboardStats
+from app.schemas.admin_schemas import UserAdminRead, AdminDashboardStats, UserAdminUpdate, TaskAdminUpdate
 from datetime import datetime, timedelta
 from app.schemas.task import TaskAdminRead, TaskRead, TaskCreate
 import json
@@ -29,45 +30,57 @@ async def get_all_users(
     users = list(result.scalars().all())
     return users
 
-@router.patch('/users/{user_id}/ban',summary='Заблокировать/Разблокировать пользователя (для админов)')
-async def ban_user(
+@router.patch('/users/{user_id}',summary='Изменить информацию о пользователе (для админов)')
+async def update_user(
+        user_id: int,
+        update_data: UserAdminUpdate,
+        session: SessionDep,
+        admin: AdminDep,
+):
+    user = await session.get(UserModel,user_id)
+
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail='Пользователь не найден')
+
+    if update_data.username and update_data.username != user.username:
+        exists = await session.execute(select(UserModel).where(UserModel.username == update_data.username))
+        if exists.scalar_one_or_none():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Это имя пользователя уже занято")
+
+    if update_data.email and update_data.email != user.email:
+        exists = await session.execute(select(UserModel).where(UserModel.email == update_data.email))
+        if exists.scalar_one_or_none():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Этот Email уже используется другим аккаунтом")
+
+    if user.id == admin.id and (update_data.is_admin == False or update_data.is_banned == True):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail='Вы не можете лишить прав или забанить самого себя')
+
+    data  = update_data.model_dump(exclude_unset=True)
+
+    for key,value in data.items():
+        setattr(user,key,value)
+
+    await session.commit()
+    return {'message': f'Данные пользователя {user.username} успешно обновлены'}
+
+@router.delete('/users/{user_id}',summary='Удалить пользователя (для админов)')
+async def delete_user(
         user_id: int,
         session: SessionDep,
         admin: AdminDep
 ):
     user = await session.get(UserModel,user_id)
+
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail='Пользователь не найден')
 
     if user.id == admin.id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail='Вы не можете заблокировать себя')
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail='Вы не можете удалить самого себя')
 
-    user.is_banned = not user.is_banned
-
+    await session.delete(user)
     await session.commit()
 
-    status_text = 'заблокирован' if user.is_banned else 'разблокирован'
-
-    return {'message': f'Пользователь {user.username} {status_text}'}
-
-
-@router.patch('/users/{user_id}/role',summary='Изменить роль пользователя (для админов)')
-async def change_role(
-        user_id: int,
-        session: SessionDep,
-        admin: AdminDep
-):
-    user = await session.get(UserModel,user_id)
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail='Пользователь не найден')
-
-
-    user.is_admin = not user.is_admin
-    await session.commit()
-
-    role_text = 'назначен администратором' if user.is_admin else 'больше не администратор'
-
-    return {'message':f'Пользователь {user.username} {role_text}'}
+    return {'message': f'Пользователь {user.username} успешно удален'}
 
 @router.get('/stats',summary='Статистика для дашборда (для админов)')
 async def get_admin_stats(
@@ -265,23 +278,27 @@ async def delete_task(
 @router.patch('/tasks/{task_id}', summary='Редактировать задачу (для админов)')
 async def update_task(
         task_id: int,
-        task_update: TaskCreate,
+        update_data: TaskAdminUpdate,
         session: SessionDep,
         admin: AdminDep
 ) -> TaskRead:
+
     task = await session.get(TaskModel, task_id)
 
     if not task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Задача не найдена")
 
-    task.title = task_update.title
-    task.description = task_update.description
-    task.subject = task_update.subject
-    task.theme = task_update.theme
-    task.difficulty = task_update.difficulty.capitalize()
-    task.correct_answer = task_update.correct_answer
+    data = update_data.model_dump(exclude_unset=True)
+
+    for key,value in data.items():
+
+        if key == 'difficulty' and value:
+            value = value.capitalize()
+
+        setattr(task,key,value)
 
     await session.commit()
     await session.refresh(task)
 
     return TaskRead.model_validate(task)
+
