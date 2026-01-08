@@ -123,12 +123,14 @@ async def create_task(
         session: SessionDep,
         admin: AdminDep
 ) -> TaskRead:
+
     task_db=TaskModel(
         title=new_task.title,
         description=new_task.description,
         subject=new_task.subject,
-        theme=new_task.theme,
-        difficulty=new_task.difficulty.capitalize(),
+        tags=new_task.tags,
+        hint=new_task.hint,
+        difficulty=new_task.difficulty,
         correct_answer=new_task.correct_answer)
 
     session.add(task_db)
@@ -144,8 +146,8 @@ async def export_tasks(
         admin: AdminDep,
         session: SessionDep
 ):
-    query=select(TaskModel)
-    result = await session.execute(query)
+
+    result = await session.execute(select(TaskModel))
     tasks = result.scalars().all()
 
     export_data = [
@@ -153,7 +155,8 @@ async def export_tasks(
             "title": t.title,
             "description": t.description,
             "subject": t.subject,
-            "theme": t.theme,
+            "tags": t.tags,
+            "hint": t.hint,
             "difficulty": t.difficulty,
             "correct_answer": t.correct_answer
         } for t in tasks
@@ -207,7 +210,8 @@ async def import_tasks(
                 task = existing_tasks[title]
                 task.description = item.get("description", task.description)
                 task.subject = item.get("subject", task.subject)
-                task.theme = item.get("theme", task.theme)
+                task.tags = item.get("tags", task.tags)
+                task.hint = item.get("hint", task.hint)
 
                 if raw_difficulty:
                     task.difficulty = clean_difficulty
@@ -219,7 +223,8 @@ async def import_tasks(
                     title=title,
                     description=item.get("description"),
                     subject=item.get("subject"),
-                    theme=item.get("theme"),
+                    tags=item.get("tags",[]),
+                    hint=item.get("hint"),
                     difficulty=clean_difficulty,
                     correct_answer=item.get("correct_answer")
                 )

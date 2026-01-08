@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Mapped,mapped_column
 from app.core.database import Model
-from sqlalchemy import Text, ForeignKey, func, Enum as SQLEnum
+from sqlalchemy import Text, ForeignKey, func, Enum as SQLEnum, JSON
 from datetime import datetime
 from enum import Enum
 
@@ -39,9 +39,10 @@ class TaskModel(Model):
     title: Mapped[str] = mapped_column(index=True)
     description: Mapped[str] = mapped_column(Text)
     subject: Mapped[str] = mapped_column(index=True)
-    theme: Mapped[str] = mapped_column(index=True)
     correct_answer: Mapped[str] = mapped_column()
     difficulty: Mapped[DifficultyLevel] = mapped_column(SQLEnum(DifficultyLevel,native_enum=False),default=DifficultyLevel.easy,index=True)
+    tags: Mapped[list[str]] = mapped_column(JSON, default_factory=list)
+    hint: Mapped[str | None] = mapped_column(Text, default=None)
 
 
 

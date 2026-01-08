@@ -1,12 +1,13 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from app.core.models import DifficultyLevel
 
 class TaskBase(BaseModel):
     title: str
     description: str
     subject: str
-    theme: str
+    tags: list[str] = Field(default_factory=list)
     difficulty: DifficultyLevel
+    hint: str | None = None
 
 class TaskRead(TaskBase): # 1. Наследуем (оставляем старые поля)
     id: int               # 2. Приписываем новое поле (id)

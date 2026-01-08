@@ -17,6 +17,8 @@ const userEditForm = ref({ id: null, username: '', email: '', rating: 0 })
 // --- РЕДАКТИРОВАНИЕ ЗАДАЧ ---
 const isEditMode = ref(false)
 const currentEditId = ref(null)
+// Временное хранилище для ввода тегов строкой "тег1, тег2"
+const tagsInput = ref('')
 
 // --- СОРТИРОВКА ЗАДАЧ ---
 const sortKey = ref('id') // По умолчанию сортируем по ID
@@ -33,14 +35,15 @@ const stats = ref({
 const users = ref([])
 const tasks = ref([])
 
-// Форма задачи
+// Форма задачи (Обновлена структура под новые требования)
 const taskForm = ref({
   title: '',
   description: '',
   subject: '',
-  theme: '',
+  tags: [], // Массив строк вместо theme
   difficulty: 'Easy',
-  correct_answer: ''
+  correct_answer: '',
+  hint: '' // Новое поле
 })
 
 const difficultyOptions = ['Easy', 'Medium', 'Hard']
@@ -173,7 +176,18 @@ const deleteUser = async (user) => {
 const openCreateModal = () => {
   isEditMode.value = false
   currentEditId.value = null
-  taskForm.value = { title: '', description: '', subject: 'Математика', theme: '', difficulty: 'Easy', correct_answer: '' }
+  tagsInput.value = '' // Очищаем поле тегов
+
+  // Инициализируем форму с пустыми значениями и пустым hint
+  taskForm.value = {
+    title: '',
+    description: '',
+    subject: 'Математика',
+    tags: [],
+    difficulty: 'Easy',
+    correct_answer: '',
+    hint: ''
+  }
   showTaskModal.value = true
 }
 
@@ -181,15 +195,27 @@ const openEditModal = async (task) => {
   isEditMode.value = true
   currentEditId.value = task.id
   taskForm.value = { ...task }
+
+  // Превращаем массив тегов в строку для отображения в input
+  tagsInput.value = (task.tags && Array.isArray(task.tags)) ? task.tags.join(', ') : ''
+
   showTaskModal.value = true
   try {
     const { data } = await axios.get(`http://127.0.0.1:8000/admin/tasks/${task.id}`, getAuthHeader())
     taskForm.value = { ...data }
+    // Обновляем теги и hint из полных данных задачи
+    tagsInput.value = (data.tags && Array.isArray(data.tags)) ? data.tags.join(', ') : ''
   } catch (e) { handleApiError(e) }
 }
 
 const saveTask = async () => {
   try {
+    // Превращаем строку тегов обратно в массив перед отправкой
+    taskForm.value.tags = tagsInput.value
+      .split(',')
+      .map(tag => tag.trim())
+      .filter(tag => tag.length > 0)
+
     const finalUrl = isEditMode.value
        ? `http://127.0.0.1:8000/admin/tasks/${currentEditId.value}`
        : 'http://127.0.0.1:8000/admin/tasks/create'
@@ -553,7 +579,7 @@ onMounted(() => {
     </main>
 
     <div v-if="showTaskModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-      <div class="bg-white rounded-[2rem] w-full max-w-2xl shadow-2xl p-8 space-y-6 animate-fade-in-up border border-slate-100">
+      <div class="bg-white rounded-[2rem] w-full max-w-2xl shadow-2xl p-8 space-y-6 animate-fade-in-up border border-slate-100 max-h-[90vh] overflow-y-auto">
         <div class="flex justify-between items-center border-b border-slate-50 pb-4">
           <h2 class="text-2xl font-black text-slate-900">{{ isEditMode ? 'Редактировать задачу' : 'Новая задача' }}</h2>
           <button @click="showTaskModal = false" class="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">✕</button>
@@ -581,8 +607,13 @@ onMounted(() => {
           </div>
 
           <div class="space-y-1.5">
-            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Тема</label>
-            <input v-model="taskForm.theme" required placeholder="Например: Арифметика" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all" />
+            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Теги (через запятую)</label>
+            <input v-model="tagsInput" placeholder="Например: Арифметика, 5 класс" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all" />
+          </div>
+
+          <div class="space-y-1.5">
+            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Подсказка</label>
+            <textarea v-model="taskForm.hint" rows="2" placeholder="Необязательная подсказка для режима тренировки..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 font-medium text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all resize-none"></textarea>
           </div>
 
           <div class="space-y-1.5">
