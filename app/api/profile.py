@@ -24,28 +24,22 @@ async def get_full_profile(
         avatar_url=current_user.avatar_url
     )
 
-    query=select(func.count(AttemptModel.id).label('total'),
-                 func.sum(AttemptModel.is_correct.cast(Integer)).label('correct')).where(
-        AttemptModel.user_id == current_user.id
-    )
+    query = select(
+        func.count(AttemptModel.id).label('total'),
+        func.count(func.distinct(AttemptModel.task_id)).filter(AttemptModel.is_correct == True).label('unique_correct')
+    ).where(AttemptModel.user_id == current_user.id)
 
     result = await session.execute(query)
-    stats=result.one()
+    stats = result.one()
 
-    total=stats.total or 0
-    correct=stats.correct or 0
+    total = stats.total or 0
+    unique_solved = stats.unique_correct or 0
 
-    unique_solved_query = select(func.count(func.distinct(AttemptModel.task_id))).where(
-        AttemptModel.user_id == current_user.id,
-        AttemptModel.is_correct == True
-    )
-    unique_solved_count = await session.scalar(unique_solved_query) or 0
-
-    success_rate=round((unique_solved_count/total*100),1) if total>0 else 0.0
+    success_rate=round((unique_solved/total*100),1) if total>0 else 0.0
 
     stats_data = UserStats(
         total_attempts=total,
-        correct_solutions=unique_solved_count,
+        correct_solutions=unique_solved,
         success_rate=success_rate,
         message='ПРИВЕТ!!!!!!!'
     )

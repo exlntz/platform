@@ -8,8 +8,8 @@ from typing import Annotated
 class UserRegister(BaseModel):
     username: str = Field(...,min_length=3,max_length=40,description='Имя пользователя')
     email: EmailStr = Field(..., description='Почта')
-    password: str = Field(...,min_length=6,description='Пароль')
-    password_repeat: str = Field(...,min_length=6,description='Повтор пароля')
+    password: str = Field(...,min_length=8,description='Пароль')
+    password_repeat: str = Field(...,min_length=8,description='Повтор пароля')
 
     @model_validator(mode='after')
     def check_passwords_match(self) -> Self:
