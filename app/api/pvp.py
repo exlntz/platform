@@ -6,7 +6,7 @@ from app.schemas.matchmaking import QueueEntry, AnswerEvent
 from app.core.database import SessionDep
 from app.core.security import SECRET_KEY
 from app.core.models import UserModel, TaskModel
-from app.utils.elo import calculate_elo_change, WIN, LOSS
+from app.utils.elo import calculate_elo_change, change_elo, WIN, LOSS
 import time
 import bisect
 from app.core.database import new_session
@@ -141,22 +141,22 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
                 ans = await answers.get()
             
                 if ans is None: # нет ответов
-                    asyncio.sleep(1)
+                    await asyncio.sleep(1)
                     continue
                 print('ANS',ans)
                 if ans.answer == task.correct_answer:
                     if ans.user_id == player1.user_id:
                         elochange = calculate_elo_change(player1.rating, player2.rating, WIN)
                         #TODO сделать функцию change_elo
-                        #await change_elo(player1.user_id,elochange)
-                        #await change_elo(player2.user_id,-elochange)
+                        r1 = await change_elo(player1.user_id,elochange)
+                        r2 = await change_elo(player2.user_id,-elochange)
                     else:
                         elochange = calculate_elo_change(player1.rating, player2.rating, LOSS)
                         #TODO сделать функцию change_elo
-                        #await change_elo(player1.user_id,elochange)
-                        #await change_elo(player2.user_id,-elochange)
-                    await ws1.send_text("win" if player1.user_id == ans.user_id else "loss")
-                    await ws2.send_text("win" if player2.user_id == ans.user_id else "loss")
+                        r1 = await change_elo(player1.user_id,elochange)
+                        r2 = await change_elo(player2.user_id,-elochange)
+                    await ws1.send_text(str("win" if player1.user_id == ans.user_id else "loss")+f" {r1}")
+                    await ws2.send_text(str("win" if player2.user_id == ans.user_id else "loss")+f" {r2}")
                     await ws1.close()
                     await ws2.close()
                     is_connected[player1.user_id] = False

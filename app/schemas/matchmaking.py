@@ -2,7 +2,7 @@ from pydantic import BaseModel, PrivateAttr
 from fastapi import WebSocket
 
 class QueueEntry(BaseModel):
-    rating: int
+    rating: float
     joined_at: float
     user_id: int
 
