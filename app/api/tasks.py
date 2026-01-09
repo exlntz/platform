@@ -1,12 +1,12 @@
 from fastapi import APIRouter,HTTPException,status,Depends
 from typing import Annotated
-from sqlalchemy import select
+from sqlalchemy import select, exists
 from app.core.database import SessionDep
 from app.core.models import TaskModel, AttemptModel,UserModel
 from app.schemas.task import TaskRead, AnswerCheckRequest, AnswerCheckResponse
 from app.core.dependencies import get_current_user
 from app.core.models import DifficultyLevel
-
+from app.utils.levels import rewards
 
 router=APIRouter(prefix='/tasks',tags=['Задачи'])
 
@@ -40,14 +40,21 @@ async def check_task_answer(
         session: SessionDep,
         current_user: Annotated[UserModel,Depends(get_current_user)]
 ) -> AnswerCheckResponse:
-    query = select(TaskModel).where(TaskModel.id == task_id)
-    result = await session.execute(query)
-    task = result.scalar_one_or_none()
+
+    task = await session.get(TaskModel, task_id)
 
     if task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail='Задача не найдена')
 
     is_correct = task.correct_answer.strip().lower() == user_data.answer.strip().lower()
+
+    already_solved_query = select(exists().where(
+        AttemptModel.user_id == current_user.id,
+        AttemptModel.task_id == task_id,
+        AttemptModel.is_correct == True
+    ))
+    was_solved_before = await session.scalar(already_solved_query)
+
 
     attempt = AttemptModel(
         user_id=current_user.id,
@@ -56,18 +63,29 @@ async def check_task_answer(
         is_correct=is_correct
     )
     session.add(attempt)
-    await session.commit()
+
+    message = 'Неверно! Попробуй еще раз.'
 
     if is_correct:
-        return AnswerCheckResponse(
-            is_correct=True,
-            message='Правильно!!!'
-        )
-    else:
-        return AnswerCheckResponse(
-            is_correct=False,
-            message='Неверно! Попробуй еще раз.'
-        )
+        message = 'Правильно!!!'
+
+        if not was_solved_before:
+            reward = rewards.get(task.difficulty)
+
+            current_user.xp += reward
+
+            message += f'Вы получили {reward} XP!'
+
+    await session.commit()
+
+    return AnswerCheckResponse(
+        is_correct=is_correct,
+        message=message
+    )
+
+
+
+
 
 
 @router.get('/{task_id}',summary='Получение задачи по ее id без ответа')

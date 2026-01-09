@@ -1,6 +1,5 @@
 from fastapi import APIRouter, HTTPException, status, Response, File, UploadFile
-from pydantic import model_validator
-from sqlalchemy import select, func, desc
+from sqlalchemy import select, func, desc, distinct
 from app.core.database import SessionDep
 from app.core.models import UserModel, TaskModel, AttemptModel
 from app.schemas.admin_schemas import UserAdminRead, AdminDashboardStats, UserAdminUpdate, TaskAdminUpdate
@@ -307,3 +306,22 @@ async def update_task(
 
     return TaskRead.model_validate(task)
 
+
+@router.get('/stats/most_popular_subject',summary='Самый популярный предмет (для админов)')
+async def get_most_popular_subject(
+        session: SessionDep,
+        admin: AdminDep,
+):
+
+    query=(
+        select(TaskModel.subject)
+        .join(AttemptModel,AttemptModel.task_id == TaskModel.id)
+        .group_by(TaskModel.subject)
+        .order_by(desc(func.count(distinct(AttemptModel.user_id))))
+        .limit(1)
+    )
+
+    result = await session.execute(query)
+    most_popular_subject = result.scalar_one_or_none()
+
+    return {'most_popular_subject': most_popular_subject if most_popular_subject else 'Нет данных'}
