@@ -115,9 +115,7 @@ export const useTimerStore = defineStore('timer', {
       this.startTimer()
     },
 
-    async submitAnswer(isCorrect) {
-      if (!isCorrect) return
-
+    async submitAnswer() {
       this.stopTimer()
 
       await fetch('/api/save-task', {

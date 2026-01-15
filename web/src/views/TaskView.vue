@@ -51,7 +51,7 @@ const submitAnswer = async () => {
 
     if (response.data.is_correct) {
       isSolved.value = true // БЛОКИРУЕМ интерфейс (только до перезагрузки)
-      await timer.submitAnswer(true)
+      await timer.submitAnswer()
     }
     // Если ответ неверный, isSolved остается false, можно пробовать дальше
   } catch (err) {
