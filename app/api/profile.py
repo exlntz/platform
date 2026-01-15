@@ -6,7 +6,9 @@ from app.core.models import UserModel, AttemptModel
 from app.core.dependencies import get_current_user
 from app.schemas.user import FullProfileResponse, UserProfile, UserStats
 import shutil
+import uuid
 
+ALLOWED_AVATAR_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 
 router = APIRouter(prefix='/profile',tags=['Профиль'])
 
@@ -56,10 +58,15 @@ async def upload_avatar(
         current_user: Annotated[UserModel,Depends(get_current_user)],
         file: UploadFile = File(...)
 ):
+
+    ext = file.filename.rsplit('.', 1)[-1].lower()
+    if ext not in ALLOWED_AVATAR_EXTENSIONS or '.' not in file.filename:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail=f'Недопустимое расширение файла')
+
     if not file.content_type.startswith('image/'):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail='Файл должен быть изображением')
 
-    file_path = f'static/avatars/user_{current_user.id}_{file.filename}'
+    file_path = f'static/avatars/user_{current_user.id}_{uuid.uuid4().hex}.{ext}'
 
     with open(file_path,'wb') as buffer:
         shutil.copyfileobj(file.file, buffer) #type: ignore
