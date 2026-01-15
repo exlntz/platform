@@ -3,6 +3,12 @@ import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import axios from 'axios'
 
+
+import { useTimerStore } from '@/web/src/TimerStore'
+import { useTimerRunner } from '@/web/src/TimerRunner'
+const timer = useTimerStore()
+
+
 const route = useRoute()
 const task = ref(null)
 const loading = ref(true)
@@ -156,6 +162,10 @@ onMounted(() => {
         </div>
 
       </div>
+    </div>
+    <div v-if="timer.isAfkAlertVisible" class="modal">
+      <p>Are you still here?</p>
+      <button @click="timer.confirmAfk">Yes</button>
     </div>
   </div>
 </template>

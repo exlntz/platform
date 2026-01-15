@@ -2,6 +2,9 @@
 import { ref, onMounted, watch, computed } from 'vue'
 import axios from 'axios'
 import { useRouter } from 'vue-router'
+import { useTimerStore } from '@/stores/useTimerStore'
+
+const timer = useTimerStore()
 
 const router = useRouter()
 
@@ -103,6 +106,7 @@ const getDifficultyClass = (diff) => {
 
 // Переход к решению
 const navigateToTask = (id) => {
+  timer.startTask()
   router.push(`/tasks/${id}`)
 }
 

@@ -1,6 +1,13 @@
 <script setup>
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { ref, onMounted, watch } from 'vue'
+import { useTimerRunner } from '@/composables/useTimerRunner'
+
+
+// runs once for entire SPA
+useTimerRunner()
+
+
 
 /**
  * Состояние авторизации для динамического переключения
