@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 
 const STORAGE_KEY = 'task_timer'
-const AFK_LIMIT = 3 * 60 * 60 * 1000 // 3 hours
+const AFK_LIMIT = 1 * 60 * 1000 // 3 hours
 
 export const useTimerStore = defineStore('timer', {
   state: () => ({

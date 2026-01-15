@@ -4,8 +4,8 @@ import { useRoute } from 'vue-router'
 import axios from 'axios'
 
 
-import { useTimerStore } from '@/web/src/TimerStore'
-import { useTimerRunner } from '@/web/src/TimerRunner'
+import { useTimerStore } from '@/TimerStore.js'
+
 const timer = useTimerStore()
 
 
@@ -51,6 +51,7 @@ const submitAnswer = async () => {
 
     if (response.data.is_correct) {
       isSolved.value = true // БЛОКИРУЕМ интерфейс (только до перезагрузки)
+      await timer.submitAnswer(true)
     }
     // Если ответ неверный, isSolved остается false, можно пробовать дальше
   } catch (err) {
@@ -167,6 +168,7 @@ onMounted(() => {
       <p>Are you still here?</p>
       <button @click="timer.confirmAfk">Yes</button>
     </div>
+    <p>Time: {{ timer.elapsedSeconds }} seconds</p>
   </div>
 </template>
 

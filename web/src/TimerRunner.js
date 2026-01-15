@@ -1,5 +1,5 @@
 import { onMounted, onUnmounted } from 'vue'
-import { useTimerStore } from '@/stores/useTimerStore'
+import { useTimerStore } from '@/TimerStore.js'
 
 export function useTimerRunner() {
   const timer = useTimerStore()

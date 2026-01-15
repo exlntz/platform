@@ -2,7 +2,7 @@
 import { ref, onMounted, watch, computed } from 'vue'
 import axios from 'axios'
 import { useRouter } from 'vue-router'
-import { useTimerStore } from '@/stores/useTimerStore'
+import { useTimerStore } from '@/TimerStore.js'
 
 const timer = useTimerStore()
 
