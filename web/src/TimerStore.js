@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 
 const STORAGE_KEY = 'task_timer'
-const AFK_LIMIT = 1 * 60 * 1000 // 3 hours
+const AFK_LIMIT = 60 * 60 * 1000 // 1 hour!!!
 
 export const useTimerStore = defineStore('timer', {
   state: () => ({
@@ -115,16 +115,5 @@ export const useTimerStore = defineStore('timer', {
       this.startTimer()
     },
 
-    async submitAnswer() {
-      this.stopTimer()
-
-      await fetch('/api/save-task', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          timeSpent: this.elapsedSeconds
-        })
-      })
-    }
   }
 })

@@ -43,7 +43,8 @@ const submitAnswer = async () => {
   try {
     const response = await axios.post(
       `http://127.0.0.1:8000/tasks/${task.value.id}/check`,
-      { answer: answer.value },
+      { answer: answer.value,
+        time_spent: timer.elapsedSeconds},
       getAuthHeader()
     )
 
@@ -51,7 +52,7 @@ const submitAnswer = async () => {
 
     if (response.data.is_correct) {
       isSolved.value = true // БЛОКИРУЕМ интерфейс (только до перезагрузки)
-      await timer.submitAnswer()
+      timer.stopTimer()
     }
     // Если ответ неверный, isSolved остается false, можно пробовать дальше
   } catch (err) {
