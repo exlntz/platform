@@ -117,114 +117,100 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#F8FAFC] font-sans selection:bg-indigo-100 selection:text-indigo-700">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
-
-      <div class="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div class="space-y-2">
-          <h1 class="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">
-            Тренировочные задачи
-          </h1>
-          <p class="text-slate-500 font-medium max-w-2xl text-lg">
-            Улучшайте навыки программирования, решая задачи разной сложности.
+  <div class="tasks-container">
+    <div class="tasks-content">
+      <div class="tasks-header">
+        <div class="header-text">
+          <h1 class="title">Тренировочные задачи</h1>
+          <p class="description">
+            Улучшайте свои навыки, решая задачи разной сложности.
             Ваш прогресс сохраняется автоматически.
           </p>
         </div>
 
-        <div v-if="!loading" class="hidden md:block">
-          <span class="inline-flex items-center px-4 py-2 rounded-full text-sm font-bold bg-white border border-slate-200 text-slate-600 shadow-sm">
-            Доступно задач: {{ filteredTasks.length }}
-          </span>
+        <div v-if="!loading" class="tasks-counter">
+          <span class="counter-badge">Доступно задач: {{ filteredTasks.length }}</span>
         </div>
       </div>
 
-      <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col lg:flex-row gap-4 sticky top-4 z-30 transition-all">
-
-        <div class="flex-1 relative group">
-          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <svg class="h-5 w-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
+      <div class="filters-container">
+        <div class="search-group">
+          <div class="search-icon">🔍</div>
           <input
             v-model="filters.search"
             type="text"
             placeholder="Поиск по названию или теме..."
-            class="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl leading-5 bg-slate-50 text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all font-medium sm:text-sm"
+            class="search-input"
           />
         </div>
 
-        <div class="flex flex-col sm:flex-row gap-4">
-          <div class="relative min-w-[180px]">
+        <div class="filter-group">
+          <div class="select-wrapper">
             <select
               v-model="filters.subject"
-              class="appearance-none block w-full pl-4 pr-10 py-3 border border-slate-200 rounded-xl leading-5 bg-white text-slate-700 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-shadow cursor-pointer hover:border-indigo-300"
+              class="filter-select"
             >
               <option value="">Все предметы</option>
               <option v-for="s in subjects" :key="s" :value="s">{{ s }}</option>
             </select>
-            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
-              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-            </div>
+            <div class="select-arrow">▼</div>
           </div>
 
-          <div class="relative min-w-[180px]">
+          <div class="select-wrapper">
             <select
               v-model="filters.difficulty"
-              class="appearance-none block w-full pl-4 pr-10 py-3 border border-slate-200 rounded-xl leading-5 bg-white text-slate-700 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-shadow cursor-pointer hover:border-indigo-300"
+              class="filter-select"
             >
               <option value="">Сложность</option>
               <option v-for="d in difficulties" :key="d.value" :value="d.value">{{ d.label }}</option>
             </select>
-            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
-              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-            </div>
+            <div class="select-arrow">▼</div>
           </div>
 
           <button
             @click="resetFilters"
-            class="flex items-center justify-center px-4 py-3 border border-slate-200 rounded-xl bg-white text-slate-500 hover:text-red-500 hover:bg-red-50 hover:border-red-100 transition-colors"
+            class="reset-btn"
             title="Сбросить фильтры"
           >
-            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            ✕
           </button>
         </div>
       </div>
 
-      <div v-if="error" class="bg-red-50 border border-red-100 rounded-2xl p-8 text-center animate-fade-in">
-        <div class="text-4xl mb-4">🔌</div>
-        <h3 class="text-lg font-bold text-red-800 mb-2">Ошибка соединения</h3>
-        <p class="text-red-600 mb-6">{{ error }}</p>
-        <button @click="fetchTasks" class="px-6 py-2 bg-white text-red-700 font-bold rounded-lg shadow-sm hover:shadow border border-red-100 transition-all">Попробовать снова</button>
+      <div v-if="error" class="error-state">
+        <div class="error-icon">🔌</div>
+        <h3 class="error-title">Ошибка соединения</h3>
+        <p class="error-message">{{ error }}</p>
+        <button @click="fetchTasks" class="retry-btn">Попробовать снова</button>
       </div>
 
-      <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-
+      <div v-else class="tasks-grid">
         <template v-if="loading">
-          <div v-for="i in 6" :key="i" class="bg-white rounded-[1.5rem] p-6 border border-slate-100 shadow-sm h-72 flex flex-col animate-pulse">
-            <div class="flex justify-between mb-6">
-              <div class="h-6 w-24 bg-slate-100 rounded-full"></div>
-              <div class="h-6 w-16 bg-slate-100 rounded-full"></div>
+          <div v-for="i in 6" :key="i" class="task-card-skeleton">
+            <div class="skeleton-header">
+              <div class="skeleton-tag"></div>
+              <div class="skeleton-difficulty"></div>
             </div>
-            <div class="h-8 w-3/4 bg-slate-100 rounded-lg mb-4"></div>
-            <div class="space-y-2 mb-auto">
-              <div class="h-4 w-full bg-slate-50 rounded"></div>
-              <div class="h-4 w-5/6 bg-slate-50 rounded"></div>
+            <div class="skeleton-title"></div>
+            <div class="skeleton-description">
+              <div class="skeleton-line"></div>
+              <div class="skeleton-line short"></div>
             </div>
-            <div class="h-10 w-full bg-slate-100 rounded-xl mt-4"></div>
+            <div class="skeleton-footer">
+              <div class="skeleton-tags"></div>
+              <div class="skeleton-button"></div>
+            </div>
           </div>
         </template>
 
         <template v-else-if="filteredTasks.length === 0">
-          <div class="col-span-full flex flex-col items-center justify-center py-20 text-center">
-            <div class="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-6 text-4xl">
-              🔍
-            </div>
-            <h3 class="text-xl font-bold text-slate-900">Задачи не найдены</h3>
-            <p class="text-slate-500 mt-2 max-w-sm">
+          <div class="empty-state">
+            <div class="empty-icon">🔍</div>
+            <h3 class="empty-title">Задачи не найдены</h3>
+            <p class="empty-description">
               Попробуйте изменить параметры поиска или сбросить фильтры.
             </p>
-            <button @click="resetFilters" class="mt-6 text-indigo-600 font-bold hover:text-indigo-800 hover:underline">
+            <button @click="resetFilters" class="reset-filters-btn">
               Сбросить все фильтры
             </button>
           </div>
@@ -234,68 +220,561 @@ onMounted(() => {
           <div
             v-for="task in filteredTasks"
             :key="task.id"
-            class="group bg-white rounded-[1.5rem] border border-slate-100 p-6 shadow-sm hover:shadow-xl hover:shadow-indigo-900/5 hover:-translate-y-1 transition-all duration-300 flex flex-col relative overflow-hidden"
+            class="task-card"
+            @click="navigateToTask(task.id)"
           >
-            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div class="task-accent"></div>
 
-            <div class="flex justify-between items-start mb-4">
-              <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wide bg-slate-100 text-slate-500">
-                {{ task.subject }}
-              </span>
-              <span
-                class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-extrabold uppercase tracking-wide border"
-                :class="getDifficultyClass(task.difficulty)"
-              >
+            <div class="task-header">
+              <span class="subject-tag">{{ task.subject }}</span>
+              <span class="difficulty-badge" :class="getDifficultyClass(task.difficulty)">
                 {{ task.difficulty }}
               </span>
             </div>
 
-            <h3 class="text-xl font-bold text-slate-900 mb-3 group-hover:text-indigo-600 transition-colors line-clamp-2">
-              {{ task.title }}
-            </h3>
+            <h3 class="task-title">{{ task.title }}</h3>
 
-            <p class="text-slate-500 text-sm font-medium leading-relaxed mb-6 line-clamp-3">
+            <p class="task-description">
               {{ task.description }}
             </p>
 
-            <div class="mt-auto pt-6 border-t border-slate-50 flex items-center justify-between gap-4">
-
-              <div class="flex flex-wrap gap-1.5 overflow-hidden max-h-6">
+            <div class="task-footer">
+              <div class="task-tags">
                 <span
                   v-for="(tag, idx) in getTags(task.theme)"
                   :key="idx"
-                  class="text-[10px] font-bold text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-100"
+                  class="tag"
                 >
                   #{{ tag }}
                 </span>
               </div>
 
-              <button
-                @click="navigateToTask(task.id)"
-                class="shrink-0 bg-slate-900 text-white text-sm font-bold px-5 py-2.5 rounded-xl shadow-lg shadow-slate-200 group-hover:bg-indigo-600 group-hover:shadow-indigo-200 transition-all active:scale-95 flex items-center gap-2"
-              >
+              <button class="solve-btn">
                 Решать
-                <svg class="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                </svg>
+                <span class="btn-arrow">→</span>
               </button>
             </div>
           </div>
         </template>
-
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-/* Анимация плавного появления */
-.animate-fade-in {
+.tasks-container {
+  min-height: 100vh;
+  background-color: #f8fafc;
+  font-family: sans-serif;
+}
+.tasks-content {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 40px 24px;
+}
+.tasks-header {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+@media (min-width: 768px) {
+  .tasks-header {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+  }
+}
+.header-text {
+  flex: 1;
+}
+.title {
+  font-size: 30px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.025em;
+  margin-bottom: 8px;
+}
+@media (min-width: 768px) {
+  .title {
+    font-size: 36px;
+  }
+}
+.description {
+  color: #64748b;
+  font-weight: 500;
+  font-size: 18px;
+  line-height: 1.75;
+  max-width: 768px;
+}
+.tasks-counter {
+  display: none;
+}
+@media (min-width: 768px) {
+  .tasks-counter {
+    display: block;
+  }
+}
+.counter-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  background-color: white;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  font-weight: 700;
+  border-radius: 9999px;
+  font-size: 14px;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+.filters-container {
+  background-color: white;
+  padding: 16px;
+  border-radius: 16px;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: sticky;
+  top: 16px;
+  z-index: 30;
+  transition: all 0.2s ease;
+}
+@media (min-width: 1024px) {
+  .filters-container {
+    flex-direction: row;
+  }
+}
+.search-group {
+  flex: 1;
+  position: relative;
+}
+.search-icon {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  font-size: 20px;
+  transition: color 0.2s ease;
+}
+.search-group:focus-within .search-icon {
+  color: #4f46e5;
+}
+.search-input {
+  width: 100%;
+  padding: 12px 12px 12px 40px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background-color: #f8fafc;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 500;
+  outline: none;
+  transition: all 0.2s ease;
+}
+.search-input:focus {
+  background-color: white;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+}
+.search-input::placeholder {
+  color: #94a3b8;
+}
+.filter-group {
+  display: flex;
+  gap: 16px;
+}
+.select-wrapper {
+  position: relative;
+  min-width: 180px;
+}
+.filter-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  padding: 12px 40px 12px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background-color: white;
+  color: #334155;
+  font-weight: 700;
+  font-size: 14px;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+.filter-select:hover {
+  border-color: #a5b4fc;
+}
+.filter-select:focus {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+}
+.select-arrow {
+  pointer-events: none;
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  transform: translateY(-50%);
+  color: #6b7280;
+  font-size: 12px;
+}
+.reset-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background-color: white;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 18px;
+}
+.reset-btn:hover {
+  color: #ef4444;
+  background-color: #fef2f2;
+  border-color: #fecaca;
+}
+.error-state {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 24px;
+  padding: 32px;
+  text-align: center;
   animation: fadeIn 0.5s ease-out;
 }
-
+.error-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+.error-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #991b1b;
+  margin-bottom: 8px;
+}
+.error-message {
+  color: #dc2626;
+  margin-bottom: 24px;
+}
+.retry-btn {
+  padding: 8px 24px;
+  background-color: white;
+  color: #dc2626;
+  font-weight: 700;
+  border-radius: 8px;
+  border: 1px solid #fecaca;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+.retry-btn:hover {
+  background-color: #fef2f2;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+.tasks-grid {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 24px;
+  margin-top: 32px;
+}
+@media (min-width: 768px) {
+  .tasks-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (min-width: 1024px) {
+  .tasks-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+.task-card-skeleton {
+  background-color: white;
+  border-radius: 24px;
+  border: 1px solid #f1f5f9;
+  padding: 24px;
+  height: 288px;
+  display: flex;
+  flex-direction: column;
+  animation: pulse 2s infinite;
+}
+.skeleton-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+.skeleton-tag {
+  height: 24px;
+  width: 96px;
+  background-color: #f1f5f9;
+  border-radius: 9999px;
+}
+.skeleton-difficulty {
+  height: 24px;
+  width: 64px;
+  background-color: #f1f5f9;
+  border-radius: 9999px;
+}
+.skeleton-title {
+  height: 32px;
+  width: 75%;
+  background-color: #f1f5f9;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+.skeleton-description {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.skeleton-line {
+  height: 16px;
+  width: 100%;
+  background-color: #f8fafc;
+  border-radius: 4px;
+}
+.skeleton-line.short {
+  width: 5/6;
+}
+.skeleton-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #f8fafc;
+}
+.skeleton-tags {
+  height: 24px;
+  width: 96px;
+  background-color: #f1f5f9;
+  border-radius: 9999px;
+}
+.skeleton-button {
+  height: 40px;
+  width: 96px;
+  background-color: #f1f5f9;
+  border-radius: 12px;
+}
+.empty-state {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 24px;
+  text-align: center;
+}
+.empty-icon {
+  width: 96px;
+  height: 96px;
+  background-color: #f1f5f9;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  margin-bottom: 24px;
+}
+.empty-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 8px;
+}
+.empty-description {
+  color: #64748b;
+  max-width: 384px;
+  margin-bottom: 24px;
+}
+.reset-filters-btn {
+  color: #4f46e5;
+  font-weight: 700;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  transition: color 0.2s ease;
+}
+.reset-filters-btn:hover {
+  color: #3730a3;
+}
+.task-card {
+  background-color: white;
+  border-radius: 24px;
+  border: 1px solid #f1f5f9;
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+.task-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.1);
+}
+.task-accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(to right, #4f46e5, #ec4899, #f59e0b);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.task-card:hover .task-accent {
+  opacity: 1;
+}
+.task-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+.subject-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  background-color: #f1f5f9;
+  color: #475569;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.difficulty-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border: 1px solid;
+}
+.difficulty-badge.easy {
+  color: #059669;
+  background-color: #d1fae5;
+  border-color: #a7f3d0;
+}
+.difficulty-badge.medium {
+  color: #d97706;
+  background-color: #fef3c7;
+  border-color: #fde68a;
+}
+.difficulty-badge.hard {
+  color: #dc2626;
+  background-color: #fee2e2;
+  border-color: #fecaca;
+}
+.difficulty-badge.default {
+  color: #475569;
+  background-color: #f1f5f9;
+  border-color: #e2e8f0;
+}
+.task-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 12px;
+  line-height: 1.4;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  transition: color 0.2s ease;
+}
+.task-card:hover .task-title {
+  color: #4f46e5;
+}
+.task-description {
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.625;
+  flex: 1;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  margin-bottom: 24px;
+}
+.task-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 24px;
+  border-top: 1px solid #f8fafc;
+}
+.task-tags {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  overflow: hidden;
+  max-height: 24px;
+}
+.tag {
+  font-size: 10px;
+  font-weight: 700;
+  color: #64748b;
+  background-color: #f8fafc;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #f1f5f9;
+  white-space: nowrap;
+}
+.solve-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background-color: #0f172a;
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.1);
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+.task-card:hover .solve-btn {
+  background-color: #4f46e5;
+  box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.2);
+}
+.solve-btn:active {
+  transform: scale(0.95);
+}
+.btn-arrow {
+  font-size: 16px;
+  transition: transform 0.2s ease;
+}
+.task-card:hover .btn-arrow {
+  transform: translateX(4px);
+}
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 </style>

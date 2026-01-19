@@ -42,65 +42,67 @@ export default {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-md w-full space-y-8 bg-white p-10 rounded-3xl shadow-xl border border-slate-100">
-
-      <div class="text-center">
-        <h2 class="text-3xl font-extrabold text-slate-900 tracking-tight">Регистрация</h2>
-        <p class="mt-2 text-sm text-slate-500 font-medium">Создайте аккаунт, чтобы начать решать задачи</p>
+  <div class="register-container">
+    <div class="register-card">
+      <div class="register-header">
+        <h2>Регистрация</h2>
+        <p class="register-subtitle">Создайте аккаунт, чтобы начать решать задачи</p>
       </div>
 
-      <form class="mt-8 space-y-6" @submit.prevent="register">
-        <div class="space-y-4">
-          <div>
-            <label class="block text-sm font-semibold text-slate-700 mb-1 ml-1">Имя пользователя</label>
+      <form class="register-form" @submit.prevent="register">
+        <div class="form-fields">
+          <div class="form-group">
+            <label class="form-label">Имя пользователя</label>
             <input
               v-model="regUsername"
               type="text"
               required
-              placeholder="ivan_dev"
-              class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all placeholder:text-slate-300"
+              placeholder="Имя пользователя"
+              class="form-input"
             />
           </div>
 
-          <div>
-            <label class="block text-sm font-semibold text-slate-700 mb-1 ml-1">Email адрес</label>
+          <div class="form-group">
+            <label class="form-label">Email адрес</label>
             <input
               v-model="regEmail"
               type="email"
               required
               placeholder="example@mail.com"
-              class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all placeholder:text-slate-300"
+              class="form-input"
             />
           </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-semibold text-slate-700 mb-1 ml-1">Пароль</label>
+          <div class="password-grid">
+            <div class="form-group">
+              <label class="form-label">Пароль</label>
               <input
                 v-model="regPassword"
                 type="password"
                 required
-                class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                placeholder="Пароль"
+                class="form-input"
               />
             </div>
-            <div>
-              <label class="block text-sm font-semibold text-slate-700 mb-1 ml-1">Повтор</label>
+            <div class="form-group">
+              <label class="form-label">Повтор</label>
               <input
                 v-model="regPasswordRepeat"
                 type="password"
                 required
-                class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                placeholder="Повтор пароля"
+                class="form-input"
               />
             </div>
           </div>
         </div>
 
-        <div>
+        <div class="submit-section">
           <button
             type="submit"
             :disabled="loading"
-            class="w-full flex justify-center py-4 px-4 border border-transparent text-sm font-bold rounded-2xl text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all active:scale-[0.98] disabled:opacity-50"
+            class="register-btn"
+            :class="{ disabled: loading }"
           >
             <span v-if="loading">Обработка...</span>
             <span v-else>Зарегистрироваться</span>
@@ -108,10 +110,10 @@ export default {
         </div>
       </form>
 
-      <div class="mt-6 text-center border-t border-slate-50 pt-6">
-        <p class="text-sm text-slate-600">
+      <div class="register-footer">
+        <p class="footer-text">
           Уже есть профиль?
-          <router-link to="/auth" class="font-bold text-indigo-600 hover:text-indigo-500 transition-colors">
+          <router-link to="/auth" class="footer-link">
             Войти
           </router-link>
         </p>
@@ -121,5 +123,134 @@ export default {
 </template>
 
 <style scoped>
-/* Специфические стили больше не требуются, всё решается классами Tailwind */
+.register-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+  background-color: #f8fafc;
+  font-family: sans-serif;
+}
+.register-card {
+  max-width: 448px;
+  width: 100%;
+  background-color: white;
+  padding: 40px;
+  border-radius: 24px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  border: 1px solid #f1f5f9;
+}
+.register-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+.register-header h2 {
+  font-size: 30px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.025em;
+  margin-bottom: 8px;
+}
+.register-subtitle {
+  color: #64748b;
+  font-weight: 500;
+  font-size: 14px;
+}
+.register-form {
+  margin-top: 32px;
+}
+.form-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+.form-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 8px;
+  margin-left: 4px;
+}
+.form-input {
+  width: 100%;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 16px;
+  color: #0f172a;
+  outline: none;
+  transition: all 0.2s ease;
+  background-color: white;
+}
+.form-input:focus {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+.form-input::placeholder {
+  color: #cbd5e1;
+}
+.password-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+@media (min-width: 640px) {
+  .password-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+.submit-section {
+  margin-top: 24px;
+}
+.register-btn {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  font-size: 14px;
+  font-weight: 700;
+  color: white;
+  background-color: #4f46e5;
+  cursor: pointer;
+  box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.1);
+  transition: all 0.2s ease;
+  text-align: center;
+}
+.register-btn:hover {
+  background-color: #4338ca;
+}
+.register-btn:active {
+  transform: scale(0.98);
+}
+.register-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.register-footer {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #f1f5f9;
+  text-align: center;
+}
+.footer-text {
+  font-size: 14px;
+  color: #64748b;
+}
+.footer-link {
+  font-weight: 700;
+  color: #4f46e5;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+.footer-link:hover {
+  color: #4338ca;
+}
 </style>

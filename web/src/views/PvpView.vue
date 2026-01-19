@@ -164,157 +164,632 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-50 py-12 px-6 font-sans">
-    <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
+  <div class="pvp-container">
+    <div class="pvp-grid">
+      <div class="main-section">
+        <div v-if="gameState === 'idle'" class="idle-state">
+          <div class="arena-badge">PvP Arena</div>
+          <h1 class="arena-title">Готов к битве?</h1>
+          <p class="arena-description">Сразись с реальным противником. Кто первый решит задачу — забирает рейтинг.</p>
 
-      <div class="lg:col-span-2 space-y-8">
-
-        <div v-if="gameState === 'idle'" class="relative overflow-hidden bg-slate-900 rounded-[2.5rem] p-10 shadow-2xl shadow-indigo-200 h-96 flex flex-col justify-center items-start">
-          <div class="relative z-10 space-y-6">
-            <div class="inline-block px-4 py-1 bg-indigo-500/20 text-indigo-300 text-[10px] font-black uppercase tracking-widest rounded-full border border-indigo-500/30">
-              PvP Arena
-            </div>
-            <h1 class="text-5xl font-black text-white tracking-tight">Готов к битве?</h1>
-            <p class="text-indigo-200 max-w-md font-medium">Сразись с реальным противником. Кто первый решит задачу — забирает рейтинг.</p>
-
-            <button
-              @click="connectPvp"
-              class="flex items-center gap-3 px-10 py-5 bg-[#1fb141] hover:bg-[#199435] text-white font-black rounded-2xl shadow-xl transition-all transform hover:scale-105 active:scale-95"
-            >
-              🔥 Найти противника
-            </button>
-          </div>
-          <div class="absolute -right-20 -bottom-20 w-80 h-80 bg-indigo-600/20 rounded-full blur-3xl"></div>
+          <button
+            @click="connectPvp"
+            class="find-opponent-btn"
+          >
+            <span class="btn-fire">🔥</span> Найти противника
+          </button>
         </div>
 
-        <div v-else-if="gameState === 'searching'" class="bg-white rounded-[2.5rem] p-10 shadow-xl border border-slate-100 h-96 flex flex-col items-center justify-center text-center space-y-6">
-          <div class="relative">
-            <div class="w-20 h-20 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
-            <div class="absolute inset-0 flex items-center justify-center text-2xl">⚔️</div>
+        <div v-else-if="gameState === 'searching'" class="searching-state">
+          <div class="searching-spinner">
+            <div class="spinner-ring"></div>
+            <div class="spinner-icon">⚔️</div>
           </div>
-          <div>
-            <h2 class="text-2xl font-black text-slate-900">Поиск оппонента...</h2>
-            <p class="text-slate-500 font-medium mt-2">Подбираем равного по силе соперника</p>
+          <div class="searching-text">
+            <h2>Поиск оппонента...</h2>
+            <p>Подбираем равного по силе соперника</p>
           </div>
-          <button @click="disconnect" class="text-sm font-bold text-red-500 hover:text-red-600">Отмена</button>
+          <button @click="disconnect" class="cancel-btn">Отмена</button>
         </div>
 
-        <div v-else-if="gameState === 'playing'" class="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl overflow-hidden flex flex-col h-[600px]">
-          <div class="bg-slate-900 px-8 py-6 flex justify-between items-center text-white">
-            <div class="flex items-center gap-3">
-              <span class="w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>
-              <span class="font-black tracking-widest uppercase text-sm">Live Match</span>
+        <div v-else-if="gameState === 'playing'" class="playing-state">
+          <div class="match-header">
+            <div class="match-status">
+              <span class="live-dot"></span>
+              <span class="live-text">Live Match</span>
             </div>
-            <div class="text-xs font-bold text-indigo-300">Решай быстрее!</div>
+            <div class="match-hint">Решай быстрее!</div>
           </div>
 
-          <div class="flex-1 overflow-y-auto p-8 bg-slate-50">
-            <div v-if="activeTask" class="space-y-6 max-w-3xl mx-auto">
-              <div>
-                <div class="flex gap-2 mb-4">
-                  <span class="px-3 py-1 bg-white border border-slate-200 rounded-lg text-[10px] font-black uppercase text-slate-500">{{ activeTask.subject }}</span>
-                  <span class="px-3 py-1 bg-indigo-50 border border-indigo-100 text-indigo-600 rounded-lg text-[10px] font-black uppercase">{{ activeTask.difficulty }}</span>
-                </div>
-                <h2 class="text-2xl font-black text-slate-900">{{ activeTask.title }}</h2>
+          <div class="task-container">
+            <div v-if="activeTask" class="task-content">
+              <div class="task-tags">
+                <span class="subject-tag">{{ activeTask.subject }}</span>
+                <span class="difficulty-tag">{{ activeTask.difficulty }}</span>
               </div>
-              <div class="prose prose-slate">
-                <p class="text-slate-700 font-medium whitespace-pre-wrap leading-relaxed">{{ activeTask.description }}</p>
+              <h2 class="task-title">{{ activeTask.title }}</h2>
+              <div class="task-description">
+                <p>{{ activeTask.description }}</p>
               </div>
             </div>
-            <div v-else class="h-full flex items-center justify-center text-slate-400 font-bold animate-pulse">
+            <div v-else class="loading-task">
               Загрузка задачи...
             </div>
           </div>
 
-          <div class="border-t border-slate-200 bg-white p-6 space-y-4">
-            <div ref="logContainer" class="h-32 overflow-y-auto space-y-2 pr-2 mb-2 custom-scrollbar">
-              <div v-for="log in logs" :key="log.id" class="text-sm font-medium">
-                <span v-if="log.type === 'system'" class="text-indigo-500">🤖 {{ log.text }}</span>
-                <span v-else-if="log.type === 'error'" class="text-red-500">❌ {{ log.text }}</span>
-                <span v-else class="text-slate-700">👤 Вы: {{ log.text }}</span>
+          <div class="game-controls">
+            <div ref="logContainer" class="game-logs">
+              <div v-for="log in logs" :key="log.id" class="log-message">
+                <span v-if="log.type === 'system'" class="log-system">🤖 {{ log.text }}</span>
+                <span v-else-if="log.type === 'error'" class="log-error">❌ {{ log.text }}</span>
+                <span v-else class="log-user">👤 Вы: {{ log.text }}</span>
               </div>
             </div>
 
-            <form @submit.prevent="sendAnswer" class="flex gap-3">
+            <form @submit.prevent="sendAnswer" class="answer-form">
               <input
                 v-model="userAnswer"
                 placeholder="Введите ответ..."
-                class="flex-1 bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-900 focus:outline-none focus:border-indigo-500 transition-colors"
+                class="answer-input"
                 autoFocus
               >
-              <button type="submit" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl shadow-lg transition-transform active:scale-95">
+              <button type="submit" class="submit-answer-btn">
                 Отправить
               </button>
             </form>
           </div>
         </div>
 
-        <div v-else-if="gameState === 'result'" class="bg-white rounded-[2.5rem] p-10 shadow-xl border border-slate-100 h-96 flex flex-col items-center justify-center text-center space-y-6">
-          <div class="text-6xl mb-2">
-            {{ gameResult === 'win' ? '🏆' : (gameResult === 'loss' ? '💀' : '🔌') }}
+        <div v-else-if="gameState === 'result'" class="result-state">
+          <div class="result-icon">
+            <span v-if="gameResult === 'win'">🏆</span>
+            <span v-else-if="gameResult === 'loss'">💀</span>
+            <span v-else>🔌</span>
           </div>
-          <div>
-            <h1 class="text-4xl font-black" :class="gameResult === 'win' ? 'text-green-600' : 'text-red-600'">
-              {{ gameResult === 'win' ? 'ПОБЕДА!' : (gameResult === 'loss' ? 'ПОРАЖЕНИЕ' : 'ОППОНЕНТ ВЫШЕЛ') }}
+          <div class="result-text">
+            <h1 :class="resultTitleClass">
+              {{ resultTitle }}
             </h1>
-            <p class="text-slate-500 font-bold mt-2 text-lg">
-              {{ gameResult === 'win' ? '+25 очков рейтинга' : (gameResult === 'loss' ? '-25 очков рейтинга' : 'Вам присуждена техническая победа') }}
+            <p class="result-description">
+              {{ resultDescription }}
             </p>
           </div>
-          <button @click="connectPvp" class="px-8 py-4 bg-slate-900 text-white font-black rounded-xl shadow-lg hover:bg-slate-800 transition-all">
+          <button @click="connectPvp" class="play-again-btn">
             Играть снова
           </button>
         </div>
-
       </div>
 
-      <div class="space-y-8">
-        <div class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl">
-          <h3 class="text-xl font-black text-slate-900 mb-6">Твои успехи</h3>
-          <div class="space-y-4">
-            <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl">
-              <span class="text-xs font-bold text-slate-400 uppercase">Ранг</span>
-              <span class="font-black text-indigo-600">{{ stats.rank }}</span>
+      <div class="sidebar-section">
+        <div class="stats-card">
+          <h3 class="stats-title">Твои успехи</h3>
+          <div class="stats-grid">
+            <div class="stat-item">
+              <span class="stat-label">Ранг</span>
+              <span class="stat-value rank-value">{{ stats.rank }}</span>
             </div>
-            <div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl">
-              <span class="text-xs font-bold text-slate-400 uppercase">Очки</span>
-              <span class="font-black text-slate-900">{{ stats.points }}</span>
+            <div class="stat-item">
+              <span class="stat-label">Очки</span>
+              <span class="stat-value points-value">{{ stats.points }}</span>
             </div>
           </div>
         </div>
 
-        <div class="bg-white overflow-hidden rounded-[2.5rem] border border-slate-100 shadow-xl">
-          <div class="p-6 bg-slate-900 text-white font-black text-center">
-            🏆 ТОП МАСТЕРОВ
-          </div>
-          <div class="p-2">
-            <div v-for="(player, index) in leaderboard" :key="player.id" class="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-2xl transition-colors">
-              <span class="w-6 text-sm font-black text-slate-300">#{{ index + 1 }}</span>
-              <div class="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-lg">
+        <div class="leaderboard-card">
+          <div class="leaderboard-header">🏆 ТОП МАСТЕРОВ</div>
+          <div class="leaderboard-list">
+            <div v-for="(player, index) in leaderboard" :key="player.id" class="leaderboard-item">
+              <span class="player-rank">#{{ index + 1 }}</span>
+              <div class="player-avatar">
                 {{ player.avatar }}
               </div>
-              <div class="flex-1">
-                <p class="text-sm font-bold text-slate-800">{{ player.name }}</p>
-                <p class="text-[10px] font-black text-indigo-500 uppercase">{{ player.points }} PTS</p>
+              <div class="player-info">
+                <p class="player-name">{{ player.name }}</p>
+                <p class="player-points">{{ player.points }} PTS</p>
               </div>
             </div>
           </div>
         </div>
       </div>
-
     </div>
   </div>
 </template>
 
 <style scoped>
-.custom-scrollbar::-webkit-scrollbar {
+.pvp-container {
+  min-height: 100vh;
+  background-color: #f8fafc;
+  padding: 48px 24px;
+  font-family: sans-serif;
+}
+.pvp-grid {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 32px;
+}
+@media (min-width: 1024px) {
+  .pvp-grid {
+    grid-template-columns: 2fr 1fr;
+  }
+}
+.main-section {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+.idle-state {
+  position: relative;
+  overflow: hidden;
+  background-color: #0f172a;
+  border-radius: 40px;
+  padding: 40px;
+  height: 384px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  box-shadow: 0 25px 50px -12px rgba(99, 102, 241, 0.2);
+}
+.idle-state::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 256px;
+  height: 256px;
+  background-color: rgba(79, 70, 229, 0.2);
+  border-radius: 50%;
+  filter: blur(48px);
+  transform: translate(50%, -50%);
+  transition: opacity 0.7s ease;
+}
+.idle-state:hover::before {
+  opacity: 1;
+}
+.arena-badge {
+  display: inline-block;
+  padding: 4px 16px;
+  background-color: rgba(79, 70, 229, 0.2);
+  color: rgba(199, 210, 254, 0.8);
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border-radius: 9999px;
+  border: 1px solid rgba(79, 70, 229, 0.3);
+  margin-bottom: 24px;
+}
+.arena-title {
+  font-size: 48px;
+  font-weight: 900;
+  color: white;
+  letter-spacing: -0.025em;
+  margin-bottom: 16px;
+}
+.arena-description {
+  color: #a5b4fc;
+  max-width: 512px;
+  font-weight: 500;
+  font-size: 18px;
+  line-height: 1.75;
+  margin-bottom: 32px;
+}
+.find-opponent-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 40px;
+  background-color: #22c55e;
+  color: white;
+  font-weight: 900;
+  border-radius: 16px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 10px 15px -3px rgba(34, 197, 94, 0.1);
+  transition: all 0.2s ease;
+  font-size: 18px;
+  position: relative;
+  z-index: 10;
+}
+.find-opponent-btn:hover {
+  background-color: #16a34a;
+  transform: scale(1.05);
+}
+.find-opponent-btn:active {
+  transform: scale(0.95);
+}
+.btn-fire {
+  font-size: 20px;
+}
+.searching-state {
+  background-color: white;
+  border-radius: 40px;
+  padding: 40px;
+  height: 384px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 24px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  border: 1px solid #f1f5f9;
+}
+.searching-spinner {
+  position: relative;
+  width: 80px;
+  height: 80px;
+}
+.spinner-ring {
+  width: 100%;
+  height: 100%;
+  border: 4px solid #e0e7ff;
+  border-top-color: #4f46e5;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+.spinner-icon {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+.searching-text h2 {
+  font-size: 24px;
+  font-weight: 900;
+  color: #0f172a;
+  margin-bottom: 8px;
+}
+.searching-text p {
+  color: #64748b;
+  font-weight: 500;
+}
+.cancel-btn {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ef4444;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+.cancel-btn:hover {
+  color: #dc2626;
+}
+.playing-state {
+  background-color: white;
+  border-radius: 40px;
+  border: 1px solid #f1f5f9;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 600px;
+}
+.match-header {
+  background-color: #0f172a;
+  padding: 24px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: white;
+}
+.match-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.live-dot {
+  width: 12px;
+  height: 12px;
+  background-color: #ef4444;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+.live-text {
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 14px;
+}
+.match-hint {
+  font-size: 12px;
+  font-weight: 700;
+  color: #a5b4fc;
+}
+.task-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 32px;
+  background-color: #f8fafc;
+}
+.task-content {
+  max-width: 768px;
+  margin: 0 auto;
+}
+.task-tags {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.subject-tag {
+  padding: 6px 12px;
+  background-color: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: #475569;
+}
+.difficulty-tag {
+  padding: 6px 12px;
+  background-color: #e0e7ff;
+  border: 1px solid #c7d2fe;
+  color: #4f46e5;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+.task-title {
+  font-size: 24px;
+  font-weight: 900;
+  color: #0f172a;
+  margin-bottom: 16px;
+}
+.task-description p {
+  color: #334155;
+  font-weight: 500;
+  line-height: 1.75;
+  white-space: pre-wrap;
+}
+.loading-task {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  font-weight: 700;
+  animation: pulse 2s infinite;
+}
+.game-controls {
+  border-top: 1px solid #e2e8f0;
+  background-color: white;
+  padding: 24px;
+}
+.game-logs {
+  height: 128px;
+  overflow-y: auto;
+  padding-right: 8px;
+  margin-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.game-logs::-webkit-scrollbar {
   width: 4px;
 }
-.custom-scrollbar::-webkit-scrollbar-track {
+.game-logs::-webkit-scrollbar-track {
   background: transparent;
 }
-.custom-scrollbar::-webkit-scrollbar-thumb {
+.game-logs::-webkit-scrollbar-thumb {
   background-color: #cbd5e1;
   border-radius: 20px;
+}
+.log-message {
+  font-size: 14px;
+  font-weight: 500;
+}
+.log-system {
+  color: #4f46e5;
+}
+.log-error {
+  color: #ef4444;
+}
+.log-user {
+  color: #334155;
+}
+.answer-form {
+  display: flex;
+  gap: 12px;
+}
+.answer-input {
+  flex: 1;
+  background-color: #f8fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-weight: 700;
+  color: #0f172a;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+.answer-input:focus {
+  border-color: #4f46e5;
+}
+.submit-answer-btn {
+  padding: 12px 24px;
+  background-color: #4f46e5;
+  color: white;
+  font-weight: 900;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+.submit-answer-btn:hover {
+  background-color: #4338ca;
+}
+.submit-answer-btn:active {
+  transform: scale(0.95);
+}
+.result-state {
+  background-color: white;
+  border-radius: 40px;
+  padding: 40px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  border: 1px solid #f1f5f9;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 24px;
+  height: 384px;
+}
+.result-icon {
+  font-size: 72px;
+  margin-bottom: 16px;
+}
+.result-text h1 {
+  font-size: 36px;
+  font-weight: 900;
+  margin-bottom: 8px;
+}
+.text-win {
+  color: #16a34a;
+}
+.text-loss {
+  color: #dc2626;
+}
+.result-description {
+  color: #64748b;
+  font-weight: 700;
+  font-size: 18px;
+}
+.play-again-btn {
+  padding: 16px 32px;
+  background-color: #0f172a;
+  color: white;
+  font-weight: 900;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+.play-again-btn:hover {
+  background-color: #1e293b;
+}
+.sidebar-section {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+.stats-card {
+  background-color: white;
+  padding: 32px;
+  border-radius: 40px;
+  border: 1px solid #f1f5f9;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+.stats-title {
+  font-size: 20px;
+  font-weight: 900;
+  color: #0f172a;
+  margin-bottom: 24px;
+}
+.stats-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background-color: #f8fafc;
+  border-radius: 16px;
+}
+.stat-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+}
+.stat-value {
+  font-weight: 900;
+}
+.rank-value {
+  color: #4f46e5;
+}
+.points-value {
+  color: #0f172a;
+}
+.leaderboard-card {
+  background-color: white;
+  overflow: hidden;
+  border-radius: 40px;
+  border: 1px solid #f1f5f9;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+.leaderboard-header {
+  padding: 24px;
+  background-color: #0f172a;
+  color: white;
+  font-weight: 900;
+  text-align: center;
+}
+.leaderboard-list {
+  padding: 8px;
+}
+.leaderboard-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 16px;
+  transition: background-color 0.2s ease;
+}
+.leaderboard-item:hover {
+  background-color: #f8fafc;
+}
+.player-rank {
+  width: 24px;
+  font-size: 14px;
+  font-weight: 900;
+  color: #cbd5e1;
+}
+.player-avatar {
+  width: 40px;
+  height: 40px;
+  background-color: #f1f5f9;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+.player-info {
+  flex: 1;
+}
+.player-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1f2937;
+}
+.player-points {
+  font-size: 10px;
+  font-weight: 900;
+  color: #4f46e5;
+  text-transform: uppercase;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 </style>

@@ -38,36 +38,34 @@ export default {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-slate-50 p-4">
-
-    <div class="max-w-md w-full bg-white rounded-[2rem] shadow-2xl border border-slate-100 p-10 space-y-8">
-
-      <div class="text-center">
-        <h1 class="text-4xl font-black text-slate-900 tracking-tight">Вход</h1>
-        <p class="mt-3 text-slate-500 font-medium text-sm">Введите свои данные, чтобы продолжить обучение</p>
+  <div class="auth-container">
+    <div class="auth-card">
+      <div class="auth-header">
+        <h1 class="auth-title">Вход</h1>
+        <p class="auth-subtitle">Введите свои данные, чтобы продолжить обучение</p>
       </div>
 
-      <form @submit.prevent="login" class="space-y-6">
-        <div class="space-y-4">
-          <div>
-            <label class="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 ml-1">Имя пользователя</label>
+      <form @submit.prevent="login" class="auth-form">
+        <div class="form-fields">
+          <div class="form-group">
+            <label class="form-label">Имя пользователя</label>
             <input
               type="text"
               v-model="loginUsername"
               required
-              placeholder="vash_login"
-              class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all placeholder:text-slate-300"
+              placeholder="Логин"
+              class="form-input"
             >
           </div>
 
-          <div>
-            <label class="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 ml-1">Пароль</label>
+          <div class="form-group">
+            <label class="form-label">Пароль</label>
             <input
               type="password"
               v-model="loginPassword"
               required
-              placeholder="••••••••"
-              class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all"
+              placeholder="Пароль"
+              class="form-input"
             >
           </div>
         </div>
@@ -75,16 +73,17 @@ export default {
         <button
           type="submit"
           :disabled="loading"
-          class="w-full py-5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl shadow-xl shadow-indigo-100 transition-all active:scale-[0.98] disabled:opacity-50"
+          class="submit-btn"
+          :class="{ disabled: loading }"
         >
           {{ loading ? 'Вход в систему...' : 'Войти' }}
         </button>
       </form>
 
-      <div class="pt-6 border-t border-slate-50 text-center">
-        <p class="text-sm text-slate-500 font-medium">
+      <div class="auth-footer">
+        <p class="footer-text">
           Нет аккаунта?
-          <router-link to="/auth/register" class="text-indigo-600 font-bold hover:text-indigo-500 transition-colors">
+          <router-link to="/auth/register" class="footer-link">
             Зарегистрироваться
           </router-link>
         </p>
@@ -94,5 +93,123 @@ export default {
 </template>
 
 <style scoped>
-/* Все стили применяются через Tailwind классы в шаблоне */
+.auth-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f8fafc;
+  padding: 16px;
+  font-family: sans-serif;
+}
+.auth-card {
+  max-width: 448px;
+  width: 100%;
+  background-color: white;
+  border-radius: 32px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  border: 1px solid #f1f5f9;
+  padding: 40px;
+}
+.auth-header {
+  text-align: center;
+}
+.auth-title {
+  font-size: 36px;
+  font-weight: 900;
+  color: #0f172a;
+  letter-spacing: -0.025em;
+  margin-bottom: 12px;
+}
+.auth-subtitle {
+  color: #64748b;
+  font-weight: 500;
+  font-size: 14px;
+  margin-top: 12px;
+}
+.auth-form {
+  margin-top: 32px;
+}
+.form-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+.form-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 8px;
+  margin-left: 4px;
+}
+.form-input {
+  width: 100%;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 16px 20px;
+  font-size: 16px;
+  color: #0f172a;
+  outline: none;
+  transition: all 0.2s ease;
+}
+.form-input:focus {
+  background-color: white;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+}
+.form-input::placeholder {
+  color: #cbd5e1;
+}
+.submit-btn {
+  width: 100%;
+  padding: 20px;
+  background-color: #4f46e5;
+  color: white;
+  font-weight: 900;
+  border-radius: 16px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.1);
+  transition: all 0.2s ease;
+  margin-top: 24px;
+  font-size: 16px;
+}
+.submit-btn:hover {
+  background-color: #4338ca;
+}
+.submit-btn:active {
+  transform: scale(0.98);
+}
+.submit-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.auth-footer {
+  padding-top: 24px;
+  margin-top: 24px;
+  border-top: 1px solid #f1f5f9;
+  text-align: center;
+}
+.footer-text {
+  font-size: 14px;
+  color: #64748b;
+  font-weight: 500;
+}
+.footer-link {
+  color: #4f46e5;
+  font-weight: 700;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+.footer-link:hover {
+  color: #4338ca;
+}
 </style>
