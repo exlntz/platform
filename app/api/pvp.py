@@ -147,12 +147,10 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
                 if ans.answer == task.correct_answer:
                     if ans.user_id == player1.user_id:
                         elochange = calculate_elo_change(player1.rating, player2.rating, WIN)
-                        #TODO сделать функцию change_elo
                         r1 = await change_elo(player1.user_id,elochange)
                         r2 = await change_elo(player2.user_id,-elochange)
                     else:
                         elochange = calculate_elo_change(player1.rating, player2.rating, LOSS)
-                        #TODO сделать функцию change_elo
                         r1 = await change_elo(player1.user_id,elochange)
                         r2 = await change_elo(player2.user_id,-elochange)
                     await ws1.send_text(str("win" if player1.user_id == ans.user_id else "loss")+f" {r1}")
@@ -197,6 +195,7 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
 async def match_players():
     global queue
     global index
+    now = time.time()
     async with _queue_lock:
         if not queue: return
         pairs = [] # найденные пары оппонентов
@@ -205,12 +204,21 @@ async def match_players():
         l = len(queue)
         i = 0
         while i < l-1:
-            if queue[i+1].rating - queue[i].rating < 100:
-                pairs.append((queue[i],queue[i+1]))
+            p1 = queue[i]
+            p2 = queue[i + 1]
+
+            wait_time = max( # наибольшее время поиска
+                now - p1.joined_at,
+                now - p2.joined_at
+            )
+            allowed_elo_diff = 100+wait_time*5 # каждую секунду увеличиваем допустимую разницу в эло на 5
+
+            if p2.rating - p1.rating < allowed_elo_diff: # если подходить, то начинаем матч
+                pairs.append((p1,p2))
                 i+=2
-            else:
-                newqueue.append(queue[i])
-                newindex[queue[i].user_id] = queue[i]
+            else: # иначе оставляем игрока в очереди
+                newqueue.append(p1)
+                newindex[p1.user_id] = p1
                 i+=1
         if i == l-1:
             newqueue.append(queue[i])

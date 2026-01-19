@@ -3,6 +3,12 @@ import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import axios from 'axios'
 
+
+import { useTimerStore } from '@/TimerStore.js'
+
+const timer = useTimerStore()
+
+
 const route = useRoute()
 const task = ref(null)
 const loading = ref(true)
@@ -37,7 +43,8 @@ const submitAnswer = async () => {
   try {
     const response = await axios.post(
       `http://127.0.0.1:8000/tasks/${task.value.id}/check`,
-      { answer: answer.value },
+      { answer: answer.value,
+        time_spent: timer.elapsedSeconds},
       getAuthHeader()
     )
 
@@ -45,6 +52,7 @@ const submitAnswer = async () => {
 
     if (response.data.is_correct) {
       isSolved.value = true // БЛОКИРУЕМ интерфейс (только до перезагрузки)
+      timer.stopTimer()
     }
     // Если ответ неверный, isSolved остается false, можно пробовать дальше
   } catch (err) {
@@ -143,6 +151,11 @@ onMounted(() => {
         </div>
       </div>
     </div>
+    <div v-if="timer.isAfkAlertVisible" class="modal">
+      <p>Are you still here?</p>
+      <button @click="timer.confirmAfk">Yes</button>
+    </div>
+    <p>Time: {{ timer.elapsedSeconds }} seconds</p>
   </div>
 </template>
 
