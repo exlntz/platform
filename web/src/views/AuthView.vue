@@ -104,12 +104,6 @@ export default {
           <span class="btn-text" v-if="!loading">Войти</span>
           <span class="loading-text" v-if="loading">Вход в систему...</span>
         </button>
-
-        <div class="form-helper">
-          <router-link to="/auth/recovery" class="helper-link">
-            Забыли пароль?
-          </router-link>
-        </div>
       </form>
 
       <div class="divider">
@@ -125,14 +119,6 @@ export default {
         </router-link>
       </div>
 
-      <div class="auth-footer">
-        <p class="footer-text">
-          Продолжая, вы соглашаетесь с
-          <a href="#" class="footer-link">Условиями использования</a>
-          и
-          <a href="#" class="footer-link">Политикой конфиденциальности</a>
-        </p>
-      </div>
     </div>
   </div>
 </template>
@@ -357,19 +343,6 @@ export default {
   margin-top: 18px;
 }
 
-.helper-link {
-  font-size: 14px;
-  color: #4f46e5;
-  text-decoration: none;
-  font-weight: 500;
-  transition: color 0.2s ease;
-}
-
-.helper-link:hover {
-  color: #4338ca;
-  text-decoration: underline;
-}
-
 /* Разделитель */
 .divider {
   display: flex;
@@ -435,16 +408,6 @@ export default {
   font-size: 12px;
   color: #94a3b8;
   line-height: 1.5;
-}
-
-.footer-link {
-  color: #4f46e5;
-  text-decoration: none;
-  font-weight: 500;
-}
-
-.footer-link:hover {
-  text-decoration: underline;
 }
 
 /* ==================== Адаптивные стили ==================== */
