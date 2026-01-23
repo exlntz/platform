@@ -170,7 +170,7 @@ const closeMenu = () => {
 </template>
 
 <style scoped>
-/* ==================== БАЗОВЫЕ СТИЛИ ==================== */
+/* ==================== Базовые стили ==================== */
 
 .header {
   position: sticky;
@@ -196,7 +196,6 @@ const closeMenu = () => {
   position: relative;
 }
 
-/* Логотип */
 .logo-container {
   display: flex;
   align-items: center;
@@ -233,19 +232,16 @@ const closeMenu = () => {
   text-transform: uppercase;
 }
 
-/* Навигация для десктопа */
 .desktop-navigation {
   display: none;
 }
 
-/* Правая часть шапки */
 .header-right {
   display: flex;
   align-items: center;
   gap: 16px;
 }
 
-/* Бургер-меню */
 .burger-menu {
   display: flex;
   flex-direction: column;
@@ -279,7 +275,6 @@ const closeMenu = () => {
   transform: rotate(-45deg) translate(6px, -6px);
 }
 
-/* Блок авторизации */
 .auth-block {
   display: none;
 }
@@ -307,7 +302,6 @@ const closeMenu = () => {
   background-color: #4338ca;
 }
 
-/* Мобильное меню */
 .mobile-menu {
   position: fixed;
   top: 0;
@@ -488,7 +482,7 @@ const closeMenu = () => {
   background-color: #4338ca;
 }
 
-/* Адаптивные стили */
+/* ==================== Адаптивные стили ==================== */
 
 @media (min-width: 640px) {
   .menu {
@@ -566,6 +560,7 @@ const closeMenu = () => {
   }
 }
 
+
 @media (min-width: 768px) {
   .burger-menu {
     display: none;
@@ -605,6 +600,7 @@ const closeMenu = () => {
   }
 }
 
+
 @media (min-width: 1024px) {
   .menu {
     padding-left: 32px;
@@ -612,11 +608,13 @@ const closeMenu = () => {
   }
 }
 
+
 @media (min-width: 1280px) {
   .menu {
     max-width: 1280px;
   }
 }
+
 
 @media (min-width: 1536px) {
   .menu {

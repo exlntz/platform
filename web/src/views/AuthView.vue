@@ -7,14 +7,14 @@ export default {
     return {
       loginUsername: '',
       loginPassword: '',
-      loading: false
+      loading: false,
+      showPassword: false
     }
   },
   methods: {
     async login() {
       this.loading = true;
       try {
-        // Логика передачи параметров формы для FastAPI
         const params = new URLSearchParams();
         params.append('username', this.loginUsername);
         params.append('password', this.loginPassword);
@@ -25,13 +25,15 @@ export default {
         const token = response.data.access_token;
         localStorage.setItem('user-token', token);
 
-        // Перенаправление в профиль после успешного входа
         this.$router.push('/profile');
       } catch(err) {
         alert("Ошибка авторизации: " + (err.response?.data?.detail || err.message));
       } finally {
         this.loading = false;
       }
+    },
+    togglePasswordVisibility() {
+      this.showPassword = !this.showPassword;
     }
   }
 }
@@ -41,7 +43,16 @@ export default {
   <div class="auth-container">
     <div class="auth-card">
       <div class="auth-header">
-        <h1 class="auth-title">Вход</h1>
+        <router-link to="/" class="back-link">
+          <span class="back-icon">←</span>
+          На главную
+        </router-link>
+        
+        <div class="logo-container">
+          <div class="logo">L</div>
+          <h1 class="auth-title">Вход в Platform</h1>
+        </div>
+        
         <p class="auth-subtitle">Введите свои данные, чтобы продолжить обучение</p>
       </div>
 
@@ -49,24 +60,39 @@ export default {
         <div class="form-fields">
           <div class="form-group">
             <label class="form-label">Имя пользователя</label>
-            <input
-              type="text"
-              v-model="loginUsername"
-              required
-              placeholder="Логин"
-              class="form-input"
-            >
+            <div class="input-wrapper">
+              <input
+                type="text"
+                v-model="loginUsername"
+                required
+                placeholder="Введите логин"
+                class="form-input"
+                :disabled="loading"
+              >
+            </div>
           </div>
 
           <div class="form-group">
             <label class="form-label">Пароль</label>
-            <input
-              type="password"
-              v-model="loginPassword"
-              required
-              placeholder="Пароль"
-              class="form-input"
-            >
+            <div class="input-wrapper">
+              <input
+                :type="showPassword ? 'text' : 'password'"
+                v-model="loginPassword"
+                required
+                placeholder="Введите пароль"
+                class="form-input"
+                :disabled="loading"
+              >
+              <button 
+                type="button" 
+                class="password-toggle"
+                @click="togglePasswordVisibility"
+                :disabled="loading"
+              >
+                <span class="toggle-icon" v-if="showPassword">👁️</span>
+                <span class="toggle-icon" v-else>👁️‍🗨️</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -74,18 +100,37 @@ export default {
           type="submit"
           :disabled="loading"
           class="submit-btn"
-          :class="{ disabled: loading }"
         >
-          {{ loading ? 'Вход в систему...' : 'Войти' }}
+          <span class="btn-text" v-if="!loading">Войти</span>
+          <span class="loading-text" v-if="loading">Вход в систему...</span>
         </button>
+
+        <div class="form-helper">
+          <router-link to="/auth/recovery" class="helper-link">
+            Забыли пароль?
+          </router-link>
+        </div>
       </form>
+
+      <div class="divider">
+        <span class="divider-text">или</span>
+      </div>
+
+      <div class="alternative-actions">
+        <p class="alternative-text">
+          Нет аккаунта?
+        </p>
+        <router-link to="/auth/register" class="alternative-btn">
+          Создать аккаунт
+        </router-link>
+      </div>
 
       <div class="auth-footer">
         <p class="footer-text">
-          Нет аккаунта?
-          <router-link to="/auth/register" class="footer-link">
-            Зарегистрироваться
-          </router-link>
+          Продолжая, вы соглашаетесь с
+          <a href="#" class="footer-link">Условиями использования</a>
+          и
+          <a href="#" class="footer-link">Политикой конфиденциальности</a>
         </p>
       </div>
     </div>
@@ -93,123 +138,518 @@ export default {
 </template>
 
 <style scoped>
+/* ==================== Базовые стили ==================== */
+
 .auth-container {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #f8fafc;
+  background: linear-gradient(135deg, #f8fafc 0%, #f0f9ff 100%);
   padding: 16px;
-  font-family: sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  line-height: 1.5;
 }
+
 .auth-card {
-  max-width: 448px;
   width: 100%;
+  max-width: 480px;
   background-color: white;
-  border-radius: 32px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
   border: 1px solid #f1f5f9;
-  padding: 40px;
+  padding: 24px;
 }
-.auth-header {
-  text-align: center;
+
+/* Заголовок */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #64748b;
+  text-decoration: none;
+  font-weight: 500;
+  margin-bottom: 20px;
+  padding: 8px 0;
+  transition: color 0.2s ease;
 }
-.auth-title {
-  font-size: 36px;
+
+.back-link:hover {
+  color: #4f46e5;
+}
+
+.back-icon {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.logo-container {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.logo {
+  width: 50px;
+  height: 50px;
+  background-color: #4f46e5;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
   font-weight: 900;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.auth-title {
+  font-size: 24px;
+  font-weight: 800;
   color: #0f172a;
   letter-spacing: -0.025em;
-  margin-bottom: 12px;
+  margin: 0;
+  line-height: 1.2;
 }
+
 .auth-subtitle {
   color: #64748b;
-  font-weight: 500;
   font-size: 14px;
-  margin-top: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+  margin-top: 0;
+  margin-bottom: 28px;
 }
+
+/* Форма */
 .auth-form {
-  margin-top: 32px;
+  margin: 28px 0;
 }
+
 .form-fields {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
 }
+
 .form-group {
   display: flex;
   flex-direction: column;
 }
+
 .form-label {
-  display: block;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
   color: #334155;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
   margin-bottom: 8px;
-  margin-left: 4px;
+  letter-spacing: 0.02em;
 }
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
 .form-input {
   width: 100%;
   background-color: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 16px 20px;
-  font-size: 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px;
+  font-size: 15px;
   color: #0f172a;
   outline: none;
   transition: all 0.2s ease;
+  font-family: inherit;
+  line-height: 1.5;
 }
+
 .form-input:focus {
   background-color: white;
   border-color: #4f46e5;
-  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
+
+.form-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: #f1f5f9;
+}
+
 .form-input::placeholder {
-  color: #cbd5e1;
+  color: #94a3b8;
 }
-.submit-btn {
-  width: 100%;
-  padding: 20px;
-  background-color: #4f46e5;
-  color: white;
-  font-weight: 900;
-  border-radius: 16px;
+
+.password-toggle {
+  position: absolute;
+  right: 14px;
+  background: none;
   border: none;
+  color: #94a3b8;
   cursor: pointer;
-  box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.1);
-  transition: all 0.2s ease;
-  margin-top: 24px;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
   font-size: 16px;
+  line-height: 1;
 }
-.submit-btn:hover {
-  background-color: #4338ca;
+
+.password-toggle:hover:not(:disabled) {
+  color: #4f46e5;
 }
-.submit-btn:active {
-  transform: scale(0.98);
-}
-.submit-btn.disabled {
+
+.password-toggle:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.toggle-icon {
+  display: inline-block;
+  font-size: 18px;
+}
+
+.submit-btn {
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 100%);
+  color: white;
+  font-weight: 700;
+  font-size: 16px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 8px 20px -6px rgba(79, 70, 229, 0.3);
+  transition: all 0.2s ease;
+  margin-top: 28px;
+  font-family: inherit;
+  min-height: 52px;
+}
+
+.submit-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 30px -10px rgba(79, 70, 229, 0.4);
+  background: linear-gradient(90deg, #4338ca 0%, #6d28d9 100%);
+}
+
+.submit-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.submit-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+  background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 100%);
+}
+
+.btn-text, .loading-text {
+  display: block;
+}
+
+.form-helper {
+  text-align: center;
+  margin-top: 18px;
+}
+
+.helper-link {
+  font-size: 14px;
+  color: #4f46e5;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.helper-link:hover {
+  color: #4338ca;
+  text-decoration: underline;
+}
+
+/* Разделитель */
+.divider {
+  display: flex;
+  align-items: center;
+  margin: 28px 0;
+  color: #94a3b8;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background-color: #e2e8f0;
+}
+
+.divider-text {
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* Альтернативные действия */
+.alternative-actions {
+  text-align: center;
+}
+
+.alternative-text {
+  font-size: 14px;
+  color: #64748b;
+  margin-bottom: 16px;
+}
+
+.alternative-btn {
+  display: inline-block;
+  width: 100%;
+  padding: 16px;
+  background-color: white;
+  color: #4f46e5;
+  font-weight: 700;
+  font-size: 15px;
+  border-radius: 12px;
+  border: 2px solid #4f46e5;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.alternative-btn:hover {
+  background-color: #f8fafc;
+  transform: translateY(-2px);
+}
+
+/* Футер */
 .auth-footer {
-  padding-top: 24px;
-  margin-top: 24px;
+  padding-top: 28px;
+  margin-top: 28px;
   border-top: 1px solid #f1f5f9;
   text-align: center;
 }
+
 .footer-text {
-  font-size: 14px;
-  color: #64748b;
-  font-weight: 500;
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.5;
 }
+
 .footer-link {
   color: #4f46e5;
-  font-weight: 700;
   text-decoration: none;
-  transition: color 0.2s ease;
+  font-weight: 500;
 }
+
 .footer-link:hover {
-  color: #4338ca;
+  text-decoration: underline;
+}
+
+/* ==================== Адаптивные стили ==================== */
+
+@media (max-width: 320px) {
+  .auth-container {
+    padding: 12px;
+  }
+  
+  .auth-card {
+    padding: 20px 16px;
+    border-radius: 16px;
+  }
+  
+  .logo {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+  }
+  
+  .auth-title {
+    font-size: 22px;
+  }
+  
+  .auth-subtitle {
+    font-size: 13px;
+  }
+  
+  .form-input {
+    padding: 12px;
+    font-size: 14px;
+  }
+  
+  .password-toggle {
+    right: 12px;
+    padding: 4px;
+  }
+  
+  .submit-btn {
+    padding: 14px;
+    font-size: 15px;
+    min-height: 48px;
+  }
+}
+
+
+@media (min-width: 321px) and (max-width: 375px) {
+  .auth-card {
+    padding: 22px 18px;
+  }
+  
+  .logo {
+    width: 46px;
+    height: 46px;
+    font-size: 22px;
+  }
+  
+  .auth-title {
+    font-size: 23px;
+  }
+}
+
+
+@media (min-width: 376px) {
+  .auth-card {
+    padding: 24px;
+  }
+}
+
+
+@media (min-width: 640px) {
+  .auth-container {
+    padding: 24px;
+  }
+  
+  .auth-card {
+    padding: 32px;
+    border-radius: 24px;
+    max-width: 520px;
+  }
+  
+  .logo {
+    width: 56px;
+    height: 56px;
+    font-size: 28px;
+  }
+  
+  .auth-title {
+    font-size: 28px;
+  }
+  
+  .auth-subtitle {
+    font-size: 15px;
+  }
+  
+  .form-input {
+    padding: 16px;
+    font-size: 16px;
+  }
+  
+  .password-toggle {
+    font-size: 18px;
+    padding: 8px;
+  }
+  
+  .toggle-icon {
+    font-size: 20px;
+  }
+  
+  .submit-btn {
+    padding: 18px;
+    font-size: 17px;
+    min-height: 56px;
+  }
+}
+
+
+@media (min-width: 768px) {
+  .auth-card {
+    max-width: 560px;
+    padding: 40px;
+  }
+  
+  .auth-title {
+    font-size: 32px;
+  }
+  
+  .auth-subtitle {
+    font-size: 16px;
+  }
+  
+  .back-link {
+    font-size: 15px;
+  }
+  
+  .back-icon {
+    font-size: 20px;
+  }
+}
+
+
+@media (min-width: 1024px) {
+  .auth-container {
+    padding: 32px;
+  }
+  
+  .auth-card {
+    max-width: 600px;
+    padding: 48px;
+  }
+  
+  .auth-title {
+    font-size: 36px;
+  }
+  
+  .logo {
+    width: 64px;
+    height: 64px;
+    font-size: 32px;
+  }
+}
+
+
+@media (min-width: 1280px) {
+  .auth-card {
+    max-width: 640px;
+  }
+  
+  .auth-title {
+    font-size: 40px;
+  }
+  
+  .form-fields {
+    gap: 24px;
+  }
+  
+  .form-input {
+    padding: 18px;
+  }
+}
+
+
+@media (min-width: 1536px) {
+  .auth-card {
+    max-width: 680px;
+    padding: 56px;
+  }
+  
+  .auth-title {
+    font-size: 44px;
+  }
+  
+  .auth-subtitle {
+    font-size: 18px;
+  }
+  
+  .form-input {
+    font-size: 17px;
+    padding: 20px;
+  }
+  
+  .submit-btn {
+    font-size: 18px;
+    padding: 20px;
+    min-height: 60px;
+  }
 }
 </style>
