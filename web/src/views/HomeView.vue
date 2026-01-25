@@ -86,7 +86,8 @@ export default {
 </template>
 
 <style scoped>
-/* Базовые стили */
+/* ==================== БАЗОВЫЕ СТИЛИ ==================== */
+
 .home-container {
   min-height: 100vh;
   background-color: #f9fafb;
@@ -271,7 +272,7 @@ export default {
   font-weight: 500;
 }
 
-/* Адаптивные стили */
+/* ==================== АДАПТИВНЫЕ СТИЛИ ==================== */
 
 @media (min-width: 380px) {
   .hero-title {
