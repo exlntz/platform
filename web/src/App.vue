@@ -1,4 +1,3 @@
-[file name]: App.vue
 <script setup>
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { ref, onMounted, watch } from 'vue'
@@ -100,6 +99,7 @@ const closeMenu = () => {
 
         <!-- Бургер-меню для мобильных -->
         <button 
+          v-show="!isMenuOpen"
           class="burger-menu" 
           @click="toggleMenu"
           :aria-expanded="isMenuOpen"
