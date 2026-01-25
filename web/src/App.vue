@@ -1,3 +1,4 @@
+[file name]: App.vue
 <script setup>
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { ref, onMounted, watch } from 'vue'
@@ -80,18 +81,6 @@ const closeMenu = () => {
 
       <!-- Правая часть шапки -->
       <div class="header-right">
-        <!-- Бургер-меню для мобильных -->
-        <button 
-          class="burger-menu" 
-          @click="toggleMenu"
-          :aria-expanded="isMenuOpen"
-          aria-label="Меню навигации"
-        >
-          <span class="burger-line"></span>
-          <span class="burger-line"></span>
-          <span class="burger-line"></span>
-        </button>
-
         <!-- Блок авторизации/профиля -->
         <div class="auth-block">
           <RouterLink v-if="isLoggedIn" to="/profile" class="profile-link">
@@ -108,10 +97,22 @@ const closeMenu = () => {
             Войти
           </RouterLink>
         </div>
+
+        <!-- Бургер-меню для мобильных -->
+        <button 
+          class="burger-menu" 
+          @click="toggleMenu"
+          :aria-expanded="isMenuOpen"
+          aria-label="Меню навигации"
+        >
+          <span class="burger-line"></span>
+          <span class="burger-line"></span>
+          <span class="burger-line"></span>
+        </button>
       </div>
 
       <!-- Мобильное меню (появляется при клике на бургер) -->
-      <div class="mobile-menu" :class="{ 'mobile-menu--open': isMenuOpen }">
+      <div v-if="isMenuOpen" class="mobile-menu">
         <div class="mobile-menu-overlay" @click="closeMenu"></div>
         <div class="mobile-menu-content">
           <div class="mobile-menu-header">
@@ -170,7 +171,7 @@ const closeMenu = () => {
 </template>
 
 <style scoped>
-/* ==================== Базовые стили ==================== */
+/* ==================== БАЗОВЫЕ СТИЛИ ==================== */
 
 .header {
   position: sticky;
@@ -309,14 +310,6 @@ const closeMenu = () => {
   width: 100%;
   height: 100vh;
   z-index: 99;
-  visibility: hidden;
-  opacity: 0;
-  transition: all 0.3s ease;
-}
-
-.mobile-menu--open {
-  visibility: visible;
-  opacity: 1;
 }
 
 .mobile-menu-overlay {
@@ -338,14 +331,16 @@ const closeMenu = () => {
   height: 100%;
   background-color: white;
   box-shadow: -5px 0 25px rgba(0, 0, 0, 0.1);
-  transform: translateX(100%);
-  transition: transform 0.3s ease;
-  display: flex;
-  flex-direction: column;
+  animation: slideIn 0.3s ease-out;
 }
 
-.mobile-menu--open .mobile-menu-content {
-  transform: translateX(0);
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
 }
 
 .mobile-menu-header {
@@ -482,7 +477,7 @@ const closeMenu = () => {
   background-color: #4338ca;
 }
 
-/* ==================== Адаптивные стили ==================== */
+/* ==================== АДАПТИВНЫЕ СТИЛИ ==================== */
 
 @media (min-width: 640px) {
   .menu {
@@ -554,10 +549,6 @@ const closeMenu = () => {
   .profile-link:hover .profile-icon {
     transform: scale(1.1);
   }
-
-  .mobile-menu-content {
-    max-width: 380px;
-  }
 }
 
 
@@ -593,10 +584,6 @@ const closeMenu = () => {
     padding: 10px 24px;
     font-size: 14px;
     border-radius: 12px;
-  }
-
-  .mobile-menu {
-    display: none;
   }
 }
 
