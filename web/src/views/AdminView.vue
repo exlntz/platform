@@ -1,3 +1,4 @@
+[file name]: AdminView.vue
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import axios from 'axios'
@@ -8,6 +9,7 @@ const accessDenied = ref(false)
 const loading = ref(false)
 const showTaskModal = ref(false)
 const fileInput = ref(null)
+const isSidebarCollapsed = ref(false) // Новое: состояние боковой панели для мобильных
 
 // --- НОВОЕ: УПРАВЛЕНИЕ ПОЛЬЗОВАТЕЛЯМИ ---
 const activeMenuId = ref(null) // ID пользователя, у которого открыто меню действий
@@ -273,6 +275,11 @@ const formatDate = (dateString) => {
   return new Date(dateString).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
+// Переключение боковой панели
+const toggleSidebar = () => {
+  isSidebarCollapsed.value = !isSidebarCollapsed.value
+}
+
 // Жизненный цикл
 onMounted(() => {
   window.addEventListener('click', () => { activeMenuId.value = null }) // Закрываем меню при клике вне
@@ -302,38 +309,48 @@ onMounted(() => {
   </div>
 
   <div v-else class="admin-container">
-    <aside class="admin-sidebar">
+    <!-- Мобильное меню -->
+    <div class="mobile-menu-btn" @click="toggleSidebar">
+      <span class="burger-line"></span>
+      <span class="burger-line"></span>
+      <span class="burger-line"></span>
+    </div>
+
+    <div class="mobile-overlay" v-if="isSidebarCollapsed" @click="toggleSidebar"></div>
+
+    <aside class="admin-sidebar" :class="{ 'sidebar-collapsed': isSidebarCollapsed }">
       <div class="sidebar-header">
         <div class="sidebar-logo">A</div>
         <span class="sidebar-title">Admin Panel</span>
+        <button class="sidebar-close" @click="toggleSidebar">✕</button>
       </div>
 
       <nav class="sidebar-nav">
         <button
-          @click="currentTab = 'dashboard'"
+          @click="currentTab = 'dashboard'; isSidebarCollapsed = false"
           class="nav-btn"
           :class="{ active: currentTab === 'dashboard' }"
         >
-          <span class="nav-icon">📊</span> Дашборд
+          <span class="nav-icon">📊</span> <span class="nav-text">Дашборд</span>
         </button>
         <button
-          @click="currentTab = 'users'"
+          @click="currentTab = 'users'; isSidebarCollapsed = false"
           class="nav-btn"
           :class="{ active: currentTab === 'users' }"
         >
-          <span class="nav-icon">👥</span> Пользователи
+          <span class="nav-icon">👥</span> <span class="nav-text">Пользователи</span>
         </button>
         <button
-          @click="currentTab = 'tasks'; fetchTasks()"
+          @click="currentTab = 'tasks'; fetchTasks(); isSidebarCollapsed = false"
           class="nav-btn"
           :class="{ active: currentTab === 'tasks' }"
         >
-          <span class="nav-icon">📝</span> Задачи
+          <span class="nav-icon">📝</span> <span class="nav-text">Задачи</span>
         </button>
       </nav>
 
       <div class="sidebar-footer">
-        <router-link to="/" class="back-to-site">
+        <router-link to="/" class="back-to-site" @click="isSidebarCollapsed = false">
           ← Вернуться на сайт
         </router-link>
       </div>
@@ -396,72 +413,74 @@ onMounted(() => {
         </div>
 
         <div class="table-wrapper">
-          <table class="users-table">
-            <thead>
-              <tr class="table-head">
-                <th>ID</th>
-                <th>Пользователь</th>
-                <th>Рейтинг</th>
-                <th>Дата регистрации</th>
-                <th>Роль / Статус</th>
-                <th class="actions-header">Действия</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="user in users" :key="user.id" class="table-row">
-                <td class="user-id">#{{ user.id }}</td>
-                <td class="user-cell">
-                  <div class="user-avatar">
-                    {{ user.username.charAt(0).toUpperCase() }}
-                  </div>
-                  <div class="user-details">
-                    <p class="user-name">{{ user.username }}</p>
-                    <p class="user-email">{{ user.email }}</p>
-                  </div>
-                </td>
-                <td>
-                  <span class="rating-badge">{{ user.rating }}</span>
-                </td>
-                <td class="register-date">
-                  {{ formatDate(user.created_at) }}
-                </td>
-                <td>
-                  <div class="status-container">
-                    <span class="status-badge" :class="{ banned: user.is_banned }">
-                      {{ user.is_banned ? 'Banned' : 'Active' }}
-                    </span>
-                    <span v-if="user.is_admin" class="admin-badge">
-                      Admin
-                    </span>
-                  </div>
-                </td>
-                <td class="actions-cell">
-                  <button
-                    @click="toggleMenu($event, user.id)"
-                    class="actions-btn"
-                  >
-                    Действия ▾
-                  </button>
+          <div class="responsive-table">
+            <table class="users-table">
+              <thead>
+                <tr class="table-head">
+                  <th>ID</th>
+                  <th class="user-column">Пользователь</th>
+                  <th>Рейтинг</th>
+                  <th class="date-column">Дата регистрации</th>
+                  <th class="status-column">Роль / Статус</th>
+                  <th class="actions-header">Действия</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="user in users" :key="user.id" class="table-row">
+                  <td class="user-id">#{{ user.id }}</td>
+                  <td class="user-cell">
+                    <div class="user-avatar">
+                      {{ user.username.charAt(0).toUpperCase() }}
+                    </div>
+                    <div class="user-details">
+                      <p class="user-name">{{ user.username }}</p>
+                      <p class="user-email">{{ user.email }}</p>
+                    </div>
+                  </td>
+                  <td class="rating-cell">
+                    <span class="rating-badge">{{ user.rating }}</span>
+                  </td>
+                  <td class="register-date">
+                    {{ formatDate(user.created_at) }}
+                  </td>
+                  <td class="status-cell">
+                    <div class="status-container">
+                      <span class="status-badge" :class="{ banned: user.is_banned }">
+                        {{ user.is_banned ? 'Banned' : 'Active' }}
+                      </span>
+                      <span v-if="user.is_admin" class="admin-badge">
+                        Admin
+                      </span>
+                    </div>
+                  </td>
+                  <td class="actions-cell">
+                    <button
+                      @click="toggleMenu($event, user.id)"
+                      class="actions-btn"
+                    >
+                      Действия ▾
+                    </button>
 
-                  <div v-if="activeMenuId === user.id" class="actions-dropdown">
-                    <button @click="openEditUser(user)" class="dropdown-item">
-                      <span class="item-icon">✏️</span> Изменить данные
-                    </button>
-                    <button @click="updateUserAction(user.id, { is_admin: !user.is_admin })" class="dropdown-item">
-                      <span class="item-icon">{{ user.is_admin ? '⭐' : '👑' }}</span> {{ user.is_admin ? 'Снять админа' : 'Сделать админом' }}
-                    </button>
-                    <button @click="updateUserAction(user.id, { is_banned: !user.is_banned })" class="dropdown-item">
-                      <span class="item-icon">{{ user.is_banned ? '🔓' : '🚫' }}</span> {{ user.is_banned ? 'Разблокировать' : 'Заблокировать' }}
-                    </button>
-                    <div class="dropdown-divider"></div>
-                    <button @click="deleteUser(user)" class="dropdown-item delete-item">
-                      <span class="item-icon">🗑️</span> Удалить
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                    <div v-if="activeMenuId === user.id" class="actions-dropdown">
+                      <button @click="openEditUser(user)" class="dropdown-item">
+                        <span class="item-icon">✏️</span> <span>Изменить данные</span>
+                      </button>
+                      <button @click="updateUserAction(user.id, { is_admin: !user.is_admin })" class="dropdown-item">
+                        <span class="item-icon">{{ user.is_admin ? '⭐' : '👑' }}</span> <span>{{ user.is_admin ? 'Снять админа' : 'Сделать админом' }}</span>
+                      </button>
+                      <button @click="updateUserAction(user.id, { is_banned: !user.is_banned })" class="dropdown-item">
+                        <span class="item-icon">{{ user.is_banned ? '🔓' : '🚫' }}</span> <span>{{ user.is_banned ? 'Разблокировать' : 'Заблокировать' }}</span>
+                      </button>
+                      <div class="dropdown-divider"></div>
+                      <button @click="deleteUser(user)" class="dropdown-item delete-item">
+                        <span class="item-icon">🗑️</span> <span>Удалить</span>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
           <div v-if="!loading && users.length === 0" class="empty-table">
             <div class="empty-icon">🔍</div>
@@ -477,11 +496,11 @@ onMounted(() => {
           <h1>Управление задачами</h1>
           <div class="tasks-actions">
             <input type="file" ref="fileInput" class="file-upload" accept=".json" @change="handleImport">
-            <button @click="triggerImport" class="import-btn">
-              📥 Импорт
+            <button @click="triggerImport" class="import-btn" title="Импорт задач">
+              📥
             </button>
-            <button @click="exportTasks" class="export-btn">
-              📤 Экспорт
+            <button @click="exportTasks" class="export-btn" title="Экспорт задач">
+              📤
             </button>
             <button @click="openCreateModal" class="create-btn">
               <span class="plus-icon">+</span> Создать
@@ -490,63 +509,65 @@ onMounted(() => {
         </div>
 
         <div class="table-wrapper">
-          <table class="tasks-table">
-            <thead>
-              <tr class="table-head">
-                <th @click="sortBy('id')" class="sortable-column">
-                  ID <span v-if="sortKey === 'id'" class="sort-indicator">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
-                </th>
-                <th @click="sortBy('title')" class="sortable-column">
-                  Задача <span v-if="sortKey === 'title'" class="sort-indicator">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
-                </th>
-                <th @click="sortBy('subject')" class="sortable-column">
-                  Предмет <span v-if="sortKey === 'subject'" class="sort-indicator">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
-                </th>
-                <th @click="sortBy('difficulty')" class="sortable-column">
-                  Сложность <span v-if="sortKey === 'difficulty'" class="sort-indicator">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
-                </th>
-                <th>Ответ</th>
-                <th class="actions-header">Действие</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="task in sortedTasks" :key="task.id" class="table-row task-row">
-                <td class="task-id">#{{ task.id }}</td>
-                <td class="task-cell">
-                  <p class="task-title">{{ task.title }}</p>
-                  <p class="task-description">{{ task.description.substring(0, 60) }}...</p>
-                </td>
-                <td>
-                  <span class="subject-badge">{{ task.subject }}</span>
-                </td>
-                <td>
-                  <span class="difficulty-badge" :class="task.difficulty.toLowerCase()">
-                    {{ task.difficulty }}
-                  </span>
-                </td>
-                <td class="answer-cell">
-                  <code class="answer-code">{{ task.correct_answer || '***' }}</code>
-                  <span class="answer-placeholder">***</span>
-                </td>
-                <td class="task-actions-cell">
-                  <button
-                    @click="openEditModal(task)"
-                    class="action-icon edit-icon"
-                    title="Редактировать"
-                  >
-                    <span>✏️</span>
-                  </button>
-                  <button
-                    @click="deleteTask(task.id)"
-                    class="action-icon delete-icon"
-                    title="Удалить задачу"
-                  >
-                    <span>🗑️</span>
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <div class="responsive-table">
+            <table class="tasks-table">
+              <thead>
+                <tr class="table-head">
+                  <th @click="sortBy('id')" class="sortable-column">
+                    ID <span v-if="sortKey === 'id'" class="sort-indicator">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
+                  </th>
+                  <th @click="sortBy('title')" class="sortable-column task-column">
+                    Задача <span v-if="sortKey === 'title'" class="sort-indicator">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
+                  </th>
+                  <th @click="sortBy('subject')" class="sortable-column">
+                    Предмет <span v-if="sortKey === 'subject'" class="sort-indicator">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
+                  </th>
+                  <th @click="sortBy('difficulty')" class="sortable-column">
+                    Сложность <span v-if="sortKey === 'difficulty'" class="sort-indicator">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
+                  </th>
+                  <th class="answer-column">Ответ</th>
+                  <th class="actions-header">Действие</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="task in sortedTasks" :key="task.id" class="table-row task-row">
+                  <td class="task-id">#{{ task.id }}</td>
+                  <td class="task-cell">
+                    <p class="task-title">{{ task.title }}</p>
+                    <p class="task-description">{{ task.description.substring(0, 60) }}...</p>
+                  </td>
+                  <td>
+                    <span class="subject-badge">{{ task.subject }}</span>
+                  </td>
+                  <td>
+                    <span class="difficulty-badge" :class="task.difficulty.toLowerCase()">
+                      {{ task.difficulty }}
+                    </span>
+                  </td>
+                  <td class="answer-cell">
+                    <code class="answer-code">{{ task.correct_answer || '***' }}</code>
+                    <span class="answer-placeholder">***</span>
+                  </td>
+                  <td class="task-actions-cell">
+                    <button
+                      @click="openEditModal(task)"
+                      class="action-icon edit-icon"
+                      title="Редактировать"
+                    >
+                      <span>✏️</span>
+                    </button>
+                    <button
+                      @click="deleteTask(task.id)"
+                      class="action-icon delete-icon"
+                      title="Удалить задачу"
+                    >
+                      <span>🗑️</span>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
           <div v-if="!loading && tasks.length === 0" class="empty-tasks">
             Задач пока нет. Создайте первую!
@@ -616,7 +637,10 @@ onMounted(() => {
     <!-- User Edit Modal -->
     <div v-if="showUserEditModal" class="modal-overlay">
       <div class="user-modal">
-        <h2>Редактировать профиль</h2>
+        <div class="modal-header">
+          <h2>Редактировать профиль</h2>
+          <button @click="showUserEditModal = false" class="close-modal">✕</button>
+        </div>
         <form @submit.prevent="updateUserAction(userEditForm.id, userEditForm, 'Данные сохранены')" class="modal-form">
           <div class="form-group">
             <label class="form-label">Имя пользователя</label>
@@ -641,6 +665,8 @@ onMounted(() => {
 </template>
 
 <style scoped>
+/* ==================== БАЗОВЫЕ СТИЛИ ==================== */
+
 /* Access Denied Page */
 .access-denied-container {
   min-height: 100vh;
@@ -650,7 +676,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   padding: 16px;
-  font-family: sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 .access-denied-content {
   max-width: 448px;
@@ -658,32 +684,33 @@ onMounted(() => {
   text-align: center;
 }
 .access-denied-icon {
-  width: 96px;
-  height: 96px;
+  width: 80px;
+  height: 80px;
   background-color: #fee2e2;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 32px;
-  box-shadow: 0 20px 25px -5px rgba(254, 202, 202, 0.5);
+  margin: 0 auto 24px;
+  box-shadow: 0 10px 15px -3px rgba(254, 202, 202, 0.5);
 }
 .access-denied-icon span {
-  font-size: 48px;
+  font-size: 40px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 .access-denied-text h1 {
-  font-size: 36px;
+  font-size: 28px;
   font-weight: 900;
   color: #0f172a;
   letter-spacing: -0.025em;
   margin-bottom: 12px;
+  line-height: 1.2;
 }
 .access-denied-text p {
   color: #64748b;
   font-weight: 500;
-  font-size: 18px;
-  line-height: 1.75;
+  font-size: 16px;
+  line-height: 1.5;
   margin-bottom: 24px;
 }
 .access-denied-actions {
@@ -694,39 +721,80 @@ onMounted(() => {
   padding-top: 16px;
 }
 .home-btn {
-  padding: 16px 32px;
+  padding: 14px 28px;
   background-color: #0f172a;
   color: white;
   font-weight: 700;
-  border-radius: 16px;
+  border-radius: 12px;
   text-decoration: none;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 12px -3px rgba(0, 0, 0, 0.1);
   transition: all 0.2s ease;
   border: none;
   cursor: pointer;
   display: inline-block;
+  font-size: 14px;
 }
 .home-btn:hover {
   background-color: #1e293b;
 }
 .home-btn:active {
-  transform: scale(0.95);
+  transform: scale(0.98);
 }
 .error-code {
-  font-size: 12px;
+  font-size: 11px;
   color: #94a3b8;
   font-family: monospace;
-  margin-top: 32px;
+  margin-top: 24px;
 }
-
 
 /* Admin Layout */
 .admin-container {
   min-height: 100vh;
   background-color: #f8fafc;
-  display: flex;
-  font-family: sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  position: relative;
 }
+
+/* Мобильное меню */
+.mobile-menu-btn {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 100;
+  width: 40px;
+  height: 40px;
+  background: white;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  padding: 8px;
+}
+
+.burger-line {
+  width: 20px;
+  height: 2px;
+  background-color: #4f46e5;
+  border-radius: 1px;
+  transition: all 0.3s ease;
+}
+
+.mobile-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 90;
+}
+
 .admin-sidebar {
   width: 256px;
   background-color: #0f172a;
@@ -735,15 +803,22 @@ onMounted(() => {
   flex-direction: column;
   position: fixed;
   height: 100%;
-  z-index: 20;
+  z-index: 95;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
 }
+
+.sidebar-collapsed {
+  transform: translateX(0);
+}
+
 .sidebar-header {
-  padding: 24px;
+  padding: 20px;
   border-bottom: 1px solid #1e293b;
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
 }
 .sidebar-logo {
   width: 32px;
@@ -754,13 +829,24 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   font-weight: 900;
-  box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.2);
+  box-shadow: 0 8px 12px -3px rgba(99, 102, 241, 0.2);
+  font-size: 14px;
 }
 .sidebar-title {
   font-weight: 700;
-  font-size: 18px;
+  font-size: 16px;
   letter-spacing: -0.025em;
 }
+.sidebar-close {
+  display: none;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px;
+}
+
 .sidebar-nav {
   flex: 1;
   padding: 16px;
@@ -786,15 +872,16 @@ onMounted(() => {
 .nav-btn.active {
   background-color: #4f46e5;
   color: white;
-  box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.25);
+  box-shadow: 0 8px 12px -3px rgba(79, 70, 229, 0.25);
 }
 .nav-btn:not(.active):hover {
   background-color: #1e293b;
   color: white;
 }
 .nav-icon {
-  font-size: 20px;
+  font-size: 18px;
   transition: transform 0.2s ease;
+  flex-shrink: 0;
 }
 .nav-btn:hover .nav-icon {
   transform: scale(1.1);
@@ -823,74 +910,67 @@ onMounted(() => {
 }
 .admin-main {
   flex: 1;
-  margin-left: 256px;
-  padding: 32px;
+  padding: 16px;
+  width: 100%;
 }
-
 
 /* Dashboard Tab */
 .dashboard-header {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
-  margin-bottom: 32px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 .dashboard-header h1 {
-  font-size: 36px;
+  font-size: 24px;
   font-weight: 900;
   color: #0f172a;
   letter-spacing: -0.025em;
+  line-height: 1.2;
 }
 .live-badge {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 700;
   color: #64748b;
   background-color: white;
-  padding: 4px 12px;
-  border-radius: 9999px;
+  padding: 4px 10px;
+  border-radius: 20px;
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   border: 1px solid #f1f5f9;
 }
 .stats-container {
   display: grid;
   grid-template-columns: repeat(1, 1fr);
-  gap: 24px;
-}
-@media (min-width: 768px) {
-  .stats-container {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-@media (min-width: 1024px) {
-  .stats-container {
-    grid-template-columns: repeat(4, 1fr);
-  }
+  gap: 16px;
 }
 .stat-card {
   background-color: white;
-  padding: 24px;
-  border-radius: 32px;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  padding: 20px;
+  border-radius: 20px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   border: 1px solid #f1f5f9;
-  transition: box-shadow 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .stat-card:hover {
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px -2px rgba(0, 0, 0, 0.15);
 }
 .stat-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 .stat-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 16px;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: 20px;
 }
 .users-icon {
   background-color: #dbeafe;
@@ -916,60 +996,67 @@ onMounted(() => {
   letter-spacing: 0.1em;
 }
 .stat-value {
-  font-size: 30px;
+  font-size: 24px;
   font-weight: 900;
   color: #0f172a;
+  line-height: 1.2;
 }
 .stat-description {
-  font-size: 14px;
+  font-size: 13px;
   color: #64748b;
   font-weight: 500;
   margin-top: 4px;
 }
-
 
 /* Common Tab Styles */
 .tab-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 .tab-header h1 {
-  font-size: 30px;
+  font-size: 22px;
   font-weight: 900;
   color: #0f172a;
+  line-height: 1.2;
 }
 .refresh-btn {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
+  gap: 6px;
+  padding: 8px 12px;
   background-color: white;
   border: 1px solid #e2e8f0;
   color: #475569;
-  border-radius: 12px;
-  font-size: 14px;
+  border-radius: 10px;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  white-space: nowrap;
 }
 .refresh-btn:hover {
   background-color: #f8fafc;
 }
 .table-wrapper {
   background-color: white;
-  border-radius: 32px;
-  box-shadow: 0 25px 50px -12px rgba(148, 163, 184, 0.4);
+  border-radius: 20px;
+  box-shadow: 0 10px 15px -3px rgba(148, 163, 184, 0.2);
   border: 1px solid #f1f5f9;
-  overflow: hidden;
+  overflow: auto;
 }
 
-
 /* Users Table */
+.responsive-table {
+  overflow-x: auto;
+}
 .users-table {
   width: 100%;
+  min-width: 800px;
   text-align: left;
   border-collapse: collapse;
 }
@@ -983,7 +1070,7 @@ onMounted(() => {
   letter-spacing: 0.2em;
 }
 .table-head th {
-  padding: 20px 32px;
+  padding: 16px;
 }
 .actions-header {
   text-align: right;
@@ -996,31 +1083,32 @@ onMounted(() => {
   background-color: #f8fafc;
 }
 .table-row td {
-  padding: 20px 32px;
+  padding: 16px;
 }
 .user-id {
   color: #cbd5e1;
   font-family: monospace;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
 }
 .user-cell {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
 }
 .user-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
   background-color: #f1f5f9;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 900;
   color: #64748b;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 .table-row:hover .user-avatar {
   transform: scale(1.1);
@@ -1030,16 +1118,23 @@ onMounted(() => {
 .user-details {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 .user-name {
   font-weight: 700;
   color: #0f172a;
-  font-size: 14px;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .user-email {
-  font-size: 12px;
+  font-size: 11px;
   color: #64748b;
   font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .rating-badge {
   font-weight: 700;
@@ -1050,18 +1145,20 @@ onMounted(() => {
   font-size: 12px;
 }
 .register-date {
-  font-size: 12px;
+  font-size: 11px;
   color: #64748b;
   font-weight: 700;
+  white-space: nowrap;
 }
 .status-container {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 .status-badge {
-  padding: 6px 10px;
-  border-radius: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
   font-size: 10px;
   font-weight: 900;
   text-transform: uppercase;
@@ -1070,6 +1167,7 @@ onMounted(() => {
   background-color: #d1fae5;
   color: #059669;
   border: 1px solid #a7f3d0;
+  white-space: nowrap;
 }
 .status-badge.banned {
   background-color: #fee2e2;
@@ -1077,8 +1175,8 @@ onMounted(() => {
   border: 1px solid #fecaca;
 }
 .admin-badge {
-  padding: 6px 10px;
-  border-radius: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
   font-size: 10px;
   font-weight: 900;
   text-transform: uppercase;
@@ -1087,33 +1185,35 @@ onMounted(() => {
   color: #4f46e5;
   border: 1px solid #c7d2fe;
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  white-space: nowrap;
 }
 .actions-cell {
   text-align: right;
   position: relative;
 }
 .actions-btn {
-  padding: 8px 16px;
+  padding: 6px 12px;
   background-color: #f1f5f9;
   color: #475569;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 900;
-  border-radius: 12px;
+  border-radius: 10px;
   border: none;
   cursor: pointer;
   transition: background-color 0.2s ease;
+  white-space: nowrap;
 }
 .actions-btn:hover {
   background-color: #e2e8f0;
 }
 .actions-dropdown {
   position: absolute;
-  right: 32px;
-  top: 56px;
-  width: 208px;
+  right: 16px;
+  top: 45px;
+  width: 200px;
   background-color: white;
-  border-radius: 16px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  border-radius: 12px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25);
   border: 1px solid #f1f5f9;
   z-index: 50;
   padding: 8px 0;
@@ -1122,7 +1222,7 @@ onMounted(() => {
 .dropdown-item {
   width: 100%;
   text-align: left;
-  padding: 12px 20px;
+  padding: 10px 16px;
   font-size: 12px;
   font-weight: 700;
   color: #334155;
@@ -1146,22 +1246,22 @@ onMounted(() => {
   border-top: 1px solid #f1f5f9;
 }
 .empty-table {
-  padding: 48px;
+  padding: 40px 20px;
   text-align: center;
 }
 .empty-icon {
-  font-size: 36px;
+  font-size: 32px;
   margin-bottom: 8px;
 }
 .empty-title {
   color: #0f172a;
   font-weight: 700;
+  font-size: 16px;
 }
 .empty-subtitle {
   color: #94a3b8;
-  font-size: 14px;
+  font-size: 13px;
 }
-
 
 /* Tasks Tab */
 .tasks-tab-header {
@@ -1169,26 +1269,21 @@ onMounted(() => {
   align-items: flex-start;
   gap: 16px;
 }
-@media (min-width: 768px) {
-  .tasks-tab-header {
-    flex-direction: row;
-    align-items: center;
-  }
-}
 .tasks-actions {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 .file-upload {
   display: none;
 }
 .import-btn,
 .export-btn {
-  padding: 8px 16px;
+  padding: 8px;
   background-color: white;
   border: 1px solid #e2e8f0;
   color: #475569;
-  border-radius: 12px;
+  border-radius: 10px;
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
@@ -1196,26 +1291,29 @@ onMounted(() => {
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  min-width: 40px;
+  min-height: 40px;
 }
 .import-btn:hover,
 .export-btn:hover {
   background-color: #f8fafc;
 }
 .create-btn {
-  padding: 8px 24px;
+  padding: 8px 16px;
   background-color: #4f46e5;
   color: white;
-  border-radius: 12px;
-  font-size: 14px;
+  border-radius: 10px;
+  font-size: 13px;
   font-weight: 700;
   border: none;
   cursor: pointer;
-  box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.1);
+  box-shadow: 0 8px 12px -3px rgba(79, 70, 229, 0.1);
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  white-space: nowrap;
 }
 .create-btn:hover {
   background-color: #4338ca;
@@ -1225,6 +1323,7 @@ onMounted(() => {
 }
 .tasks-table {
   width: 100%;
+  min-width: 800px;
   text-align: left;
   border-collapse: collapse;
 }
@@ -1244,25 +1343,25 @@ onMounted(() => {
   background-color: #f8fafc;
 }
 .task-id {
-  font-size: 12px;
+  font-size: 11px;
   font-family: monospace;
   color: #cbd5e1;
   font-weight: 700;
 }
 .task-cell {
-  max-width: 300px;
+  max-width: 200px;
 }
 .task-title {
   font-weight: 700;
   color: #0f172a;
-  font-size: 14px;
+  font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   margin-bottom: 4px;
 }
 .task-description {
-  font-size: 12px;
+  font-size: 11px;
   color: #64748b;
   font-weight: 500;
   overflow: hidden;
@@ -1270,23 +1369,25 @@ onMounted(() => {
   white-space: nowrap;
 }
 .subject-badge {
-  padding: 6px 10px;
+  padding: 4px 8px;
   background-color: #f1f5f9;
-  border-radius: 8px;
-  font-size: 12px;
+  border-radius: 6px;
+  font-size: 11px;
   font-weight: 700;
   color: #475569;
   border: 1px solid #e2e8f0;
+  white-space: nowrap;
 }
 .difficulty-badge {
   font-size: 10px;
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  padding: 6px 10px;
-  border-radius: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
   border: 1px solid;
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  white-space: nowrap;
 }
 .difficulty-badge.easy {
   color: #059669;
@@ -1310,7 +1411,7 @@ onMounted(() => {
   background-color: #f1f5f9;
   padding: 4px 8px;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: 11px;
   color: #64748b;
   font-family: monospace;
   font-weight: 700;
@@ -1321,7 +1422,7 @@ onMounted(() => {
   display: inline;
 }
 .answer-placeholder {
-  font-size: 12px;
+  font-size: 11px;
   color: #cbd5e1;
   font-weight: 900;
   letter-spacing: 0.1em;
@@ -1333,21 +1434,22 @@ onMounted(() => {
   text-align: right;
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 6px;
 }
 .action-icon {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
   background-color: white;
   border: 1px solid #f1f5f9;
   color: #94a3b8;
-  border-radius: 12px;
+  border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  flex-shrink: 0;
 }
 .action-icon:hover {
   transform: scale(0.9);
@@ -1363,18 +1465,18 @@ onMounted(() => {
   border-color: #fecaca;
 }
 .empty-tasks {
-  padding: 48px;
+  padding: 40px 20px;
   text-align: center;
   color: #94a3b8;
   font-weight: 500;
+  font-size: 14px;
 }
-
 
 /* Modals */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: 100;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1385,36 +1487,37 @@ onMounted(() => {
 .task-modal,
 .user-modal {
   background-color: white;
-  border-radius: 32px;
+  border-radius: 20px;
   width: 100%;
-  max-width: 896px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  padding: 32px;
+  max-width: 100%;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25);
+  padding: 24px;
   border: 1px solid #f1f5f9;
   max-height: 90vh;
   overflow-y: auto;
-  animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: fadeInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .user-modal {
-  max-width: 448px;
+  max-width: 400px;
 }
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
   padding-bottom: 16px;
   border-bottom: 1px solid #f8fafc;
 }
 .modal-header h2 {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 900;
   color: #0f172a;
+  line-height: 1.2;
 }
 .close-modal {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
   background-color: #f1f5f9;
   display: flex;
   align-items: center;
@@ -1423,6 +1526,7 @@ onMounted(() => {
   border: none;
   cursor: pointer;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 .close-modal:hover {
   background-color: #e2e8f0;
@@ -1431,12 +1535,12 @@ onMounted(() => {
 .modal-form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 }
 .form-row {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
+  grid-template-columns: 1fr;
+  gap: 16px;
 }
 .form-group {
   display: flex;
@@ -1448,7 +1552,7 @@ onMounted(() => {
   color: #64748b;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   margin-left: 4px;
 }
 .form-select,
@@ -1457,13 +1561,14 @@ onMounted(() => {
   width: 100%;
   background-color: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 14px 16px;
+  border-radius: 10px;
+  padding: 12px 14px;
   font-weight: 700;
   color: #334155;
   outline: none;
   transition: all 0.2s ease;
   font-family: inherit;
+  font-size: 14px;
 }
 .form-select:focus,
 .form-input:focus,
@@ -1485,15 +1590,16 @@ onMounted(() => {
 }
 .submit-btn {
   width: 100%;
-  padding: 16px;
+  padding: 14px;
   background-color: #4f46e5;
   color: white;
   font-weight: 900;
-  border-radius: 12px;
+  border-radius: 10px;
   border: none;
   cursor: pointer;
-  box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.2);
+  box-shadow: 0 8px 12px -3px rgba(79, 70, 229, 0.2);
   transition: all 0.2s ease;
+  font-size: 14px;
 }
 .submit-btn:hover {
   background-color: #4338ca;
@@ -1503,37 +1609,38 @@ onMounted(() => {
 }
 .form-actions {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   padding-top: 16px;
 }
 .save-btn {
   flex: 1;
-  padding: 16px;
+  padding: 14px;
   background-color: #4f46e5;
   color: white;
   font-weight: 900;
-  border-radius: 12px;
+  border-radius: 10px;
   border: none;
   cursor: pointer;
   transition: background-color 0.2s ease;
+  font-size: 14px;
 }
 .save-btn:hover {
   background-color: #4338ca;
 }
 .cancel-btn {
-  padding: 16px 24px;
+  padding: 14px 20px;
   background-color: #f1f5f9;
   color: #64748b;
   font-weight: 900;
-  border-radius: 12px;
+  border-radius: 10px;
   border: none;
   cursor: pointer;
   transition: background-color 0.2s ease;
+  font-size: 14px;
 }
 .cancel-btn:hover {
   background-color: #e2e8f0;
 }
-
 
 /* Animations */
 @keyframes fadeIn {
@@ -1548,6 +1655,297 @@ onMounted(() => {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* ==================== АДАПТИВНЫЕ СТИЛИ ==================== */
+
+@media (max-width: 360px) {
+  .admin-main {
+    padding: 12px;
+  }
+  
+  .dashboard-header h1 {
+    font-size: 22px;
+  }
+  
+  .tab-header h1 {
+    font-size: 20px;
+  }
+  
+  .tasks-actions {
+    gap: 6px;
+  }
+  
+  .import-btn,
+  .export-btn {
+    min-width: 36px;
+    min-height: 36px;
+    padding: 6px;
+  }
+  
+  .create-btn {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+  
+  .task-modal,
+  .user-modal {
+    padding: 20px;
+  }
+  
+  .modal-header h2 {
+    font-size: 18px;
+  }
+}
+
+
+@media (min-width: 481px) {
+  .admin-main {
+    padding: 20px;
+  }
+  
+  .stats-container {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .stat-card {
+    padding: 24px;
+  }
+  
+  .stat-icon {
+    width: 44px;
+    height: 44px;
+    font-size: 22px;
+  }
+  
+  .stat-value {
+    font-size: 28px;
+  }
+  
+  .tasks-tab-header {
+    flex-direction: row;
+    align-items: center;
+  }
+  
+  .tasks-actions {
+    gap: 12px;
+  }
+  
+  .create-btn {
+    padding: 10px 20px;
+  }
+}
+
+
+@media (min-width: 641px) {
+  .mobile-menu-btn {
+    display: none;
+  }
+  
+  .admin-sidebar {
+    transform: translateX(0);
+    position: fixed;
+  }
+  
+  .admin-main {
+    margin-left: 256px;
+    padding: 24px;
+  }
+  
+  .sidebar-close {
+    display: none;
+  }
+  
+  .dashboard-header h1 {
+    font-size: 28px;
+  }
+  
+  .tab-header h1 {
+    font-size: 24px;
+  }
+  
+  .form-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .task-modal {
+    max-width: 600px;
+  }
+  
+  .users-table,
+  .tasks-table {
+    min-width: auto;
+  }
+}
+
+
+@media (min-width: 769px) {
+  .admin-main {
+    padding: 32px;
+  }
+  
+  .stats-container {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  .stat-card {
+    padding: 28px;
+    border-radius: 24px;
+  }
+  
+  .stat-icon {
+    width: 48px;
+    height: 48px;
+    font-size: 24px;
+  }
+  
+  .stat-value {
+    font-size: 30px;
+  }
+  
+  .dashboard-header h1 {
+    font-size: 32px;
+  }
+  
+  .tab-header h1 {
+    font-size: 26px;
+  }
+  
+  .table-head th {
+    padding: 20px 24px;
+  }
+  
+  .table-row td {
+    padding: 20px 24px;
+  }
+  
+  .task-modal {
+    max-width: 700px;
+    padding: 32px;
+    border-radius: 24px;
+  }
+}
+
+
+@media (min-width: 1025px) {
+  .admin-main {
+    padding: 40px;
+  }
+  
+  .stats-container {
+    gap: 24px;
+  }
+  
+  .stat-card {
+    padding: 32px;
+    border-radius: 28px;
+  }
+  
+  .stat-value {
+    font-size: 32px;
+  }
+  
+  .dashboard-header h1 {
+    font-size: 36px;
+  }
+  
+  .tab-header h1 {
+    font-size: 30px;
+  }
+  
+  .table-wrapper {
+    border-radius: 24px;
+  }
+  
+  .task-modal {
+    max-width: 800px;
+    border-radius: 28px;
+  }
+}
+
+
+@media (min-width: 1281px) {
+  .admin-main {
+    padding: 48px;
+    max-width: calc(100% - 256px);
+  }
+  
+  .stats-container {
+    gap: 28px;
+  }
+  
+  .stat-card {
+    padding: 36px;
+    border-radius: 32px;
+  }
+  
+  .stat-icon {
+    width: 56px;
+    height: 56px;
+    font-size: 28px;
+  }
+  
+  .stat-value {
+    font-size: 36px;
+  }
+  
+  .dashboard-header h1 {
+    font-size: 40px;
+  }
+  
+  .tab-header h1 {
+    font-size: 34px;
+  }
+  
+  .table-wrapper {
+    border-radius: 28px;
+  }
+  
+  .table-head th {
+    padding: 24px 32px;
+  }
+  
+  .table-row td {
+    padding: 24px 32px;
+  }
+  
+  .task-modal {
+    max-width: 900px;
+    border-radius: 32px;
+  }
+}
+
+
+@media (min-width: 1537px) {
+  .admin-main {
+    padding: 56px;
+    max-width: 1400px;
+    margin-left: 256px;
+  }
+  
+  .stats-container {
+    gap: 32px;
+  }
+  
+  .stat-card {
+    padding: 40px;
+  }
+  
+  .stat-value {
+    font-size: 40px;
+  }
+  
+  .dashboard-header h1 {
+    font-size: 44px;
+  }
+  
+  .tab-header h1 {
+    font-size: 38px;
+  }
+  
+  .task-modal {
+    max-width: 1000px;
   }
 }
 </style>
