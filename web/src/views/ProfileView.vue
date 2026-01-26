@@ -111,7 +111,7 @@ const pieChartData = computed(() => {
   if (!profile.value) return null
 
   return {
-    labels: ['Ошибки', 'Решено'],
+    labels: ['Неверно решено', 'Решено верно'],
     datasets: [
       {
         data: [
@@ -126,7 +126,10 @@ const pieChartData = computed(() => {
 
 const pieChartOptions = {
   responsive: true,
-  maintainAspectRatio: false
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { position: 'bottom' }
+  }
 }
 
 // LINE chart (динамика рейтинга — пример)
@@ -158,7 +161,38 @@ const lineChartData = computed(() => {
 
 const lineChartOptions = {
   responsive: true,
-  maintainAspectRatio: false
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      display: false // Скрываем легенду, если там всего одна линия
+    },
+    tooltip: {
+      backgroundColor: '#1e293b',
+      padding: 12,
+      cornerRadius: 8,
+      displayColors: false, // Убираем цветной квадрат в тултипе
+    }
+  },
+  scales: {
+    x: {
+      grid: {
+        display: false // Убираем вертикальные линии сетки
+      },
+      ticks: {
+        color: '#94a3b8'
+      }
+    },
+    y: {
+      grid: {
+        borderDash: [5, 5], // Пунктирная сетка
+        color: '#e2e8f0'
+      },
+      ticks: {
+        color: '#94a3b8',
+        precision: 0 // Только целые числа
+      }
+    }
+  }
 }
 onMounted(() => {
   fetchProfile()
@@ -292,19 +326,27 @@ onMounted(() => {
             <p class="stat-description">сила твоего аккаунта</p>
           </div>
         </div>
-        <Pie
-          v-if="pieChartData"
-          :data="pieChartData"
-          :options="pieChartOptions"
-          :key="profile.user.rating"
-        />
+        <div class="stat-card chart-container">
+          <h3 class="chart-title">Статистика ошибок</h3>
+          <div class="chart-wrapper">
+            <Pie
+              v-if="pieChartData"
+              :data="pieChartData"
+              :options="pieChartOptions"
+            />
+          </div>
+        </div>
 
-        <Line
-          v-if="lineChartData"
-          :data="lineChartData"
-          :options="lineChartOptions"
-          :key="profile.user.rating"
-        />
+        <div class="stat-card chart-container">
+          <h3 class="chart-title">Динамика рейтинга</h3>
+          <div class="chart-wrapper">
+            <Line
+              v-if="lineChartData"
+              :data="lineChartData"
+              :options="lineChartOptions"
+            />
+          </div>
+        </div>
       </div>
     </div>
 
@@ -317,7 +359,34 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* ==================== БАЗОВЫЕ СТИЛИ ==================== */
+
+.chart-container {
+  /* Графики часто занимают больше места, дадим им растянуться на 2 колонки на больших экранах, если нужно */
+  grid-column: span 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-wrapper {
+  position: relative;
+  height: 250px; /* Важно: фиксированная высота для контейнера графика */
+  width: 100%;
+}
+
+.chart-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #64748b;
+  margin-bottom: 16px;
+  text-transform: uppercase;
+}
+
+@media (min-width: 1024px) {
+  /* На широких экранах график рейтинга можно сделать широким */
+  .chart-container:last-child {
+    grid-column: span 2;
+  }
+}
 
 .profile-container {
   min-height: 100vh;
@@ -775,11 +844,11 @@ onMounted(() => {
     width: 110px;
     height: 110px;
   }
-  
+
   .username {
     font-size: 26px;
   }
-  
+
   .profile-actions {
     max-width: 220px;
   }
@@ -790,16 +859,16 @@ onMounted(() => {
   .profile-container {
     padding: 20px;
   }
-  
+
   .avatar {
     width: 120px;
     height: 120px;
   }
-  
+
   .username {
     font-size: 28px;
   }
-  
+
   .stat-card {
     padding: 24px;
   }
@@ -810,68 +879,68 @@ onMounted(() => {
   .profile-container {
     padding: 24px;
   }
-  
+
   .profile-card {
     padding: 24px;
     border-radius: 24px;
   }
-  
+
   .avatar {
     width: 140px;
     height: 140px;
     font-size: 40px;
   }
-  
+
   .avatar-fallback {
     font-size: 40px;
   }
-  
+
   .overlay-icon {
     font-size: 28px;
   }
-  
+
   .avatar-online {
     width: 24px;
     height: 24px;
     border: 4px solid white;
   }
-  
+
   .username {
     font-size: 32px;
   }
-  
+
   .rank-badge {
     font-size: 12px;
     padding: 8px 16px;
   }
-  
+
   .profile-meta {
     font-size: 14px;
   }
-  
+
   .progress-bar {
     height: 12px;
   }
-  
+
   .action-btn {
     padding: 12px 20px;
     font-size: 14px;
   }
-  
+
   .stats-grid {
     gap: 20px;
   }
-  
+
   .stat-card {
     padding: 24px;
   }
-  
+
   .stat-icon {
     width: 48px;
     height: 48px;
     font-size: 24px;
   }
-  
+
   .stat-value {
     font-size: 32px;
   }
@@ -885,30 +954,30 @@ onMounted(() => {
     gap: 32px;
     text-align: left;
   }
-  
+
   .profile-details {
     text-align: left;
   }
-  
+
   .name-section {
     flex-direction: row;
     align-items: center;
     gap: 16px;
   }
-  
+
   .profile-meta {
     justify-content: flex-start;
   }
-  
+
   .progress-section {
     margin: 0;
   }
-  
+
   .profile-actions {
     width: auto;
     min-width: 160px;
   }
-  
+
   .stats-grid {
     grid-template-columns: repeat(3, 1fr);
   }
@@ -919,43 +988,43 @@ onMounted(() => {
   .profile-container {
     padding: 32px;
   }
-  
+
   .profile-card {
     padding: 32px;
     border-radius: 28px;
   }
-  
+
   .profile-info {
     gap: 40px;
   }
-  
+
   .avatar {
     width: 160px;
     height: 160px;
     border-radius: 32px;
   }
-  
+
   .avatar-fallback {
     font-size: 48px;
   }
-  
+
   .username {
     font-size: 36px;
   }
-  
+
   .profile-meta {
     font-size: 15px;
   }
-  
+
   .stats-grid {
     gap: 24px;
   }
-  
+
   .stat-card {
     padding: 28px;
     border-radius: 20px;
   }
-  
+
   .stat-value {
     font-size: 36px;
   }
@@ -966,34 +1035,34 @@ onMounted(() => {
   .profile-content {
     max-width: 1100px;
   }
-  
+
   .profile-card {
     padding: 40px;
     border-radius: 32px;
   }
-  
+
   .avatar {
     width: 180px;
     height: 180px;
     border-radius: 40px;
   }
-  
+
   .username {
     font-size: 40px;
   }
-  
+
   .progress-bar {
     height: 14px;
   }
-  
+
   .stats-grid {
     gap: 28px;
   }
-  
+
   .stat-card {
     padding: 32px;
   }
-  
+
   .stat-value {
     font-size: 40px;
   }
@@ -1004,57 +1073,57 @@ onMounted(() => {
   .profile-container {
     padding: 40px;
   }
-  
+
   .profile-content {
     max-width: 1200px;
   }
-  
+
   .profile-card {
     padding: 48px;
     border-radius: 40px;
   }
-  
+
   .profile-info {
     gap: 48px;
   }
-  
+
   .avatar {
     width: 200px;
     height: 200px;
   }
-  
+
   .username {
     font-size: 44px;
   }
-  
+
   .rank-badge {
     font-size: 14px;
     padding: 10px 20px;
   }
-  
+
   .profile-meta {
     font-size: 16px;
   }
-  
+
   .action-btn {
     padding: 14px 28px;
     font-size: 15px;
   }
-  
+
   .stats-grid {
     gap: 32px;
   }
-  
+
   .stat-card {
     padding: 36px;
   }
-  
+
   .stat-icon {
     width: 56px;
     height: 56px;
     font-size: 28px;
   }
-  
+
   .stat-value {
     font-size: 44px;
   }
@@ -1065,37 +1134,37 @@ onMounted(() => {
   .profile-container {
     padding: 48px;
   }
-  
+
   .profile-content {
     max-width: 1400px;
   }
-  
+
   .profile-card {
     padding: 56px;
   }
-  
+
   .avatar {
     width: 220px;
     height: 220px;
   }
-  
+
   .username {
     font-size: 48px;
   }
-  
+
   .progress-bar {
     height: 16px;
   }
-  
+
   .stats-grid {
     gap: 36px;
   }
-  
+
   .stat-card {
     padding: 40px;
     border-radius: 24px;
   }
-  
+
   .stat-value {
     font-size: 48px;
   }

@@ -7,8 +7,31 @@ import axios from 'axios' // Импортируем axios
 import App from './App.vue'
 import router from './router'
 
-import { Chart as ChartJS, Title, Tooltip, Legend, PieController, ArcElement, LineController, LineElement, PointElement, CategoryScale, LinearScale } from 'chart.js'
-ChartJS.register(Title, Tooltip, Legend, PieController, ArcElement, LineController, LineElement, PointElement, CategoryScale, LinearScale)
+// Импортируем само ядро Chart.js и нужные модули
+import {
+  Chart as ChartJS,
+  ArcElement,      // Для Pie
+  CategoryScale,   // Для оси X (Line)
+  LinearScale,     // Для оси Y (Line)
+  PointElement,    // Точки на линии
+  LineElement,     // Сама линия
+  Title,
+  Tooltip,
+  Legend
+} from 'chart.js'
+
+
+// Регистрируем их глобально для этого компонента
+ChartJS.register(
+  ArcElement,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+)
 
 const app = createApp(App)
 
