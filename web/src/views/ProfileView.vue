@@ -104,7 +104,7 @@ const pieChartData = computed(() => {
   if (!profile.value) return null
 
   return {
-    labels: ['Ошибки', 'Решено'],
+    labels: ['Неверно решено', 'Решено верно'],
     datasets: [
       {
         data: [
@@ -119,7 +119,10 @@ const pieChartData = computed(() => {
 
 const pieChartOptions = {
   responsive: true,
-  maintainAspectRatio: false
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { position: 'bottom' }
+  }
 }
 
 // LINE chart (динамика рейтинга — пример)
@@ -151,7 +154,38 @@ const lineChartData = computed(() => {
 
 const lineChartOptions = {
   responsive: true,
-  maintainAspectRatio: false
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      display: false // Скрываем легенду, если там всего одна линия
+    },
+    tooltip: {
+      backgroundColor: '#1e293b',
+      padding: 12,
+      cornerRadius: 8,
+      displayColors: false, // Убираем цветной квадрат в тултипе
+    }
+  },
+  scales: {
+    x: {
+      grid: {
+        display: false // Убираем вертикальные линии сетки
+      },
+      ticks: {
+        color: '#94a3b8'
+      }
+    },
+    y: {
+      grid: {
+        borderDash: [5, 5], // Пунктирная сетка
+        color: '#e2e8f0'
+      },
+      ticks: {
+        color: '#94a3b8',
+        precision: 0 // Только целые числа
+      }
+    }
+  }
 }
 onMounted(() => {
   fetchProfile()
@@ -285,19 +319,27 @@ onMounted(() => {
             <p class="stat-description">сила твоего аккаунта</p>
           </div>
         </div>
-        <Pie
-          v-if="pieChartData"
-          :data="pieChartData"
-          :options="pieChartOptions"
-          :key="profile.user.rating"
-        />
+        <div class="stat-card chart-container">
+          <h3 class="chart-title">Статистика ошибок</h3>
+          <div class="chart-wrapper">
+            <Pie
+              v-if="pieChartData"
+              :data="pieChartData"
+              :options="pieChartOptions"
+            />
+          </div>
+        </div>
 
-        <Line
-          v-if="lineChartData"
-          :data="lineChartData"
-          :options="lineChartOptions"
-          :key="profile.user.rating"
-        />
+        <div class="stat-card chart-container">
+          <h3 class="chart-title">Динамика рейтинга</h3>
+          <div class="chart-wrapper">
+            <Line
+              v-if="lineChartData"
+              :data="lineChartData"
+              :options="lineChartOptions"
+            />
+          </div>
+        </div>
       </div>
     </div>
 
@@ -310,6 +352,35 @@ onMounted(() => {
 </template>
 
 <style scoped>
+
+.chart-container {
+  /* Графики часто занимают больше места, дадим им растянуться на 2 колонки на больших экранах, если нужно */
+  grid-column: span 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-wrapper {
+  position: relative;
+  height: 250px; /* Важно: фиксированная высота для контейнера графика */
+  width: 100%;
+}
+
+.chart-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #64748b;
+  margin-bottom: 16px;
+  text-transform: uppercase;
+}
+
+@media (min-width: 1024px) {
+  /* На широких экранах график рейтинга можно сделать широким */
+  .chart-container:last-child {
+    grid-column: span 2;
+  }
+}
+
 .profile-container {
   min-height: 100vh;
   background-color: #f8fafc;
