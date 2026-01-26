@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 import axios from 'axios'
 
 
-import { useTimerStore } from '@/TimerStore.js'
+import { useTimerStore } from '@/pinia/TimerStore.js'
 
 const timer = useTimerStore()
 

@@ -7,6 +7,9 @@ import axios from 'axios' // Импортируем axios
 import App from './App.vue'
 import router from './router'
 
+import { Chart as ChartJS, Title, Tooltip, Legend, PieController, ArcElement, LineController, LineElement, PointElement, CategoryScale, LinearScale } from 'chart.js'
+ChartJS.register(Title, Tooltip, Legend, PieController, ArcElement, LineController, LineElement, PointElement, CategoryScale, LinearScale)
+
 const app = createApp(App)
 
 // --- ГЛОБАЛЬНАЯ НАСТРОЙКА AXIOS ---
