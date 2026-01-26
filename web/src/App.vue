@@ -1,7 +1,7 @@
 <script setup>
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { ref, onMounted, watch } from 'vue'
-import { useTimerRunner } from '@/TimerRunner.js'
+import { useTimerRunner } from '@/pinia/TimerRunner.js'
 
 // runs once for entire SPA
 useTimerRunner()

@@ -2,6 +2,8 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
+import { Pie, Line } from 'vue-chartjs'
+
 
 const router = useRouter()
 const loading = ref(true)
@@ -102,6 +104,62 @@ const formatDate = (dateString) => {
   })
 }
 
+
+
+// PIE chart (круговая диаграмма)
+const pieChartData = computed(() => {
+  if (!profile.value) return null
+
+  return {
+    labels: ['Ошибки', 'Решено'],
+    datasets: [
+      {
+        data: [
+          profile.value.stats.total_attempts - profile.value.stats.correct_solutions,
+          profile.value.stats.correct_solutions
+        ],
+        backgroundColor: ['#ef4444', '#22c55e']
+      }
+    ]
+  }
+})
+
+const pieChartOptions = {
+  responsive: true,
+  maintainAspectRatio: false
+}
+
+// LINE chart (динамика рейтинга — пример)
+const lineChartData = computed(() => {
+  if (!profile.value) return null
+
+  // если у тебя есть история рейтинга:
+  // profile.value.rating_history = [1200, 1250, 1300, 1400]
+  const history =  [
+    profile.value.user.rating - 120,
+    profile.value.user.rating - 80,
+    profile.value.user.rating - 40,
+    profile.value.user.rating
+  ]
+
+  return {
+    labels: history.map((_, i) => `#${i + 1}`),
+    datasets: [
+      {
+        label: 'Рейтинг',
+        data: history,
+        borderColor: '#4f46e5',
+        backgroundColor: 'rgba(79,70,229,0.2)',
+        tension: 0.4
+      }
+    ]
+  }
+})
+
+const lineChartOptions = {
+  responsive: true,
+  maintainAspectRatio: false
+}
 onMounted(() => {
   fetchProfile()
 })
@@ -234,6 +292,19 @@ onMounted(() => {
             <p class="stat-description">сила твоего аккаунта</p>
           </div>
         </div>
+        <Pie
+          v-if="pieChartData"
+          :data="pieChartData"
+          :options="pieChartOptions"
+          :key="profile.user.rating"
+        />
+
+        <Line
+          v-if="lineChartData"
+          :data="lineChartData"
+          :options="lineChartOptions"
+          :key="profile.user.rating"
+        />
       </div>
     </div>
 

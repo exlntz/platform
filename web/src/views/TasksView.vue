@@ -2,7 +2,7 @@
 import { ref, onMounted, watch, computed, onUnmounted } from 'vue'
 import axios from 'axios'
 import { useRouter } from 'vue-router'
-import { useTimerStore } from '@/TimerStore.js'
+import { useTimerStore } from '@/pinia/TimerStore.js'
 
 const timer = useTimerStore()
 const router = useRouter()

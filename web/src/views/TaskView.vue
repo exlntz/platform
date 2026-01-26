@@ -1,10 +1,14 @@
 <script setup>
-import { ref, onMounted, computed, onUnmounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import axios from 'axios'
-import { useTimerStore } from '@/TimerStore.js'
+
+
+import { useTimerStore } from '@/pinia/TimerStore.js'
 
 const timer = useTimerStore()
+
+
 const route = useRoute()
 const task = ref(null)
 const loading = ref(true)
@@ -51,7 +55,7 @@ const submitAnswer = async () => {
   try {
     const response = await axios.post(
       `http://127.0.0.1:8000/tasks/${task.value.id}/check`,
-      { 
+      {
         answer: answer.value,
         time_spent: timer.elapsedSeconds
       },
@@ -64,6 +68,7 @@ const submitAnswer = async () => {
       isSolved.value = true
       timer.stopTimer()
     }
+    // Если ответ неверный, isSolved остается false, можно пробовать дальше
   } catch (err) {
     checkResult.value = {
       is_correct: false,
@@ -172,9 +177,9 @@ onUnmounted(() => {
                 @click="submitAnswer"
                 :disabled="checkLoading || !answer"
                 class="submit-btn"
-                :class="{ 
+                :class="{
                   'mobile': screenSize === 'mobile',
-                  'disabled': checkLoading || !answer 
+                  'disabled': checkLoading || !answer
                 }"
               >
                 <span v-if="checkLoading" class="spinner"></span>
@@ -187,7 +192,7 @@ onUnmounted(() => {
         </div>
       </div>
     </div>
-    
+
     <!-- AFK Модальное окно -->
     <div v-if="timer.isAfkAlertVisible" class="afk-modal-overlay">
       <div class="afk-modal" :class="{ 'mobile': screenSize === 'mobile' }">
@@ -352,8 +357,8 @@ onUnmounted(() => {
 }
 
 .task-title {
-  font-size: 24px;
-  font-weight: 800;
+  font-size: 32px;
+  font-weight: 900;
   letter-spacing: -0.025em;
   line-height: 1.3;
   margin: 0;
@@ -733,37 +738,37 @@ onUnmounted(() => {
   .task-container {
     padding: 12px;
   }
-  
+
   .task-header-content {
     padding: 20px 16px;
   }
-  
+
   .task-body {
     padding: 20px 16px;
   }
-  
+
   .task-title {
     font-size: 18px;
   }
-  
+
   .task-description {
     font-size: 14px;
   }
-  
+
   .back-to-tasks-btn,
   .submit-btn {
     padding: 12px;
     font-size: 14px;
   }
-  
+
   .afk-modal {
     padding: 20px;
   }
-  
+
   .afk-title {
     font-size: 18px;
   }
-  
+
   .afk-message {
     font-size: 13px;
   }
@@ -774,7 +779,7 @@ onUnmounted(() => {
   .task-container {
     padding: 14px;
   }
-  
+
   .task-title {
     font-size: 19px;
   }
@@ -792,28 +797,28 @@ onUnmounted(() => {
   .task-container {
     padding: 24px;
   }
-  
+
   .task-header-content {
     padding: 32px;
   }
-  
+
   .task-body {
     padding: 32px;
   }
-  
+
   .task-title {
     font-size: 28px;
   }
-  
+
   .task-description {
     font-size: 17px;
     line-height: 1.7;
   }
-  
+
   .answer-textarea {
     font-size: 16px;
   }
-  
+
   .afk-modal {
     max-width: 450px;
   }
@@ -824,39 +829,39 @@ onUnmounted(() => {
   .task-container {
     padding: 32px;
   }
-  
+
   .task-content {
     max-width: 768px;
   }
-  
+
   .task-card {
     border-radius: 32px;
   }
-  
+
   .task-header-content {
     padding: 40px;
   }
-  
+
   .task-body {
     padding: 40px;
   }
-  
+
   .task-title {
     font-size: 32px;
   }
-  
+
   .section-title {
     font-size: 13px;
   }
-  
+
   .task-description {
     font-size: 18px;
   }
-  
+
   .answer-textarea {
     font-size: 17px;
   }
-  
+
   .back-to-tasks-btn,
   .submit-btn {
     font-size: 17px;
@@ -868,16 +873,16 @@ onUnmounted(() => {
   .task-container {
     padding: 40px 24px;
   }
-  
+
   .task-content {
     max-width: 800px;
   }
-  
+
   .task-card {
     border-radius: 40px;
     box-shadow: 0 25px 50px -12px rgba(148, 163, 184, 0.5);
   }
-  
+
   .task-header::before {
     content: '📝';
     position: absolute;
@@ -887,11 +892,11 @@ onUnmounted(() => {
     opacity: 0.1;
     transform: translate(20%, -20%);
   }
-  
+
   .task-title {
     font-size: 36px;
   }
-  
+
   .task-description {
     font-size: 19px;
     line-height: 1.75;
@@ -903,19 +908,19 @@ onUnmounted(() => {
   .task-container {
     padding: 48px 32px;
   }
-  
+
   .task-content {
     max-width: 850px;
   }
-  
+
   .task-card {
     border-radius: 48px;
   }
-  
+
   .task-title {
     font-size: 40px;
   }
-  
+
   .task-description {
     font-size: 20px;
   }
@@ -926,15 +931,15 @@ onUnmounted(() => {
   .task-container {
     padding: 56px;
   }
-  
+
   .task-content {
     max-width: 900px;
   }
-  
+
   .task-title {
     font-size: 44px;
   }
-  
+
   .task-description {
     font-size: 21px;
   }
