@@ -248,9 +248,8 @@ onMounted(() => {
 
             <div class="profile-meta">
               <span class="meta-item">
-                <span class="meta-icon">📧</span> {{ profile.user.email }}
+                {{ profile.user.email }}
               </span>
-              <span class="meta-dot">•</span>
               <span class="meta-item">
                 В клубе с {{ formatDate(profile.user.created_at) }}
               </span>
@@ -272,13 +271,13 @@ onMounted(() => {
 
           <div class="profile-actions">
             <button @click="triggerAvatarUpload" class="action-btn photo-btn">
-              📷 Сменить фото
+              Сменить фото
             </button>
             <button
               @click="logout"
               class="action-btn logout-btn"
             >
-              🚪 Выйти
+              Выйти
             </button>
           </div>
         </div>
@@ -498,14 +497,9 @@ onMounted(() => {
   font-size: 36px;
   font-weight: 800;
   box-shadow: 0 8px 20px rgba(79, 70, 229, 0.2);
-  transform: rotate(3deg);
   transition: all 0.3s ease;
   overflow: hidden;
   position: relative;
-}
-
-.avatar:hover {
-  transform: rotate(0deg) scale(1.05);
 }
 
 .avatar-image {
@@ -599,17 +593,6 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 4px;
-}
-
-.meta-icon {
-  font-size: 14px;
-}
-
-.meta-dot {
-  width: 3px;
-  height: 3px;
-  background-color: #cbd5e1;
-  border-radius: 50%;
 }
 
 .progress-section {

@@ -203,7 +203,7 @@ onUnmounted(() => {
             @click="connectPvp"
             class="find-opponent-btn"
           >
-            <span class="btn-fire">🔥</span> Найти противника
+            Найти противника
           </button>
         </div>
 
@@ -363,20 +363,6 @@ onUnmounted(() => {
   min-height: 280px;
 }
 
-.idle-state::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 150px;
-  height: 150px;
-  background-color: rgba(79, 70, 229, 0.2);
-  border-radius: 50%;
-  filter: blur(40px);
-  transform: translate(30%, -30%);
-  transition: opacity 0.5s ease;
-}
-
 .arena-badge {
   display: inline-block;
   padding: 4px 12px;
@@ -434,10 +420,6 @@ onUnmounted(() => {
 
 .find-opponent-btn:active {
   transform: translateY(0);
-}
-
-.btn-fire {
-  font-size: 16px;
 }
 
 /* Состояние поиска */

@@ -74,7 +74,7 @@ const closeMenu = () => {
           PvP Дуэли
         </RouterLink>
         <RouterLink to="/leaderboard" class="nav-link">
-          <span>🏆</span> Рейтинг
+          Рейтинг
         </RouterLink>
       </div>
 
@@ -129,19 +129,15 @@ const closeMenu = () => {
 
           <div class="mobile-navigation">
             <RouterLink to="/" class="mobile-nav-link" @click="closeMenu">
-              <span class="mobile-nav-icon">🏠</span>
               Главная
             </RouterLink>
             <RouterLink to="/tasks" class="mobile-nav-link" @click="closeMenu">
-              <span class="mobile-nav-icon">📝</span>
               Задачи
             </RouterLink>
             <RouterLink to="/pvp" class="mobile-nav-link" @click="closeMenu">
-              <span class="mobile-nav-icon">⚔️</span>
               PvP Дуэли
             </RouterLink>
             <RouterLink to="/leaderboard" class="mobile-nav-link" @click="closeMenu">
-              <span class="mobile-nav-icon">🏆</span>
               Рейтинг
             </RouterLink>
           </div>
@@ -219,10 +215,6 @@ const closeMenu = () => {
   box-shadow: 0 8px 12px -3px rgba(79, 70, 229, 0.1),
               0 3px 5px -3px rgba(79, 70, 229, 0.1);
   transition: transform 0.2s ease;
-}
-
-.logo:hover {
-  transform: rotate(6deg);
 }
 
 .text-logo {
@@ -403,13 +395,6 @@ const closeMenu = () => {
 .mobile-nav-link.router-link-active {
   background-color: #f8fafc;
   color: #4f46e5;
-}
-
-.mobile-nav-icon {
-  font-size: 20px;
-  width: 24px;
-  display: inline-flex;
-  justify-content: center;
 }
 
 .mobile-auth-section {
