@@ -447,24 +447,6 @@ onMounted(() => {
   overflow: hidden;
 }
 
-.profile-background {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 200px;
-  height: 200px;
-  background-color: #e0e7ff;
-  border-radius: 50%;
-  filter: blur(40px);
-  transform: translate(30%, -30%);
-  opacity: 0.5;
-  transition: opacity 0.5s ease;
-}
-
-.profile-card:hover .profile-background {
-  opacity: 0.7;
-}
-
 .profile-info {
   position: relative;
   z-index: 10;
