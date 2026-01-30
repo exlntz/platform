@@ -15,26 +15,53 @@ export default {
       showPasswordRepeat: false
     }
   },
+  computed: {
+    isFormValid() {
+      // Проверка всех полей формы
+      return (
+        this.regUsername.trim() !== '' &&
+        this.regEmail.trim() !== '' &&
+        this.isValidEmail(this.regEmail) &&
+        this.regPassword.length >= 8 &&
+        /[A-Z]/.test(this.regPassword) &&
+        /\d/.test(this.regPassword) &&
+        this.regPassword === this.regPasswordRepeat
+      );
+    }
+  },
   methods: {
+    isValidEmail(email) {
+      // Простая проверка email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return emailRegex.test(email);
+    },
+    
     async register() {
-      if (this.regPassword === this.regPasswordRepeat) {
-        this.loading = true;
-        try {
-          const response = await axios.post('http://127.0.0.1:8000/auth/register', {
-            username: this.regUsername,
-            email: this.regEmail,
-            password: this.regPassword,
-            password_repeat: this.regPasswordRepeat
-          });
-          console.log('Register success', response.data);
-          router.push('/auth');
-        } catch (err) {
-          alert('Ошибка регистрации: ' + (err.response?.data?.detail || err.message));
-        } finally {
-          this.loading = false;
-        }
-      } else {
+      // Проверка перед отправкой
+      if (!this.isFormValid) {
+        alert('Пожалуйста, заполните все поля корректно');
+        return;
+      }
+      
+      if (this.regPassword !== this.regPasswordRepeat) {
         alert('Пароли не совпадают');
+        return;
+      }
+      
+      this.loading = true;
+      try {
+        const response = await axios.post('http://127.0.0.1:8000/auth/register', {
+          username: this.regUsername,
+          email: this.regEmail,
+          password: this.regPassword,
+          password_repeat: this.regPasswordRepeat
+        });
+        console.log('Register success', response.data);
+        router.push('/auth');
+      } catch (err) {
+        alert('Ошибка регистрации: ' + (err.response?.data?.detail || err.message));
+      } finally {
+        this.loading = false;
       }
     },
     togglePasswordVisibility(field) {
@@ -159,12 +186,18 @@ export default {
         <div class="submit-section">
           <button
             type="submit"
-            :disabled="loading || !isFormValid"
+            :disabled="loading"
             class="register-btn"
+            :class="{ 'disabled': !isFormValid }"
           >
             <span class="btn-text" v-if="!loading">Зарегистрироваться</span>
             <span class="loading-text" v-if="loading">Создание аккаунта...</span>
           </button>
+          
+          <!-- Сообщение о невалидной форме -->
+          <div v-if="!isFormValid && !loading" class="validation-message">
+            <p>Заполните все поля правильно для регистрации</p>
+          </div>
         </div>
       </form>
 
@@ -478,6 +511,23 @@ export default {
 .footer-link:hover {
   color: #4338ca;
   text-decoration: underline;
+}
+
+/* Сообщение о валидации */
+.validation-message {
+  margin-top: 12px;
+  padding: 10px;
+  background-color: #fef3c7;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.validation-message p {
+  font-size: 13px;
+  color: #d97706;
+  font-weight: 500;
+  margin: 0;
 }
 
 /* ==================== АДАПТИВНЫЕ СТИЛИ ==================== */
