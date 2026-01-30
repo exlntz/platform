@@ -8,7 +8,7 @@ const router = useRouter()
 // --- СОСТОЯНИЕ ---
 const socket = ref(null)
 const gameState = ref('idle') // 'idle' | 'searching' | 'playing' | 'result'
-const gameResult = ref(null) // 'win' | 'loss' | 'disconnect'
+const gameResult = ref(null) // 'win' | 'loss' | 'disconnect' | 'draw'
 const activeTask = ref(null)
 const userAnswer = ref('')
 const logs = ref([])
@@ -27,7 +27,8 @@ const resultTitle = computed(() => {
   switch (gameResult.value) {
     case 'win': return 'Победа! 🎉'
     case 'loss': return 'Поражение 😔'
-    case 'disconnect': return 'Соперник вышел'
+    case 'disconnect': return 'Обрыв соединения 😔'
+    case 'draw': return 'Ничья'
     default: return ''
   }
 })
@@ -36,7 +37,8 @@ const resultDescription = computed(() => {
   switch (gameResult.value) {
     case 'win': return 'Ты решил задачу быстрее соперника! +15 рейтинга'
     case 'loss': return 'Соперник был быстрее. Не сдавайся!'
-    case 'disconnect': return 'Противник покинул игру. Тебе засчитана победа!'
+    case 'disconnect': return 'Игра не будет засчитана'
+    case 'draw': return 'Силы оказались равны'
     default: return ''
   }
 })
@@ -45,7 +47,8 @@ const resultTitleClass = computed(() => {
   return {
     'text-win': gameResult.value === 'win',
     'text-loss': gameResult.value === 'loss',
-    'text-disconnect': gameResult.value === 'disconnect'
+    'text-disconnect': gameResult.value === 'disconnect',
+    'text-draw': gameResult.value === 'draw'
   }
 })
 
@@ -108,19 +111,23 @@ const connectPvp = () => {
     }
 
     // 4. Игровой процесс
-    else if (msg.includes('неправильный')) {
+    else if (msg.includes('incorrect')) {
       addLog('error', 'Неверно! Попробуй еще раз.')
     }
 
     // 5. Результаты
-    else if (msg === 'win') {
+    else if (msg.includes('win')) {
       finishGame('win')
     }
-    else if (msg === 'loss') {
+    else if (msg.includes('loss')) {
       finishGame('loss')
     }
     else if (msg === 'opponent disconnected') {
       finishGame('disconnect')
+    }
+    
+    else if (msg.includes('draw')) {
+      finishGame('draw')
     }
   }
 
@@ -740,6 +747,10 @@ onUnmounted(() => {
 }
 
 .text-disconnect {
+  color: #f59e0b;
+}
+
+.text-draw {
   color: #f59e0b;
 }
 

@@ -6,7 +6,7 @@ from app.schemas.matchmaking import QueueEntry, AnswerEvent
 from app.core.database import SessionDep
 from app.core.security import SECRET_KEY
 from app.core.models import UserModel, TaskModel
-from app.utils.elo import calculate_elo_change, change_elo, WIN, LOSS
+from app.utils.elo import calculate_elo_change, change_elo, WIN, LOSS, DRAW
 import time
 import bisect
 from app.core.database import new_session
@@ -96,7 +96,6 @@ async def listen_answers(player: QueueEntry, out: asyncio.Queue,):
     try:
         while True:
             msg = await ws.receive_text()
-            print(msg)
             await out.put(
                 AnswerEvent(
                     user_id=player.user_id,
@@ -120,7 +119,6 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
             query = select(TaskModel).order_by(func.random()).limit(numtasks)
             res = await session.execute(query)
             tasks = res.all()
-            print('TASKS:',tasks)
 
         if len(tasks)!=numtasks:
             await ws1.send_text(f"нет задач")
@@ -130,10 +128,6 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
         task_ids = [task[0].id for task in tasks]
         correct_answers = {task[0].id:task[0].correct_answer for task in tasks}
         is_answered = {task[0].id:False for task in tasks}
-
-        # отправляем id задач пользователям
-        await ws1.send_text(f"{task[0].id} " for task in tasks)
-        await ws2.send_text(f"{task[0].id} " for task in tasks)
         
         # ответы обоих игроков добавляются в очередь и обрабатываются по порядку
         answers = asyncio.Queue()
@@ -147,56 +141,57 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
         anscnt2 = 0
 
         try:
-            while True:
-                # ответ в формате id ans. Например, "1 aboba"
-                rawans = await answers.get()
+            for task_id in task_ids:
+                # отправляем id задачи пользователям
+                await ws1.send_text(f"{task_id}")
+                await ws2.send_text(f"{task_id}")
+                timestart = time.time()
+                while True:
+                    if time.time()-timestart > 10:
+                        await ws1.send_text("time is up. next task")
+                        await ws2.send_text("time is up. next task")
+                        break # ломаем цикл чтобы перейти к следующей задаче
+
+                    try:
+                        ans = await asyncio.wait_for(answers.get(), timeout=1)
+                    except asyncio.TimeoutError:
+                        continue
+
+                    if correct_answers[task_id] == ans.answer:
+                        if ans.user_id == player1.user_id:
+                            anscnt1+=1
+                            await ws1.send_text("correct")
+                            await ws2.send_text("other player answered. next task")
+                        else:
+                            anscnt2+=1
+                            await ws1.send_text("other player answered. next task")
+                            await ws2.send_text("correct")
+                        break # ломаем цикл чтобы перейти к следующей задаче
+                    else:
+                        if ans.user_id == player1.user_id: await ws1.send_text("incorrect")
+                        else: await ws2.send_text("incorrect")
             
-                if rawans is None: # нет ответов
-                    await asyncio.sleep(1)
-                    continue
-                
-                # TODO проверка формата ответа
 
-                user_id = rawans.user_id
-                task_id,ans = rawans.answer.split()
-                task_id = int(task_id)
-                
-                message = ''
-                if task_id in task_ids:
-                    if correct_answers[task_id] == ans and not is_answered[task_id]:
-                        is_answered[task_id] = True
-                        message = "correct"
-                        if user_id == player1.user_id: anscnt1+=1
-                        else: anscnt2+=1
-                    elif is_answered[task_id]:
-                        message = "answered"
-                    else:
-                        message = "incorrect"
-                else:
-                    message = "invalid id"
+            if anscnt1 == anscnt2:
+                elochange = calculate_elo_change(player1.rating, player2.rating, DRAW)
+                winner = 0
+            elif anscnt1 > anscnt2:
+                elochange = calculate_elo_change(player1.rating, player2.rating, WIN)
+                winner = 1
+            else:
+                elochange = calculate_elo_change(player1.rating, player2.rating, LOSS)
+                winner = 2
+            
+            r1 = await change_elo(player1.user_id,elochange)
+            r2 = await change_elo(player2.user_id,-elochange)
+            await ws1.send_text(str("win" if winner==1 else "loss" if winner==2 else "draw")+f" {r1}")
+            await ws2.send_text(str("win" if winner==2 else "loss" if winner==1 else "draw")+f" {r2}")
+            await ws1.close()
+            await ws2.close()
+            is_connected[player1.user_id] = False
+            is_connected[player2.user_id] = False
+            return
 
-                if message:
-                    if user_id == player1.user_id: await ws1.send_text(message)
-                    else: await ws2.send_text(message)
-
-                if anscnt1 > numtasks//2 or anscnt2 > numtasks//2:
-                    if anscnt1 > numtasks//2:
-                        elochange = calculate_elo_change(player1.rating, player2.rating, WIN)
-                        r1 = await change_elo(player1.user_id,elochange)
-                        r2 = await change_elo(player2.user_id,-elochange)
-                        winner=1
-                    else:
-                        elochange = calculate_elo_change(player1.rating, player2.rating, LOSS)
-                        r1 = await change_elo(player1.user_id,elochange)
-                        r2 = await change_elo(player2.user_id,-elochange)
-                        winner=2
-                    await ws1.send_text(str("win" if winner==1 else "loss")+f" {r1}")
-                    await ws2.send_text(str("win" if winner==2 else "loss")+f" {r2}")
-                    await ws1.close()
-                    await ws2.close()
-                    is_connected[player1.user_id] = False
-                    is_connected[player2.user_id] = False
-                    return
         finally: # завершаем слушатели ответов
             t1.cancel()
             t2.cancel()
@@ -207,6 +202,7 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
         is_connected[player1.user_id] = False
         is_connected[player2.user_id] = False
         # мы не знаем, кто отключился, поэтому пытаемся отправить сообщение обоим.
+        # в кейсе написано, что при разрыве соединения эло не меняется
         try:
             await ws1.send_text("opponent disconnected")
             await ws1.close()
