@@ -90,13 +90,13 @@ onMounted(() => {
   window.addEventListener('resize', updateScreenSize)
   fetchTask()
   timer.stopTimer()
-  timer.startTimer()
+  timer.startTask()
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', updateScreenSize)
   if (!isSolved.value) {
-    timer.stopTimer()
+    timer.pauseTimer()
   }
 })
 </script>
