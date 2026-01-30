@@ -7,6 +7,7 @@ from app.schemas.task import TaskRead, AnswerCheckRequest, AnswerCheckResponse
 from app.core.dependencies import get_current_user
 from app.core.models import DifficultyLevel
 from app.utils.levels import rewards
+from app.utils.formatters import format_answer
 
 router=APIRouter(prefix='/tasks',tags=['Задачи'])
 
@@ -46,7 +47,9 @@ async def check_task_answer(
     if task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail='Задача не найдена')
 
-    is_correct = task.correct_answer.strip().lower() == user_data.answer.strip().lower()
+    correct_format_answer = format_answer(str(task.correct_answer))
+    user_format_answer = format_answer(user_data.answer)
+    is_correct = (correct_format_answer == user_format_answer)
 
     already_solved_query = select(exists().where(
         AttemptModel.user_id == current_user.id,
@@ -60,7 +63,8 @@ async def check_task_answer(
         user_id=current_user.id,
         task_id=task_id,
         user_answer=user_data.answer,
-        is_correct=is_correct
+        is_correct=is_correct,
+        time_spent=user_data.time_spent
     )
     session.add(attempt)
 
