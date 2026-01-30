@@ -895,7 +895,7 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   color: #94a3b8;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -912,6 +912,9 @@ onMounted(() => {
   flex: 1;
   padding: 16px;
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 /* Dashboard Tab */
@@ -942,8 +945,11 @@ onMounted(() => {
 }
 .stats-container {
   display: grid;
-  grid-template-columns: repeat(1, 1fr);
+  grid-template-columns: 1fr;
   gap: 16px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 .stat-card {
   background-color: white;
@@ -952,6 +958,9 @@ onMounted(() => {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   border: 1px solid #f1f5f9;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 .stat-card:hover {
   transform: translateY(-2px);
@@ -989,14 +998,14 @@ onMounted(() => {
   color: #9333ea;
 }
 .stat-label {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 900;
   color: #64748b;
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }
 .stat-value {
-  font-size: 24px;
+  font-size: 14px;
   font-weight: 900;
   color: #0f172a;
   line-height: 1.2;
@@ -1048,11 +1057,13 @@ onMounted(() => {
   box-shadow: 0 10px 15px -3px rgba(148, 163, 184, 0.2);
   border: 1px solid #f1f5f9;
   overflow: auto;
+  max-width: 100%;
 }
 
 /* Users Table */
 .responsive-table {
   overflow-x: auto;
+  max-width: 100%;
 }
 .users-table {
   width: 100%;
@@ -1697,20 +1708,45 @@ onMounted(() => {
   .modal-header h2 {
     font-size: 18px;
   }
-}
-
-
-@media (min-width: 481px) {
-  .admin-main {
-    padding: 20px;
+  
+  .stat-card {
+    padding: 16px;
   }
   
+  .stat-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+  }
+  
+  .stat-value {
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 640px) {
+  .stats-container {
+    grid-template-columns: 1fr;
+  }
+  
+  .stat-card {
+    width: 100%;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
   .stats-container {
     grid-template-columns: repeat(2, 1fr);
   }
   
   .stat-card {
-    padding: 24px;
+    width: 100%;
+  }
+}
+
+@media (min-width: 481px) {
+  .admin-main {
+    padding: 20px;
   }
   
   .stat-icon {
@@ -1720,7 +1756,7 @@ onMounted(() => {
   }
   
   .stat-value {
-    font-size: 28px;
+    font-size: 20px;
   }
   
   .tasks-tab-header {
@@ -1737,7 +1773,6 @@ onMounted(() => {
   }
 }
 
-
 @media (min-width: 641px) {
   .mobile-menu-btn {
     display: none;
@@ -1751,6 +1786,15 @@ onMounted(() => {
   .admin-main {
     margin-left: 256px;
     padding: 24px;
+    width: calc(100% - 256px);
+  }
+
+  .stats-container {
+    grid-template-columns: repeat(2, 2fr);
+  }
+  
+  .stat-card {
+    width: 100%;
   }
   
   .sidebar-close {
@@ -1779,14 +1823,9 @@ onMounted(() => {
   }
 }
 
-
 @media (min-width: 769px) {
   .admin-main {
     padding: 32px;
-  }
-  
-  .stats-container {
-    grid-template-columns: repeat(4, 1fr);
   }
   
   .stat-card {
@@ -1801,7 +1840,7 @@ onMounted(() => {
   }
   
   .stat-value {
-    font-size: 30px;
+    font-size: 22px;
   }
   
   .dashboard-header h1 {
@@ -1827,7 +1866,6 @@ onMounted(() => {
   }
 }
 
-
 @media (min-width: 1025px) {
   .admin-main {
     padding: 40px;
@@ -1843,9 +1881,9 @@ onMounted(() => {
   }
   
   .stat-value {
-    font-size: 32px;
+    font-size: 28px;
   }
-  
+
   .dashboard-header h1 {
     font-size: 36px;
   }
@@ -1863,7 +1901,6 @@ onMounted(() => {
     border-radius: 28px;
   }
 }
-
 
 @media (min-width: 1281px) {
   .admin-main {
@@ -1915,7 +1952,6 @@ onMounted(() => {
     border-radius: 32px;
   }
 }
-
 
 @media (min-width: 1537px) {
   .admin-main {
