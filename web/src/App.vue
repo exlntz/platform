@@ -178,6 +178,7 @@ const closeMenu = () => {
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid rgb(241 245 249);
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  padding-left: 50px;
 }
 
 .menu {
@@ -464,7 +465,11 @@ const closeMenu = () => {
 
 /* ==================== АДАПТИВНЫЕ СТИЛИ ==================== */
 
-@media (min-width: 640px) {
+@media (min-width: 641px) {
+  .header {
+    padding-left: 0;
+  }
+
   .menu {
     padding-left: 24px;
     padding-right: 24px;
