@@ -1,10 +1,9 @@
-from fastapi import APIRouter,HTTPException,status,Depends
-from typing import Annotated
+from fastapi import APIRouter,HTTPException,status
 from sqlalchemy import select, exists
 from app.core.database import SessionDep
-from app.core.models import TaskModel, AttemptModel,UserModel
+from app.core.models import TaskModel, AttemptModel
 from app.schemas.task import TaskRead, AnswerCheckRequest, AnswerCheckResponse
-from app.core.dependencies import get_current_user
+from app.core.dependencies import UserDep
 from app.core.models import DifficultyLevel
 from app.utils.levels import rewards
 from app.utils.formatters import format_answer
@@ -39,7 +38,7 @@ async def check_task_answer(
         task_id: int,
         user_data: AnswerCheckRequest,
         session: SessionDep,
-        current_user: Annotated[UserModel,Depends(get_current_user)]
+        current_user: UserDep
 ) -> AnswerCheckResponse:
 
     task = await session.get(TaskModel, task_id)

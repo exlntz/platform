@@ -50,4 +50,6 @@ async def validate_admin_access(
     return current_user
 
 
+UserDep = Annotated[UserModel, Depends(get_current_user)]
+
 AdminDep = Annotated[UserModel, Depends(validate_admin_access)]

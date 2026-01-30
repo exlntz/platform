@@ -7,7 +7,8 @@ def format_answer(text: str) -> str:
 
     text = text.lower().strip()
 
-    text = text.replace(',','.')
+    if any(char.isdigit() for char in text):
+        text = text.replace(',','.')
 
     text = text.replace('ё','е')
 

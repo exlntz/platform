@@ -1,9 +1,8 @@
-from typing import Annotated
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException,status
-from sqlalchemy import select, func, Integer
+from fastapi import APIRouter, UploadFile, File, HTTPException,status
+from sqlalchemy import select, func
 from app.core.database import SessionDep
-from app.core.models import UserModel, AttemptModel
-from app.core.dependencies import get_current_user
+from app.core.models import AttemptModel
+from app.core.dependencies import UserDep
 from app.schemas.user import FullProfileResponse, UserProfile, UserStats
 import shutil
 import uuid
@@ -15,7 +14,7 @@ router = APIRouter(prefix='/profile',tags=['Профиль'])
 @router.get('/',summary='Профиль пользователя',description='Возвращает данные пользователя и его статистику в одном структурированном ответе.')
 async def get_full_profile(
         session: SessionDep,
-        current_user: Annotated[UserModel,Depends(get_current_user)]
+        current_user: UserDep
 ) -> FullProfileResponse:
 
     user_data = UserProfile(
@@ -55,7 +54,7 @@ async def get_full_profile(
 @router.post('/avatar',summary='Загрузить аватарку')
 async def upload_avatar(
         session: SessionDep,
-        current_user: Annotated[UserModel,Depends(get_current_user)],
+        current_user: UserDep,
         file: UploadFile = File(...)
 ):
 
