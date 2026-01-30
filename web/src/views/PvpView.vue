@@ -123,6 +123,10 @@ const connectPvp = () => {
       addLog('error', 'Неверно! Попробуй еще раз.')
     }
 
+    else if (msg.includes('chat message')) {
+      addLog('chat', msg.substr(12, msg.length))
+    }
+
     else if (msg.includes('please wait')) {
       addLog('error', 'Пожалуйста подождите несколько секунд между ответами.')
     }
@@ -272,6 +276,7 @@ onUnmounted(() => {
               <div v-for="log in logs" :key="log.id" class="log-message">
                 <span v-if="log.type === 'system'" class="log-system">🤖 {{ log.text }}</span>
                 <span v-else-if="log.type === 'error'" class="log-error">❌ {{ log.text }}</span>
+                <span v-else-if="log.type === 'chat'" class="log-user">👤 Оппонент:{{ log.text }}</span>
                 <span v-else class="log-user">👤 Вы: {{ log.text }}</span>
               </div>
             </div>

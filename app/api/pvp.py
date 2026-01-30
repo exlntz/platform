@@ -2,7 +2,7 @@ from fastapi import APIRouter, WebSocket
 import asyncio
 import jwt
 from sqlalchemy import select, func
-from app.schemas.matchmaking import QueueEntry, AnswerEvent
+from app.schemas.matchmaking import QueueEntry, MessageEvent
 from app.core.database import SessionDep
 from app.core.security import SECRET_KEY
 from app.core.models import UserModel, TaskModel
@@ -91,15 +91,15 @@ async def join_match(session: SessionDep, websocket: WebSocket):
             pass
 
 
-async def listen_answers(player: QueueEntry, out: asyncio.Queue,):
+async def listen_messages(player: QueueEntry, out: asyncio.Queue,):
     ws = player._ws
     try:
         while True:
             msg = await ws.receive_text()
             await out.put(
-                AnswerEvent(
+                MessageEvent(
                     user_id=player.user_id,
-                    answer=msg,
+                    text=msg,
                     ts=time.time(),
                 )
             )
@@ -133,11 +133,11 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
         last_answer = {player1.user_id:0,player2.user_id:0}
         
         # ответы обоих игроков добавляются в очередь и обрабатываются по порядку
-        answers = asyncio.Queue()
+        messages = asyncio.Queue()
 
         # ждём ответы
-        t1 = asyncio.create_task(listen_answers(player1, answers))
-        t2 = asyncio.create_task(listen_answers(player2, answers))
+        t1 = asyncio.create_task(listen_messages(player1, messages))
+        t2 = asyncio.create_task(listen_messages(player2, messages))
 
         # счётчики правильных ответов
         anscnt1 = 0
@@ -154,9 +154,16 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
                     break # ломаем цикл чтобы перейти к следующей задаче
 
                 try:
-                    ans = await asyncio.wait_for(answers.get(), timeout=1)
+                    msg = await asyncio.wait_for(messages.get(), timeout=1)
                 except asyncio.TimeoutError:
                     continue
+                
+                if msg.text[:14] == 'MessageToChat ':
+                    if msg.user_id == player1.user_id: await ws2.send_text(f"chat message {msg.text[14:]}")
+                    else: await ws1.send_text(f"chat message {msg.text[14:]}")
+                    continue
+                
+                ans = msg
 
                 if time.time() - last_answer[ans.user_id] < ans_cooldown:
                     if ans.user_id == player1.user_id: await ws1.send_text(f"please wait {ans_cooldown} seconds between answers")

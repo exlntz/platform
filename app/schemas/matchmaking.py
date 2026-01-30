@@ -12,7 +12,7 @@ class QueueEntry(BaseModel):
         return (self.rating, self.joined_at) < (other.rating, other.joined_at)
 
 
-class AnswerEvent(BaseModel):
+class MessageEvent(BaseModel):
     user_id: int
-    answer: str
+    text: str
     ts: float # timestamp
