@@ -22,6 +22,7 @@ class TaskCreate(TaskBase):
 
 class AnswerCheckRequest(BaseModel):
     answer: str
+    time_spent: int
 
 class AnswerCheckResponse(BaseModel):
     is_correct: bool

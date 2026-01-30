@@ -28,7 +28,7 @@ class UserModel(Model):
     rating: Mapped[float] = mapped_column(default=1000.0)
     is_admin: Mapped[bool] = mapped_column(default=False)
     is_banned: Mapped[bool] = mapped_column(default=False)
-    xp: Mapped[int] = mapped_column(server_default='0',default=0)
+    xp: Mapped[int] = mapped_column(default=0)
     avatar_url: Mapped[str | None] = mapped_column(default=None)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(),init=False)
 
@@ -55,4 +55,5 @@ class AttemptModel(Model):
     task_id: Mapped[int] = mapped_column(ForeignKey('tasks.id'))
     user_answer: Mapped[str] = mapped_column()
     is_correct: Mapped[bool] = mapped_column()
+    time_spent: Mapped[int] = mapped_column(default=0)
     time: Mapped[datetime] = mapped_column(server_default=func.now(),init=False)
