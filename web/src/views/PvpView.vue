@@ -111,8 +111,24 @@ const connectPvp = () => {
     }
 
     // 4. Игровой процесс
+    else if (msg.includes('time is up')) {
+      addLog('error', 'Время на выполнение задачи вышло. Переход к следующей задаче...')
+    }
+    
+    else if (msg.includes('other player answered')) {
+      addLog('error', 'Оппонент дал правильный ответ. Переход к следующей задаче...')
+    }
+
     else if (msg.includes('incorrect')) {
       addLog('error', 'Неверно! Попробуй еще раз.')
+    }
+
+    else if (msg.includes('please wait')) {
+      addLog('error', 'Пожалуйста подождите несколько секунд между ответами.')
+    }
+
+    else if (msg.includes('correct')) {
+      addLog('system', 'Верно!')
     }
 
     // 5. Результаты

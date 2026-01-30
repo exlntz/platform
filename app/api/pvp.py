@@ -108,7 +108,9 @@ async def listen_answers(player: QueueEntry, out: asyncio.Queue,):
         
 
 async def start_match(player1: QueueEntry, player2: QueueEntry):
-    numtasks = 3
+    tasktime = 120 # время на выполнение задачи
+    numtasks = 3 # количество задач
+    ans_cooldown = 5 # минимальное время между ответами
     ws1 = player1._ws
     ws2 = player2._ws
     await ws1.send_text(f"match started")
@@ -128,6 +130,7 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
         task_ids = [task[0].id for task in tasks]
         correct_answers = {task[0].id:task[0].correct_answer for task in tasks}
         is_answered = {task[0].id:False for task in tasks}
+        last_answer = {player1.user_id:0,player2.user_id:0}
         
         # ответы обоих игроков добавляются в очередь и обрабатываются по порядку
         answers = asyncio.Queue()
@@ -139,63 +142,63 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
         # счётчики правильных ответов
         anscnt1 = 0
         anscnt2 = 0
+        for task_id in task_ids:
+            # отправляем id задачи пользователям
+            await ws1.send_text(f"{task_id}")
+            await ws2.send_text(f"{task_id}")
+            timestart = time.time()
+            while True:
+                if time.time()-timestart > tasktime:
+                    await ws1.send_text("time is up. next task")
+                    await ws2.send_text("time is up. next task")
+                    break # ломаем цикл чтобы перейти к следующей задаче
 
-        try:
-            for task_id in task_ids:
-                # отправляем id задачи пользователям
-                await ws1.send_text(f"{task_id}")
-                await ws2.send_text(f"{task_id}")
-                timestart = time.time()
-                while True:
-                    if time.time()-timestart > 10:
-                        await ws1.send_text("time is up. next task")
-                        await ws2.send_text("time is up. next task")
-                        break # ломаем цикл чтобы перейти к следующей задаче
+                try:
+                    ans = await asyncio.wait_for(answers.get(), timeout=1)
+                except asyncio.TimeoutError:
+                    continue
 
-                    try:
-                        ans = await asyncio.wait_for(answers.get(), timeout=1)
-                    except asyncio.TimeoutError:
-                        continue
+                if time.time() - last_answer[ans.user_id] < ans_cooldown:
+                    if ans.user_id == player1.user_id: await ws1.send_text(f"please wait {ans_cooldown} seconds between answers")
+                    else: await ws2.send_text(f"please wait {ans_cooldown} seconds between answers")
+                    continue
+                
+                last_answer[ans.user_id] = time.time()
 
-                    if correct_answers[task_id] == ans.answer:
-                        if ans.user_id == player1.user_id:
-                            anscnt1+=1
-                            await ws1.send_text("correct")
-                            await ws2.send_text("other player answered. next task")
-                        else:
-                            anscnt2+=1
-                            await ws1.send_text("other player answered. next task")
-                            await ws2.send_text("correct")
-                        break # ломаем цикл чтобы перейти к следующей задаче
+                if correct_answers[task_id] == ans.answer:
+                    if ans.user_id == player1.user_id:
+                        anscnt1+=1
+                        await ws1.send_text("correct")
+                        await ws2.send_text("other player answered. next task")
                     else:
-                        if ans.user_id == player1.user_id: await ws1.send_text("incorrect")
-                        else: await ws2.send_text("incorrect")
-            
-
-            if anscnt1 == anscnt2:
-                elochange = calculate_elo_change(player1.rating, player2.rating, DRAW)
-                winner = 0
-            elif anscnt1 > anscnt2:
-                elochange = calculate_elo_change(player1.rating, player2.rating, WIN)
-                winner = 1
-            else:
-                elochange = calculate_elo_change(player1.rating, player2.rating, LOSS)
-                winner = 2
-            
-            r1 = await change_elo(player1.user_id,elochange)
-            r2 = await change_elo(player2.user_id,-elochange)
-            await ws1.send_text(str("win" if winner==1 else "loss" if winner==2 else "draw")+f" {r1}")
-            await ws2.send_text(str("win" if winner==2 else "loss" if winner==1 else "draw")+f" {r2}")
-            await ws1.close()
-            await ws2.close()
-            is_connected[player1.user_id] = False
-            is_connected[player2.user_id] = False
-            return
-
-        finally: # завершаем слушатели ответов
-            t1.cancel()
-            t2.cancel()
+                        anscnt2+=1
+                        await ws1.send_text("other player answered. next task")
+                        await ws2.send_text("correct")
+                    break # ломаем цикл чтобы перейти к следующей задаче
+                else:
+                    if ans.user_id == player1.user_id: await ws1.send_text("incorrect")
+                    else: await ws2.send_text("incorrect")
         
+
+        if anscnt1 == anscnt2:
+            elochange = calculate_elo_change(player1.rating, player2.rating, DRAW)
+            winner = 0
+        elif anscnt1 > anscnt2:
+            elochange = calculate_elo_change(player1.rating, player2.rating, WIN)
+            winner = 1
+        else:
+            elochange = calculate_elo_change(player1.rating, player2.rating, LOSS)
+            winner = 2
+        
+        r1 = await change_elo(player1.user_id,elochange)
+        r2 = await change_elo(player2.user_id,-elochange)
+        await ws1.send_text(str("win" if winner==1 else "loss" if winner==2 else "draw")+f" {r1}")
+        await ws2.send_text(str("win" if winner==2 else "loss" if winner==1 else "draw")+f" {r2}")
+        await ws1.close()
+        await ws2.close()
+        is_connected[player1.user_id] = False
+        is_connected[player2.user_id] = False
+        return
 
     except Exception as e: # если кто-то отключился
         print('pvp start_match,',e)
@@ -215,6 +218,9 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
         except Exception:
             pass
 
+    finally: # завершаем слушатели ответов
+        t1.cancel()
+        t2.cancel()
 
     return
 
