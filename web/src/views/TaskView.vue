@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, onUnmounted  } from 'vue'
 import { useRoute } from 'vue-router'
 import axios from 'axios'
 
