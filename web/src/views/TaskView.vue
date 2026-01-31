@@ -89,7 +89,7 @@ onMounted(() => {
   updateScreenSize()
   window.addEventListener('resize', updateScreenSize)
   fetchTask()
-  timer.stopTimer()
+
   timer.startTask()
 })
 
