@@ -5,7 +5,7 @@ from sqlalchemy import select, func
 from app.schemas.matchmaking import QueueEntry, MessageEvent
 from app.core.database import SessionDep
 from app.core.security import SECRET_KEY
-from app.core.models import UserModel, TaskModel
+from app.core.models import UserModel, TaskModel, PvPMatchModel, EloHistoryModel
 from app.utils.elo import calculate_elo_change, change_elo, WIN, LOSS, DRAW
 import time
 import bisect
@@ -199,6 +199,38 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
         
         r1 = await change_elo(player1.user_id,elochange)
         r2 = await change_elo(player2.user_id,-elochange)
+
+        async with new_session() as db_session:
+
+            actual_winner_id = None
+            if winner == 1:
+                actual_winner_id = player1.user_id
+            elif winner == 2:
+                actual_winner_id = player2.user_id
+
+
+            new_match = PvPMatchModel(
+                player1_id=player1.user_id,
+                player2_id=player2.user_id,
+                winner_id=actual_winner_id,
+                p1_elo_change=float(elochange),
+                p2_elo_change=float(-elochange)
+            )
+            db_session.add(new_match)
+
+            db_session.add(EloHistoryModel(
+                user_id=player1.user_id,
+                rating=float(r1),
+                change=float(elochange)
+            ))
+            db_session.add(EloHistoryModel(
+                user_id=player2.user_id,
+                rating=float(r2),
+                change=float(-elochange)
+            ))
+
+            await db_session.commit()
+
         await ws1.send_text(str("win" if winner==1 else "loss" if winner==2 else "draw")+f" {r1}")
         await ws2.send_text(str("win" if winner==2 else "loss" if winner==1 else "draw")+f" {r2}")
         await ws1.close()

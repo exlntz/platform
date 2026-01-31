@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, status, Response, File, UploadFile
 from sqlalchemy import select, func, desc, distinct
 from app.core.database import SessionDep
-from app.core.models import UserModel, TaskModel, AttemptModel, AuditLogModel
-from app.schemas.admin_schemas import UserAdminRead, AdminDashboardStats, UserAdminUpdate, TaskAdminUpdate
+from app.core.models import UserModel, TaskModel, AttemptModel, AuditLogModel, EloHistoryModel
+from app.schemas.admin_schemas import UserAdminRead, AdminDashboardStats, UserAdminUpdate, TaskAdminUpdate, UserEloHistoryResponse
 from datetime import datetime, timedelta
 from app.schemas.task import TaskAdminRead, TaskRead, TaskCreate
 import json
@@ -120,6 +120,30 @@ async def delete_user(
 
     return {'message': f'Пользователь {user.username} успешно удален'}
 
+@router.get('/users/{user_id}/elo_history', summary='История Эло пользователя (для админов)',response_model=UserEloHistoryResponse)
+async def get_user_elo_history(
+        user_id: int,
+        session: SessionDep,
+        admin: AdminDep
+):
+    user = await session.get(UserModel, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Пользователь не найден')
+
+    query = (
+        select(EloHistoryModel)
+        .where(EloHistoryModel.user_id == user_id)
+        .order_by(EloHistoryModel.created_at.asc())
+    )
+
+    result = await session.execute(query)
+    history = list(result.scalars().all())
+
+    return UserEloHistoryResponse(
+        username=user.username,
+        current_rating=user.rating,
+        history=history
+    )
 
 @router.get('/stats', summary='Статистика для дашборда (для админов)')
 async def get_admin_stats(

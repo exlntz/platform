@@ -56,7 +56,7 @@ class AttemptModel(Model):
     user_answer: Mapped[str] = mapped_column()
     is_correct: Mapped[bool] = mapped_column()
     time_spent: Mapped[int] = mapped_column(default=0)
-    time: Mapped[datetime] = mapped_column(server_default=func.now(),init=False)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now(),init=False)
 
 
 class AuditLogModel(Model):
@@ -68,3 +68,25 @@ class AuditLogModel(Model):
     target_id: Mapped[int | None] = mapped_column(default=None)
     details: Mapped[str | None] = mapped_column(default=None)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(),init=False)
+
+
+class PvPMatchModel(Model):
+    __tablename__ = 'pvp_matches'
+
+    id: Mapped[int] = mapped_column(primary_key=True, init=False)
+    player1_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
+    player2_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
+    winner_id: Mapped[int | None] = mapped_column(ForeignKey('users.id'))
+    p1_elo_change: Mapped[float] = mapped_column()
+    p2_elo_change: Mapped[float] = mapped_column()
+    created_at: Mapped[datetime] = mapped_column(default=datetime.now, init=False)
+
+
+class EloHistoryModel(Model):
+    __tablename__ = 'elo_history'
+
+    id: Mapped[int] = mapped_column(primary_key=True, init=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), index=True)
+    rating: Mapped[float] = mapped_column() #рейтинг после матча
+    change: Mapped[int] = mapped_column()
+    created_at: Mapped[datetime] = mapped_column(default=datetime.now, init=False)

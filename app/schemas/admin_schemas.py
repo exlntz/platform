@@ -41,3 +41,17 @@ class AdminDashboardStats(BaseModel):
     average_rating: float
     new_users_24h: int
     most_popular_subject: str
+
+
+class EloPoint(BaseModel):
+    rating: float
+    change: float
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class UserEloHistoryResponse(BaseModel):
+    username: str
+    current_rating: float
+    history: list[EloPoint]
