@@ -19,7 +19,7 @@ def calculate_elo_change(
 
     rating_change = k * (match_result - E)
 
-    return rating_change
+    return round(float(rating_change),1)
 
 
 # увеличивает/уменьшает elo пользователю и возвращает получившееся значение
@@ -32,4 +32,4 @@ async def change_elo(
         result = await session.execute(query)
         new_elo = result.scalar_one()
         await session.commit()
-        return new_elo
+        return round(float(new_elo),1)

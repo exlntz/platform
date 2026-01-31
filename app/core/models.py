@@ -88,5 +88,5 @@ class EloHistoryModel(Model):
     id: Mapped[int] = mapped_column(primary_key=True, init=False)
     user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), index=True)
     rating: Mapped[float] = mapped_column() #рейтинг после матча
-    change: Mapped[int] = mapped_column()
+    change: Mapped[float] = mapped_column()
     created_at: Mapped[datetime] = mapped_column(default=datetime.now, init=False)

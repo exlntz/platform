@@ -24,6 +24,12 @@ class Token(BaseModel):
     token_type: str = 'bearer'
 
 
+class SubjectStat(BaseModel):
+    subject: str
+    avg_speed: float
+    success_rate: float
+    total_solved: int
+
 
 class UserProfile(BaseModel):
     username: str
@@ -37,6 +43,7 @@ class UserStats(BaseModel):
     total_attempts: int
     correct_solutions: int
     success_rate: float
+    subject_stats: list[SubjectStat]
     message: str
 
 

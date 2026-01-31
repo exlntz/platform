@@ -120,12 +120,12 @@ async def delete_user(
 
     return {'message': f'Пользователь {user.username} успешно удален'}
 
-@router.get('/users/{user_id}/elo_history', summary='История Эло пользователя (для админов)',response_model=UserEloHistoryResponse)
+@router.get('/users/{user_id}/elo_history', summary='История Эло пользователя (для админов)')
 async def get_user_elo_history(
         user_id: int,
         session: SessionDep,
         admin: AdminDep
-):
+) -> UserEloHistoryResponse:
     user = await session.get(UserModel, user_id)
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Пользователь не найден')
@@ -174,7 +174,7 @@ async def get_admin_stats(
     return AdminDashboardStats(
         total_users=total_users,
         total_tasks=total_tasks,
-        average_rating=round(float(avg_rating), 1),
+        average_rating=avg_rating,
         new_users_24h=new_users,
         most_popular_subject=popular_subject
     )
