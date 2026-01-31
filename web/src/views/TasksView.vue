@@ -113,7 +113,7 @@ const getDifficultyClass = (diff) => {
 
 // Переход к решению
 const navigateToTask = (id) => {
-  timer.startTask()
+
   router.push(`/tasks/${id}`)
 }
 
@@ -925,56 +925,56 @@ onUnmounted(() => {
   .tasks-content {
     padding: 12px;
   }
-  
+
   .title {
     font-size: 22px;
   }
-  
+
   .description {
     font-size: 13px;
   }
-  
+
   .filters-container {
     padding: 12px;
     gap: 12px;
   }
-  
+
   .search-input {
     padding: 10px 10px 10px 36px;
     font-size: 14px;
   }
-  
+
   .search-icon {
     font-size: 16px;
     left: 10px;
   }
-  
+
   .filter-select {
     padding: 10px 32px 10px 12px;
     font-size: 13px;
   }
-  
+
   .reset-btn.compact {
     min-width: 56px;
     padding: 0 8px;
     font-size: 12px;
   }
-  
+
   .task-card-skeleton,
   .task-card {
     padding: 16px;
   }
-  
+
   .empty-icon {
     width: 64px;
     height: 64px;
     font-size: 28px;
   }
-  
+
   .empty-title {
     font-size: 18px;
   }
-  
+
   .empty-description {
     font-size: 13px;
   }
@@ -985,11 +985,11 @@ onUnmounted(() => {
   .tasks-content {
     padding: 14px;
   }
-  
+
   .title {
     font-size: 23px;
   }
-  
+
   .filter-select {
     min-width: 100px;
   }
@@ -1000,7 +1000,7 @@ onUnmounted(() => {
   .tasks-content {
     padding: 16px;
   }
-  
+
   .title {
     font-size: 24px;
   }
@@ -1011,52 +1011,52 @@ onUnmounted(() => {
   .tasks-content {
     padding: 24px;
   }
-  
+
   .title {
     font-size: 28px;
   }
-  
+
   .description {
     font-size: 15px;
   }
-  
+
   .filters-container {
     padding: 20px;
     border-radius: 20px;
   }
-  
+
   .search-input {
     padding: 14px 14px 14px 44px;
     font-size: 16px;
   }
-  
+
   .search-icon {
     font-size: 20px;
     left: 14px;
   }
-  
+
   .filter-select {
     font-size: 15px;
   }
-  
+
   .error-state {
     padding: 32px;
   }
-  
+
   .empty-icon {
     width: 96px;
     height: 96px;
     font-size: 36px;
   }
-  
+
   .empty-title {
     font-size: 22px;
   }
-  
+
   .empty-description {
     font-size: 15px;
   }
-  
+
   .task-card-skeleton,
   .task-card {
     padding: 24px;
@@ -1072,32 +1072,32 @@ onUnmounted(() => {
     justify-content: space-between;
     gap: 24px;
   }
-  
+
   .tasks-counter {
     display: block;
   }
-  
+
   .title {
     font-size: 32px;
   }
-  
+
   .description {
     font-size: 16px;
   }
-  
+
   .filters-container {
     flex-direction: row;
     align-items: center;
   }
-  
+
   .filter-group {
     flex-wrap: nowrap;
   }
-  
+
   .select-wrapper {
     min-width: 160px;
   }
-  
+
   .tasks-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 24px;
@@ -1109,15 +1109,15 @@ onUnmounted(() => {
   .tasks-content {
     padding: 32px 40px;
   }
-  
+
   .title {
     font-size: 36px;
   }
-  
+
   .filters-container {
     padding: 24px;
   }
-  
+
   .tasks-grid {
     grid-template-columns: repeat(3, 1fr);
   }
@@ -1129,15 +1129,15 @@ onUnmounted(() => {
     padding: 40px;
     max-width: 1280px;
   }
-  
+
   .title {
     font-size: 40px;
   }
-  
+
   .description {
     font-size: 17px;
   }
-  
+
   .tasks-grid {
     gap: 32px;
   }
@@ -1149,15 +1149,15 @@ onUnmounted(() => {
     max-width: 1440px;
     padding: 48px;
   }
-  
+
   .title {
     font-size: 44px;
   }
-  
+
   .description {
     font-size: 18px;
   }
-  
+
   .tasks-grid {
     grid-template-columns: repeat(4, 1fr);
   }

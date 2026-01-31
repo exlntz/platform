@@ -8,6 +8,7 @@ import { useTimerStore } from '@/pinia/TimerStore.js'
 
 const timer = useTimerStore()
 
+const showHint = ref(false)
 
 const route = useRoute()
 const task = ref(null)
@@ -132,6 +133,26 @@ onUnmounted(() => {
             <p class="task-description" :class="{ 'mobile': screenSize === 'mobile' }">
               {{ task.description }}
             </p>
+          </div>
+
+          <div v-if="task.hint" class="hint-section">
+            <button
+              @click="showHint = !showHint"
+              class="hint-btn"
+              :class="{ 'active': showHint, 'mobile': screenSize === 'mobile' }"
+            >
+              <span class="hint-icon">💡</span>
+              <span class="hint-text-content">
+                {{ showHint ? 'Скрыть подсказку' : 'Показать подсказку' }}
+              </span>
+            </button>
+
+
+              <div v-if="showHint" class="hint-content">
+                <div class="hint-badge">Подсказка</div>
+                <p class="hint-text">{{ task.hint }}</p>
+              </div>
+
           </div>
 
           <hr class="divider" :class="{ 'mobile': screenSize === 'mobile' }">
@@ -949,4 +970,74 @@ onUnmounted(() => {
     font-size: 21px;
   }
 }
+/* ==================== ПОДСКАЗКИ ==================== */
+.hint-section {
+  margin-bottom: 24px;
+}
+
+.hint-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: 1px solid #e2e8f0;
+  padding: 8px 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 13px;
+  transition: all 0.2s ease;
+  width: 100%; /* На мобильных удобно, если кнопка широкая */
+}
+
+@media (min-width: 640px) {
+  .hint-btn {
+    width: auto;
+    display: inline-flex;
+  }
+}
+
+.hint-btn:hover {
+  background-color: #f8fafc;
+  color: #4f46e5;
+  border-color: #c7d2fe;
+}
+
+.hint-btn.active {
+  background-color: #eef2ff;
+  color: #4f46e5;
+  border-color: #a5b4fc;
+}
+
+.hint-content {
+  margin-top: 12px;
+  background-color: #fffbeb; /* Желтоватый фон для подсказки */
+  border: 1px solid #fcd34d;
+  border-radius: 12px;
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.hint-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #b45309;
+  background-color: #fef3c7;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.hint-text {
+  font-size: 14px;
+  color: #92400e;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+
 </style>
