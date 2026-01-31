@@ -1,18 +1,34 @@
 from fastapi import APIRouter, HTTPException, status, Response, File, UploadFile
 from sqlalchemy import select, func, desc, distinct
 from app.core.database import SessionDep
-from app.core.models import UserModel, TaskModel, AttemptModel
+from app.core.models import UserModel, TaskModel, AttemptModel, AuditLogModel
 from app.schemas.admin_schemas import UserAdminRead, AdminDashboardStats, UserAdminUpdate, TaskAdminUpdate
 from datetime import datetime, timedelta
 from app.schemas.task import TaskAdminRead, TaskRead, TaskCreate
 import json
 from app.core.dependencies import AdminDep
+from app.utils.changes import calculate_changes
+
+router = APIRouter(prefix='/admin', tags=['Админ панель'])
 
 
-router = APIRouter(prefix='/admin',tags=['Админ панель'])
+async def log_admin_action(
+        session,
+        admin_id: int,
+        action: str,
+        target_id: int = None,
+        details: str = None
+):
+    new_log = AuditLogModel(
+        admin_id=admin_id,
+        action=action,
+        target_id=target_id,
+        details=details,
+    )
+    session.add(new_log)
 
 
-@router.get('/users',summary='Список всех пользователей (для админов)')
+@router.get('/users', summary='Список всех пользователей (для админов)')
 async def get_all_users(
         session: SessionDep,
         admin: AdminDep,
@@ -25,21 +41,22 @@ async def get_all_users(
         .offset(offset)
         .limit(limit)
     )
-    result= await session.execute(query)
+    result = await session.execute(query)
     users = list(result.scalars().all())
     return users
 
-@router.patch('/users/{user_id}',summary='Изменить информацию о пользователе (для админов)')
+
+@router.patch('/users/{user_id}', summary='Изменить информацию о пользователе (для админов)')
 async def update_user(
         user_id: int,
         update_data: UserAdminUpdate,
         session: SessionDep,
         admin: AdminDep,
 ):
-    user = await session.get(UserModel,user_id)
+    user = await session.get(UserModel, user_id)
 
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail='Пользователь не найден')
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Пользователь не найден')
 
     if update_data.username and update_data.username != user.username:
         exists = await session.execute(select(UserModel).where(UserModel.username == update_data.username))
@@ -49,39 +66,62 @@ async def update_user(
     if update_data.email and update_data.email != user.email:
         exists = await session.execute(select(UserModel).where(UserModel.email == update_data.email))
         if exists.scalar_one_or_none():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Этот Email уже используется другим аккаунтом")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail="Этот Email уже используется другим аккаунтом")
 
     if user.id == admin.id and (update_data.is_admin == False or update_data.is_banned == True):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail='Вы не можете лишить прав или забанить самого себя')
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail='Вы не можете лишить прав или забанить самого себя')
 
-    data  = update_data.model_dump(exclude_unset=True)
+    data = update_data.model_dump(exclude_unset=True)
 
-    for key,value in data.items():
-        setattr(user,key,value)
+    changes_log = calculate_changes(user, data)
+
+    for key, value in data.items():
+        setattr(user, key, value)
+
+    if changes_log:
+        await log_admin_action(
+            session=session,
+            admin_id=admin.id,
+            action="update_user",
+            target_id=user.id,
+            details=changes_log
+        )
 
     await session.commit()
     return {'message': f'Данные пользователя {user.username} успешно обновлены'}
 
-@router.delete('/users/{user_id}',summary='Удалить пользователя (для админов)')
+
+@router.delete('/users/{user_id}', summary='Удалить пользователя (для админов)')
 async def delete_user(
         user_id: int,
         session: SessionDep,
         admin: AdminDep
 ):
-    user = await session.get(UserModel,user_id)
+    user = await session.get(UserModel, user_id)
 
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail='Пользователь не найден')
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Пользователь не найден')
 
     if user.id == admin.id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail='Вы не можете удалить самого себя')
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Вы не можете удалить самого себя')
+
+    await log_admin_action(
+        session=session,
+        admin_id=admin.id,
+        action="delete_user",
+        target_id=user_id,
+        details=f"Deleted user: {user.username} (Email: {user.email})"
+    )
 
     await session.delete(user)
     await session.commit()
 
     return {'message': f'Пользователь {user.username} успешно удален'}
 
-@router.get('/stats',summary='Статистика для дашборда (для админов)')
+
+@router.get('/stats', summary='Статистика для дашборда (для админов)')
 async def get_admin_stats(
         session: SessionDep,
         admin: AdminDep
@@ -116,14 +156,13 @@ async def get_admin_stats(
     )
 
 
-@router.post('/tasks/create',summary='Создать задачу (для админов)')
+@router.post('/tasks/create', summary='Создать задачу (для админов)')
 async def create_task(
         new_task: TaskCreate,
         session: SessionDep,
         admin: AdminDep
 ) -> TaskRead:
-
-    task_db=TaskModel(
+    task_db = TaskModel(
         title=new_task.title,
         description=new_task.description,
         subject=new_task.subject,
@@ -133,19 +172,29 @@ async def create_task(
         correct_answer=new_task.correct_answer)
 
     session.add(task_db)
+
+    await session.flush()
+
+    await log_admin_action(
+        session=session,
+        admin_id=admin.id,
+        action="create_task",
+        target_id=task_db.id,
+        details=f"Task created: '{task_db.title}' (Subject: {task_db.subject})"
+    )
+
     await session.commit()
     await session.refresh(task_db)
 
     return TaskRead.model_validate(task_db)
 
 
-
-@router.get('/tasks/export',summary='Экспорт задач (для админов)',description='Получение JSON файла со всеми задачами')
+@router.get('/tasks/export', summary='Экспорт задач (для админов)',
+            description='Получение JSON файла со всеми задачами')
 async def export_tasks(
         admin: AdminDep,
         session: SessionDep
 ):
-
     result = await session.execute(select(TaskModel))
     tasks = result.scalars().all()
 
@@ -161,7 +210,7 @@ async def export_tasks(
         } for t in tasks
     ]
 
-    content = json.dumps(export_data,ensure_ascii=False,indent=4)
+    content = json.dumps(export_data, ensure_ascii=False, indent=4)
 
     return Response(
         content=content,
@@ -170,22 +219,22 @@ async def export_tasks(
     )
 
 
-@router.post('/tasks/import',summary='Импорт задач (для админов)',description='Импорт задач. Если задача с таким названием существует, то обновляем ее, если нет, то создаем новую')
+@router.post('/tasks/import', summary='Импорт задач (для админов)',
+             description='Импорт задач. Если задача с таким названием существует, то обновляем ее, если нет, то создаем новую')
 async def import_tasks(
         session: SessionDep,
         admin: AdminDep,
         file: UploadFile = File(...)
 ):
     if not file.filename.endswith('.json'):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail='Файл должен быть в формате JSON')
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Файл должен быть в формате JSON')
 
     try:
         content = await file.read()
         data = json.loads(content)
 
-        if not isinstance(data,list):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail='Ожидался список задач')
-
+        if not isinstance(data, list):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Ожидался список задач')
 
         incoming_titles = [item.get("title") for item in data if item.get("title")]
 
@@ -195,7 +244,6 @@ async def import_tasks(
 
         created_count = 0
         updated_count = 0
-
 
         for item in data:
             title = item.get('title')
@@ -222,13 +270,20 @@ async def import_tasks(
                     title=title,
                     description=item.get("description"),
                     subject=item.get("subject"),
-                    tags=item.get("tags",[]),
+                    tags=item.get("tags", []),
                     hint=item.get("hint"),
                     difficulty=clean_difficulty,
                     correct_answer=item.get("correct_answer")
                 )
                 session.add(new_task)
                 created_count += 1
+
+        await log_admin_action(
+            session=session,
+            admin_id=admin.id,
+            action="import_tasks",
+            details=f"Imported tasks from {file.filename}. Created: {created_count}, Updated: {updated_count}"
+        )
 
         await session.commit()
 
@@ -242,10 +297,8 @@ async def import_tasks(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ошибка в структуре JSON-файла")
     except Exception as e:
         await session.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Произошла ошибка при импорте: {str(e)}")
-
-
-
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Произошла ошибка при импорте: {str(e)}")
 
 
 @router.get('/tasks/{task_id}', summary='Получить полную задачу с ответом (для админов)')
@@ -271,7 +324,15 @@ async def delete_task(
     task = await session.get(TaskModel, task_id)
 
     if not task:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail='Задача не найдена')
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Задача не найдена')
+
+    await log_admin_action(
+        session=session,
+        admin_id=admin.id,
+        action="delete_task",
+        target_id=task_id,
+        details=f"Deleted task: '{task.title}' (Subject: {task.subject})"
+    )
 
     await session.delete(task)
     await session.commit()
@@ -286,7 +347,6 @@ async def update_task(
         session: SessionDep,
         admin: AdminDep
 ) -> TaskRead:
-
     task = await session.get(TaskModel, task_id)
 
     if not task:
@@ -294,12 +354,22 @@ async def update_task(
 
     data = update_data.model_dump(exclude_unset=True)
 
-    for key,value in data.items():
+    if 'difficulty' in data and data['difficulty']:
+        data['difficulty'] = data['difficulty'].capitalize()
 
-        if key == 'difficulty' and value:
-            value = value.capitalize()
+    changes_log = calculate_changes(task, data)
 
-        setattr(task,key,value)
+    for key, value in data.items():
+        setattr(task, key, value)
+
+    if changes_log:
+        await log_admin_action(
+            session=session,
+            admin_id=admin.id,
+            action="update_task",
+            target_id=task.id,
+            details=changes_log
+        )
 
     await session.commit()
     await session.refresh(task)
@@ -307,15 +377,14 @@ async def update_task(
     return TaskRead.model_validate(task)
 
 
-@router.get('/stats/most_popular_subject',summary='Самый популярный предмет (для админов)')
+@router.get('/stats/most_popular_subject', summary='Самый популярный предмет (для админов)')
 async def get_most_popular_subject(
         session: SessionDep,
         admin: AdminDep,
 ):
-
-    query=(
+    query = (
         select(TaskModel.subject)
-        .join(AttemptModel,AttemptModel.task_id == TaskModel.id)
+        .join(AttemptModel, AttemptModel.task_id == TaskModel.id)
         .group_by(TaskModel.subject)
         .order_by(desc(func.count(distinct(AttemptModel.user_id))))
         .limit(1)

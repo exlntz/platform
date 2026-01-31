@@ -57,3 +57,14 @@ class AttemptModel(Model):
     is_correct: Mapped[bool] = mapped_column()
     time_spent: Mapped[int] = mapped_column(default=0)
     time: Mapped[datetime] = mapped_column(server_default=func.now(),init=False)
+
+
+class AuditLogModel(Model):
+    __tablename__ = 'audit_logs'
+
+    id: Mapped[int] = mapped_column(primary_key=True,init=False)
+    admin_id: Mapped[int] = mapped_column(ForeignKey('users.id'),index=True)
+    action: Mapped[str] = mapped_column()
+    target_id: Mapped[int | None] = mapped_column(default=None)
+    details: Mapped[str | None] = mapped_column(default=None)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now(),init=False)
