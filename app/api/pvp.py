@@ -172,7 +172,7 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
                 
                 last_answer[ans.user_id] = time.time()
 
-                if correct_answers[task_id] == ans.answer:
+                if correct_answers[task_id] == ans.text:
                     if ans.user_id == player1.user_id:
                         anscnt1+=1
                         await ws1.send_text("correct")
