@@ -111,12 +111,12 @@ const pieChartData = computed(() => {
   if (!profile.value) return null
 
   return {
-    labels: ['Неверно решено', 'Решено верно'],
+    labels: ['% Неправильных', '% Правильных'],
     datasets: [
       {
         data: [
-          profile.value.stats.total_attempts - profile.value.stats.correct_solutions,
-          profile.value.stats.correct_solutions
+          100 - profile.value.stats.success_rate,
+          profile.value.stats.success_rate
         ],
         backgroundColor: ['#ef4444', '#22c55e']
       }
@@ -326,7 +326,7 @@ onMounted(() => {
           </div>
         </div>
         <div class="stat-card chart-container">
-          <h3 class="chart-title">Статистика ошибок</h3>
+          <h3 class="chart-title">Процент правильных решений</h3>
           <div class="chart-wrapper">
             <Pie
               v-if="pieChartData"
