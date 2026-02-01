@@ -68,8 +68,10 @@ const connectPvp = () => {
   logs.value = []
   userAnswer.value = ''
 
-  // Подключение (используем localhost, как в backend main.py)
-  socket.value = new WebSocket('ws://127.0.0.1:8000/pvp/join')
+  // Автоматически определяем протокол (wss для https, ws для http)
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  // Подключаемся к /api/pvp/join на текущем домене
+  socket.value = new WebSocket(`${protocol}//${window.location.host}/api/pvp/join`);
 
   socket.value.onopen = () => {
     addLog('system', 'Соединение установлено...')
@@ -114,7 +116,7 @@ const connectPvp = () => {
     else if (msg.includes('time is up')) {
       addLog('error', 'Время на выполнение задачи вышло. Переход к следующей задаче...')
     }
-    
+
     else if (msg.includes('other player answered')) {
       addLog('error', 'Оппонент дал правильный ответ. Переход к следующей задаче...')
     }
@@ -145,7 +147,7 @@ const connectPvp = () => {
     else if (msg === 'opponent disconnected') {
       finishGame('disconnect')
     }
-    
+
     else if (msg.includes('draw')) {
       finishGame('draw')
     }
@@ -949,11 +951,11 @@ onUnmounted(() => {
   .arena-title {
     font-size: 30px;
   }
-  
+
   .result-icon {
     font-size: 56px;
   }
-  
+
   .result-text h1 {
     font-size: 26px;
   }
@@ -964,15 +966,15 @@ onUnmounted(() => {
   .pvp-container {
     padding: 20px;
   }
-  
+
   .arena-title {
     font-size: 32px;
   }
-  
+
   .task-title {
     font-size: 22px;
   }
-  
+
   .stats-card,
   .leaderboard-card {
     padding: 24px;
@@ -984,11 +986,11 @@ onUnmounted(() => {
   .pvp-container {
     padding: 24px;
   }
-  
+
   .pvp-grid {
     gap: 24px;
   }
-  
+
   .idle-state,
   .searching-state,
   .result-state {
@@ -996,119 +998,119 @@ onUnmounted(() => {
     padding: 32px;
     min-height: 320px;
   }
-  
+
   .arena-title {
     font-size: 36px;
   }
-  
+
   .arena-description {
     font-size: 16px;
   }
-  
+
   .find-opponent-btn {
     padding: 16px 32px;
     font-size: 16px;
   }
-  
+
   .playing-state {
     border-radius: 20px;
     min-height: 550px;
   }
-  
+
   .match-header {
     padding: 20px 24px;
   }
-  
+
   .task-container {
     padding: 24px;
   }
-  
+
   .task-title {
     font-size: 24px;
   }
-  
+
   .task-description p {
     font-size: 15px;
   }
-  
+
   .game-controls {
     padding: 20px;
   }
-  
+
   .game-logs {
     height: 120px;
   }
-  
+
   .answer-form {
     gap: 12px;
   }
-  
+
   .answer-input {
     padding: 12px 16px;
   }
-  
+
   .submit-answer-btn {
     padding: 12px 24px;
   }
-  
+
   .result-icon {
     font-size: 64px;
   }
-  
+
   .result-text h1 {
     font-size: 32px;
   }
-  
+
   .result-description {
     font-size: 16px;
   }
-  
+
   .play-again-btn {
     padding: 14px 28px;
     font-size: 16px;
   }
-  
+
   .sidebar-section {
     gap: 24px;
   }
-  
+
   .stats-card,
   .leaderboard-card {
     border-radius: 20px;
     padding: 24px;
   }
-  
+
   .stats-title {
     font-size: 20px;
   }
-  
+
   .stat-item {
     padding: 16px;
   }
-  
+
   .stat-label {
     font-size: 12px;
   }
-  
+
   .stat-value {
     font-size: 16px;
   }
-  
+
   .leaderboard-header {
     padding: 20px;
     font-size: 16px;
   }
-  
+
   .leaderboard-item {
     padding: 16px;
   }
-  
+
   .player-avatar {
     width: 40px;
     height: 40px;
     font-size: 18px;
   }
-  
+
   .player-name {
     font-size: 14px;
   }
@@ -1119,31 +1121,31 @@ onUnmounted(() => {
   .pvp-grid {
     grid-template-columns: 2fr 1fr;
   }
-  
+
   .idle-state {
     min-height: 360px;
   }
-  
+
   .arena-title {
     font-size: 40px;
   }
-  
+
   .arena-description {
     font-size: 17px;
   }
-  
+
   .playing-state {
     min-height: 600px;
   }
-  
+
   .task-title {
     font-size: 26px;
   }
-  
+
   .result-icon {
     font-size: 72px;
   }
-  
+
   .result-text h1 {
     font-size: 36px;
   }
@@ -1154,12 +1156,12 @@ onUnmounted(() => {
   .pvp-container {
     padding: 32px;
   }
-  
+
   .pvp-grid {
     max-width: 1200px;
     gap: 32px;
   }
-  
+
   .idle-state,
   .searching-state,
   .result-state {
@@ -1167,72 +1169,72 @@ onUnmounted(() => {
     padding: 40px;
     min-height: 400px;
   }
-  
+
   .arena-title {
     font-size: 44px;
   }
-  
+
   .arena-badge {
     font-size: 10px;
     padding: 6px 16px;
   }
-  
+
   .playing-state {
     border-radius: 24px;
   }
-  
+
   .match-header {
     padding: 24px 32px;
   }
-  
+
   .live-text {
     font-size: 14px;
   }
-  
+
   .match-hint {
     font-size: 12px;
   }
-  
+
   .task-container {
     padding: 32px;
   }
-  
+
   .task-tags {
     gap: 8px;
   }
-  
+
   .subject-tag,
   .difficulty-tag {
     padding: 6px 12px;
     font-size: 10px;
   }
-  
+
   .task-title {
     font-size: 28px;
   }
-  
+
   .task-description p {
     font-size: 16px;
   }
-  
+
   .game-controls {
     padding: 24px;
   }
-  
+
   .game-logs {
     height: 140px;
   }
-  
+
   .log-message {
     font-size: 14px;
   }
-  
+
   .stats-card,
   .leaderboard-card {
     border-radius: 24px;
     padding: 28px;
   }
-  
+
   .stats-title {
     font-size: 22px;
   }
@@ -1243,49 +1245,49 @@ onUnmounted(() => {
   .pvp-container {
     padding: 40px;
   }
-  
+
   .pvp-grid {
     max-width: 1280px;
   }
-  
+
   .idle-state {
     min-height: 420px;
   }
-  
+
   .arena-title {
     font-size: 48px;
   }
-  
+
   .arena-description {
     font-size: 18px;
     max-width: 600px;
   }
-  
+
   .find-opponent-btn {
     padding: 20px 40px;
     font-size: 18px;
   }
-  
+
   .btn-fire {
     font-size: 20px;
   }
-  
+
   .playing-state {
     min-height: 650px;
   }
-  
+
   .task-title {
     font-size: 32px;
   }
-  
+
   .result-icon {
     font-size: 80px;
   }
-  
+
   .result-text h1 {
     font-size: 40px;
   }
-  
+
   .result-description {
     font-size: 18px;
   }
@@ -1296,32 +1298,32 @@ onUnmounted(() => {
   .pvp-container {
     padding: 48px;
   }
-  
+
   .pvp-grid {
     max-width: 1400px;
   }
-  
+
   .idle-state {
     min-height: 450px;
   }
-  
+
   .arena-title {
     font-size: 52px;
   }
-  
+
   .stats-card,
   .leaderboard-card {
     padding: 32px;
   }
-  
+
   .stats-title {
     font-size: 24px;
   }
-  
+
   .stat-item {
     padding: 20px;
   }
-  
+
   .stat-value {
     font-size: 18px;
   }
@@ -1332,42 +1334,42 @@ onUnmounted(() => {
   .pvp-container {
     padding: 64px;
   }
-  
+
   .pvp-grid {
     max-width: 1600px;
   }
-  
+
   .idle-state {
     min-height: 500px;
   }
-  
+
   .arena-title {
     font-size: 56px;
   }
-  
+
   .arena-description {
     font-size: 20px;
     max-width: 700px;
   }
-  
+
   .playing-state {
     min-height: 700px;
   }
-  
+
   .task-title {
     font-size: 36px;
   }
-  
+
   .task-description p {
     font-size: 18px;
   }
-  
+
   .stats-card,
   .leaderboard-card {
     padding: 36px;
     border-radius: 28px;
   }
-  
+
   .leaderboard-header {
     padding: 24px;
     font-size: 18px;
