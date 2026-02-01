@@ -32,7 +32,7 @@ ChartJS.register(
   Tooltip,
   Legend
 )
-
+axios.defaults.baseURL = '/api';
 const app = createApp(App)
 
 // --- ГЛОБАЛЬНАЯ НАСТРОЙКА AXIOS ---
