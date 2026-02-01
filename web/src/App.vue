@@ -178,15 +178,14 @@ const closeMenu = () => {
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid rgb(241 245 249);
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  padding-left: 50px;
+  padding-left: 20px;
+  padding-right: 20px;
 }
 
 .menu {
   max-width: 1280px;
   margin-left: auto;
   margin-right: auto;
-  padding-left: 16px;
-  padding-right: 16px;
   height: 64px;
   display: flex;
   align-items: center;
@@ -200,11 +199,12 @@ const closeMenu = () => {
   gap: 8px;
   text-decoration: none;
   z-index: 101;
+  position: relative;
 }
 
 .logo {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   background-color: #4f46e5;
   border-radius: 10px;
   display: flex;
@@ -212,14 +212,14 @@ const closeMenu = () => {
   justify-content: center;
   color: white;
   font-weight: 900;
-  font-size: 18px;
+  font-size: 16px;
   box-shadow: 0 8px 12px -3px rgba(79, 70, 229, 0.1),
               0 3px 5px -3px rgba(79, 70, 229, 0.1);
   transition: transform 0.2s ease;
 }
 
 .text-logo {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 900;
   color: #1e293b;
   letter-spacing: -0.05em;
@@ -246,7 +246,8 @@ const closeMenu = () => {
   border: none;
   cursor: pointer;
   padding: 0;
-  z-index: 101;
+  z-index: 102;
+  position: relative;
 }
 
 .burger-line {
@@ -290,6 +291,7 @@ const closeMenu = () => {
   text-decoration: none;
   border: none;
   cursor: pointer;
+  display: none;
 }
 
 .auth-link:hover {
@@ -302,7 +304,7 @@ const closeMenu = () => {
   left: 0;
   width: 100%;
   height: 100vh;
-  z-index: 99;
+  z-index: 103;
 }
 
 .mobile-menu-overlay {
@@ -349,6 +351,12 @@ const closeMenu = () => {
   align-items: center;
   gap: 8px;
   text-decoration: none;
+}
+
+.mobile-logo .logo {
+  width: 36px;
+  height: 36px;
+  font-size: 18px;
 }
 
 .mobile-menu-close {
@@ -468,6 +476,7 @@ const closeMenu = () => {
 @media (min-width: 641px) {
   .header {
     padding-left: 0;
+    padding-right: 0;
   }
 
   .menu {
@@ -488,6 +497,10 @@ const closeMenu = () => {
 
   .auth-block {
     display: block;
+  }
+
+  .auth-link {
+    display: inline-block;
   }
 
   .profile-link {
