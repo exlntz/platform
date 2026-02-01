@@ -107,7 +107,7 @@ const handleApiError = (err) => {
 // --- ЗАГРУЗКА ДАННЫХ ---
 const fetchStats = async () => {
   try {
-    const response = await axios.get('http://127.0.0.1:8000/admin/stats', getAuthHeader())
+    const response = await axios.get('/api/admin/stats', getAuthHeader())
     stats.value = response.data
     accessDenied.value = false
   } catch (err) { handleApiError(err) }
@@ -117,7 +117,7 @@ const fetchUsers = async () => {
   if (accessDenied.value) return
   loading.value = true
   try {
-    const response = await axios.get('http://127.0.0.1:8000/admin/users?limit=50', getAuthHeader())
+    const response = await axios.get('/api/admin/users?limit=50', getAuthHeader())
     users.value = response.data
   } catch (err) { handleApiError(err) }
   finally { loading.value = false }
@@ -127,7 +127,7 @@ const fetchTasks = async () => {
   if (accessDenied.value) return
   loading.value = true
   try {
-    const response = await axios.get('http://127.0.0.1:8000/tasks/', getAuthHeader())
+    const response = await axios.get('/api/tasks/', getAuthHeader())
     tasks.value = response.data
   } catch (err) { handleApiError(err) }
   finally { loading.value = false }
@@ -151,7 +151,7 @@ const openEditUser = (user) => {
 // Универсальное обновление пользователя (Бан, Роль, Данные)
 const updateUserAction = async (userId, data, successMessage = null) => {
   try {
-    await axios.patch(`http://127.0.0.1:8000/admin/users/${userId}`, data, getAuthHeader())
+    await axios.patch(`/api/admin/users/${userId}`, data, getAuthHeader())
 
     if (successMessage) alert(successMessage)
 
@@ -167,7 +167,7 @@ const updateUserAction = async (userId, data, successMessage = null) => {
 const deleteUser = async (user) => {
   if (!confirm(`Вы уверены, что хотите безвозвратно удалить пользователя ${user.username}?`)) return
   try {
-    await axios.delete(`http://127.0.0.1:8000/admin/users/${user.id}`, getAuthHeader())
+    await axios.delete(`/api/admin/users/${user.id}`, getAuthHeader())
     users.value = users.value.filter(u => u.id !== user.id)
     fetchStats()
   } catch (err) { handleApiError(err) }
@@ -203,7 +203,7 @@ const openEditModal = async (task) => {
 
   showTaskModal.value = true
   try {
-    const { data } = await axios.get(`http://127.0.0.1:8000/admin/tasks/${task.id}`, getAuthHeader())
+    const { data } = await axios.get(`/api/admin/tasks/${task.id}`, getAuthHeader())
     taskForm.value = { ...data }
     // Обновляем теги и hint из полных данных задачи
     tagsInput.value = (data.tags && Array.isArray(data.tags)) ? data.tags.join(', ') : ''
@@ -219,8 +219,8 @@ const saveTask = async () => {
       .filter(tag => tag.length > 0)
 
     const finalUrl = isEditMode.value
-       ? `http://127.0.0.1:8000/admin/tasks/${currentEditId.value}`
-       : 'http://127.0.0.1:8000/admin/tasks/create'
+       ? `/api/admin/tasks/${currentEditId.value}`
+       : '/api/admin/tasks/create'
 
     const method = isEditMode.value ? 'patch' : 'post'
 
@@ -236,7 +236,7 @@ const saveTask = async () => {
 const deleteTask = async (taskId) => {
   if (!confirm(`Вы уверены, что хотите удалить задачу #${taskId}?`)) return
   try {
-    await axios.delete(`http://127.0.0.1:8000/admin/tasks/${taskId}`, getAuthHeader())
+    await axios.delete(`/api/admin/tasks/${taskId}`, getAuthHeader())
     tasks.value = tasks.value.filter(t => t.id !== taskId)
     fetchStats()
   } catch (err) { handleApiError(err) }
@@ -244,7 +244,7 @@ const deleteTask = async (taskId) => {
 
 const exportTasks = async () => {
   try {
-    const response = await axios.get('http://127.0.0.1:8000/admin/tasks/export', { ...getAuthHeader(), responseType: 'blob' })
+    const response = await axios.get('/api/admin/tasks/export', { ...getAuthHeader(), responseType: 'blob' })
     const url = window.URL.createObjectURL(new Blob([response.data]))
     const link = document.createElement('a')
     link.href = url
@@ -261,7 +261,7 @@ const handleImport = async (event) => {
   const formData = new FormData(); formData.append('file', file)
   try {
     loading.value = true
-    const response = await axios.post('http://127.0.0.1:8000/admin/tasks/import', formData, {
+    const response = await axios.post('/api/admin/tasks/import', formData, {
       headers: { ...getAuthHeader().headers, 'Content-Type': 'multipart/form-data' }
     })
     alert(`Импорт завершен!\nСоздано: ${response.data.created}\nОбновлено: ${response.data.updated}`)
@@ -1675,50 +1675,50 @@ onMounted(() => {
   .admin-main {
     padding: 12px;
   }
-  
+
   .dashboard-header h1 {
     font-size: 22px;
   }
-  
+
   .tab-header h1 {
     font-size: 20px;
   }
-  
+
   .tasks-actions {
     gap: 6px;
   }
-  
+
   .import-btn,
   .export-btn {
     min-width: 36px;
     min-height: 36px;
     padding: 6px;
   }
-  
+
   .create-btn {
     padding: 8px 12px;
     font-size: 12px;
   }
-  
+
   .task-modal,
   .user-modal {
     padding: 20px;
   }
-  
+
   .modal-header h2 {
     font-size: 18px;
   }
-  
+
   .stat-card {
     padding: 16px;
   }
-  
+
   .stat-icon {
     width: 36px;
     height: 36px;
     font-size: 18px;
   }
-  
+
   .stat-value {
     font-size: 18px;
   }
@@ -1728,7 +1728,7 @@ onMounted(() => {
   .stats-container {
     grid-template-columns: 1fr;
   }
-  
+
   .stat-card {
     width: 100%;
   }
@@ -1738,7 +1738,7 @@ onMounted(() => {
   .stats-container {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .stat-card {
     width: 100%;
   }
@@ -1748,26 +1748,26 @@ onMounted(() => {
   .admin-main {
     padding: 20px;
   }
-  
+
   .stat-icon {
     width: 44px;
     height: 44px;
     font-size: 22px;
   }
-  
+
   .stat-value {
     font-size: 20px;
   }
-  
+
   .tasks-tab-header {
     flex-direction: row;
     align-items: center;
   }
-  
+
   .tasks-actions {
     gap: 12px;
   }
-  
+
   .create-btn {
     padding: 10px 20px;
   }
@@ -1777,12 +1777,12 @@ onMounted(() => {
   .mobile-menu-btn {
     display: none;
   }
-  
+
   .admin-sidebar {
     transform: translateX(0);
     position: fixed;
   }
-  
+
   .admin-main {
     margin-left: 256px;
     padding: 24px;
@@ -1792,31 +1792,31 @@ onMounted(() => {
   .stats-container {
     grid-template-columns: repeat(2, 2fr);
   }
-  
+
   .stat-card {
     width: 100%;
   }
-  
+
   .sidebar-close {
     display: none;
   }
-  
+
   .dashboard-header h1 {
     font-size: 28px;
   }
-  
+
   .tab-header h1 {
     font-size: 24px;
   }
-  
+
   .form-row {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .task-modal {
     max-width: 600px;
   }
-  
+
   .users-table,
   .tasks-table {
     min-width: auto;
@@ -1827,38 +1827,38 @@ onMounted(() => {
   .admin-main {
     padding: 32px;
   }
-  
+
   .stat-card {
     padding: 28px;
     border-radius: 24px;
   }
-  
+
   .stat-icon {
     width: 48px;
     height: 48px;
     font-size: 24px;
   }
-  
+
   .stat-value {
     font-size: 22px;
   }
-  
+
   .dashboard-header h1 {
     font-size: 32px;
   }
-  
+
   .tab-header h1 {
     font-size: 26px;
   }
-  
+
   .table-head th {
     padding: 20px 24px;
   }
-  
+
   .table-row td {
     padding: 20px 24px;
   }
-  
+
   .task-modal {
     max-width: 700px;
     padding: 32px;
@@ -1870,16 +1870,16 @@ onMounted(() => {
   .admin-main {
     padding: 40px;
   }
-  
+
   .stats-container {
     gap: 24px;
   }
-  
+
   .stat-card {
     padding: 32px;
     border-radius: 28px;
   }
-  
+
   .stat-value {
     font-size: 28px;
   }
@@ -1887,15 +1887,15 @@ onMounted(() => {
   .dashboard-header h1 {
     font-size: 36px;
   }
-  
+
   .tab-header h1 {
     font-size: 30px;
   }
-  
+
   .table-wrapper {
     border-radius: 24px;
   }
-  
+
   .task-modal {
     max-width: 800px;
     border-radius: 28px;
@@ -1907,46 +1907,46 @@ onMounted(() => {
     padding: 48px;
     max-width: calc(100% - 256px);
   }
-  
+
   .stats-container {
     gap: 28px;
   }
-  
+
   .stat-card {
     padding: 36px;
     border-radius: 32px;
   }
-  
+
   .stat-icon {
     width: 56px;
     height: 56px;
     font-size: 28px;
   }
-  
+
   .stat-value {
     font-size: 36px;
   }
-  
+
   .dashboard-header h1 {
     font-size: 40px;
   }
-  
+
   .tab-header h1 {
     font-size: 34px;
   }
-  
+
   .table-wrapper {
     border-radius: 28px;
   }
-  
+
   .table-head th {
     padding: 24px 32px;
   }
-  
+
   .table-row td {
     padding: 24px 32px;
   }
-  
+
   .task-modal {
     max-width: 900px;
     border-radius: 32px;
@@ -1959,27 +1959,27 @@ onMounted(() => {
     max-width: 1400px;
     margin-left: 256px;
   }
-  
+
   .stats-container {
     gap: 32px;
   }
-  
+
   .stat-card {
     padding: 40px;
   }
-  
+
   .stat-value {
     font-size: 40px;
   }
-  
+
   .dashboard-header h1 {
     font-size: 44px;
   }
-  
+
   .tab-header h1 {
     font-size: 38px;
   }
-  
+
   .task-modal {
     max-width: 1000px;
   }

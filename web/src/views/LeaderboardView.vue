@@ -8,13 +8,13 @@ const error = ref(null)
 
 /**
  * Загрузка данных таблицы лидеров с бэкенда
- * URL: http://127.0.0.1:8000/leaderboard/
+ * URL: /api/leaderboard/
  */
 const fetchLeaderboard = async () => {
   loading.value = true
   error.value = null
   try {
-    const response = await axios.get('http://127.0.0.1:8000/leaderboard/')
+    const response = await axios.get('/api/leaderboard/')
     // Бэкенд возвращает список моделей UserModel
     topUsers.value = response.data
   } catch (err) {
@@ -648,45 +648,45 @@ onMounted(() => {
   .leaderboard-container {
     padding: 12px;
   }
-  
+
   .title {
     font-size: 26px;
   }
-  
+
   .description {
     font-size: 14px;
   }
-  
+
   .table-header {
     grid-template-columns: 60px 1fr 80px;
     padding: 12px 16px;
     font-size: 11px;
   }
-  
+
   .user-row {
     grid-template-columns: 60px 1fr 80px;
     padding: 12px 16px;
     gap: 8px;
   }
-  
+
   .user-avatar {
     width: 36px;
     height: 36px;
     font-size: 16px;
   }
-  
+
   .username {
     font-size: 14px;
   }
-  
+
   .rating-cell {
     font-size: 16px;
   }
-  
+
   .stats-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .challenge-btn {
     padding: 14px 24px;
     font-size: 14px;
@@ -698,7 +698,7 @@ onMounted(() => {
   .table-header {
     grid-template-columns: 70px 1fr 90px;
   }
-  
+
   .user-row {
     grid-template-columns: 70px 1fr 90px;
   }
@@ -709,7 +709,7 @@ onMounted(() => {
   .leaderboard-content {
     padding: 0 8px;
   }
-  
+
   .title {
     font-size: 28px;
   }
@@ -720,29 +720,29 @@ onMounted(() => {
   .leaderboard-container {
     padding: 24px;
   }
-  
+
   .title {
     font-size: 36px;
   }
-  
+
   .description {
     font-size: 17px;
   }
-  
+
   .table-header {
     padding: 18px 24px;
   }
-  
+
   .user-row {
     padding: 18px 24px;
   }
-  
+
   .user-avatar {
     width: 48px;
     height: 48px;
     font-size: 20px;
   }
-  
+
   .username {
     font-size: 17px;
   }
@@ -753,7 +753,7 @@ onMounted(() => {
   .title {
     font-size: 40px;
   }
-  
+
   .badge-hall {
     font-size: 15px;
     padding: 10px 20px;
@@ -765,28 +765,28 @@ onMounted(() => {
   .title {
     font-size: 44px;
   }
-  
+
   .description {
     font-size: 18px;
   }
-  
+
   .leaderboard-table {
     border-radius: 24px;
   }
-  
+
   .table-header {
     padding: 20px 32px;
     font-size: 13px;
   }
-  
+
   .user-row {
     padding: 20px 32px;
   }
-  
+
   .stats-grid {
     gap: 20px;
   }
-  
+
   .stat-card {
     padding: 24px;
   }
@@ -797,34 +797,34 @@ onMounted(() => {
   .leaderboard-container {
     padding: 32px;
   }
-  
+
   .title {
     font-size: 48px;
   }
-  
+
   .badge-hall {
     font-size: 16px;
   }
-  
+
   .table-header {
     grid-template-columns: 100px 1fr 120px;
     padding: 24px 40px;
   }
-  
+
   .user-row {
     grid-template-columns: 100px 1fr 120px;
     padding: 24px 40px;
   }
-  
+
   .user-avatar {
     width: 52px;
     height: 52px;
   }
-  
+
   .username {
     font-size: 18px;
   }
-  
+
   .rating-cell {
     font-size: 20px;
   }
@@ -835,27 +835,27 @@ onMounted(() => {
   .title {
     font-size: 52px;
   }
-  
+
   .leaderboard-content {
     max-width: 1100px;
   }
-  
+
   .description {
     font-size: 20px;
   }
-  
+
   .stats-grid {
     gap: 24px;
   }
-  
+
   .stat-card {
     padding: 28px;
   }
-  
+
   .stat-number {
     font-size: 28px;
   }
-  
+
   .stat-icon {
     font-size: 36px;
     width: 64px;
@@ -868,19 +868,19 @@ onMounted(() => {
   .leaderboard-container {
     padding: 48px;
   }
-  
+
   .leaderboard-content {
     max-width: 1200px;
   }
-  
+
   .title {
     font-size: 56px;
   }
-  
+
   .table-header {
     padding: 28px 48px;
   }
-  
+
   .user-row {
     padding: 28px 48px;
   }

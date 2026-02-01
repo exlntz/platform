@@ -55,7 +55,7 @@ const handleFileChange = async (event) => {
 
   try {
     const token = localStorage.getItem('user-token')
-    const response = await axios.post('http://127.0.0.1:8000/profile/avatar', formData, {
+    const response = await axios.post('/api/profile/avatar', formData, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'multipart/form-data'
@@ -80,7 +80,7 @@ const fetchProfile = async () => {
     }
 
     // 1. Изменили адрес на /profile/me
-    const response = await axios.get('http://127.0.0.1:8000/profile/', {
+    const response = await axios.get('/api/profile/', {
       headers: { Authorization: `Bearer ${token}` }
     })
 
@@ -236,7 +236,7 @@ onMounted(() => {
             <div class="avatar">
               <img
                 v-if="profile.user.avatar_url"
-                :src="`http://127.0.0.1:8000${profile.user.avatar_url}`"
+                :src="`/api${profile.user.avatar_url}`"
                 class="avatar-image"
                 alt="Avatar"
               />

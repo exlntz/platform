@@ -179,7 +179,7 @@ const sendAnswer = () => {
 const loadTask = async (taskId) => {
   try {
     const token = localStorage.getItem('user-token')
-    const response = await axios.get(`http://127.0.0.1:8000/tasks/${taskId}`, {
+    const response = await axios.get(`/api/tasks/${taskId}`, {
       headers: { Authorization: `Bearer ${token}` }
     })
     activeTask.value = response.data

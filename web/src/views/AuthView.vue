@@ -19,7 +19,7 @@ export default {
         params.append('username', this.loginUsername);
         params.append('password', this.loginPassword);
 
-        const response = await axios.post('http://127.0.0.1:8000/auth/login', params);
+        const response = await axios.post('/api/auth/login', params);
 
         console.log('Log in success', response.data);
         const token = response.data.access_token;
@@ -47,12 +47,12 @@ export default {
           <span class="back-icon">←</span>
           На главную
         </router-link>
-        
+
         <div class="logo-container">
           <div class="logo">L</div>
           <h1 class="auth-title">Вход в Platform</h1>
         </div>
-        
+
         <p class="auth-subtitle">Введите свои данные, чтобы продолжить обучение</p>
       </div>
 
@@ -83,8 +83,8 @@ export default {
                 class="form-input"
                 :disabled="loading"
               >
-              <button 
-                type="button" 
+              <button
+                type="button"
                 class="password-toggle"
                 @click="togglePasswordVisibility"
                 :disabled="loading"
@@ -416,36 +416,36 @@ export default {
   .auth-container {
     padding: 12px;
   }
-  
+
   .auth-card {
     padding: 20px 16px;
     border-radius: 16px;
   }
-  
+
   .logo {
     width: 44px;
     height: 44px;
     font-size: 20px;
   }
-  
+
   .auth-title {
     font-size: 22px;
   }
-  
+
   .auth-subtitle {
     font-size: 13px;
   }
-  
+
   .form-input {
     padding: 12px;
     font-size: 14px;
   }
-  
+
   .password-toggle {
     right: 12px;
     padding: 4px;
   }
-  
+
   .submit-btn {
     padding: 14px;
     font-size: 15px;
@@ -458,13 +458,13 @@ export default {
   .auth-card {
     padding: 22px 18px;
   }
-  
+
   .logo {
     width: 46px;
     height: 46px;
     font-size: 22px;
   }
-  
+
   .auth-title {
     font-size: 23px;
   }
@@ -482,41 +482,41 @@ export default {
   .auth-container {
     padding: 24px;
   }
-  
+
   .auth-card {
     padding: 32px;
     border-radius: 24px;
     max-width: 520px;
   }
-  
+
   .logo {
     width: 56px;
     height: 56px;
     font-size: 28px;
   }
-  
+
   .auth-title {
     font-size: 28px;
   }
-  
+
   .auth-subtitle {
     font-size: 15px;
   }
-  
+
   .form-input {
     padding: 16px;
     font-size: 16px;
   }
-  
+
   .password-toggle {
     font-size: 18px;
     padding: 8px;
   }
-  
+
   .toggle-icon {
     font-size: 20px;
   }
-  
+
   .submit-btn {
     padding: 18px;
     font-size: 17px;
@@ -530,19 +530,19 @@ export default {
     max-width: 560px;
     padding: 40px;
   }
-  
+
   .auth-title {
     font-size: 32px;
   }
-  
+
   .auth-subtitle {
     font-size: 16px;
   }
-  
+
   .back-link {
     font-size: 15px;
   }
-  
+
   .back-icon {
     font-size: 20px;
   }
@@ -553,16 +553,16 @@ export default {
   .auth-container {
     padding: 32px;
   }
-  
+
   .auth-card {
     max-width: 600px;
     padding: 48px;
   }
-  
+
   .auth-title {
     font-size: 36px;
   }
-  
+
   .logo {
     width: 64px;
     height: 64px;
@@ -575,15 +575,15 @@ export default {
   .auth-card {
     max-width: 640px;
   }
-  
+
   .auth-title {
     font-size: 40px;
   }
-  
+
   .form-fields {
     gap: 24px;
   }
-  
+
   .form-input {
     padding: 18px;
   }
@@ -595,20 +595,20 @@ export default {
     max-width: 680px;
     padding: 56px;
   }
-  
+
   .auth-title {
     font-size: 44px;
   }
-  
+
   .auth-subtitle {
     font-size: 18px;
   }
-  
+
   .form-input {
     font-size: 17px;
     padding: 20px;
   }
-  
+
   .submit-btn {
     font-size: 18px;
     padding: 20px;

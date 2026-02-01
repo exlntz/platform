@@ -35,22 +35,22 @@ export default {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       return emailRegex.test(email);
     },
-    
+
     async register() {
       // Проверка перед отправкой
       if (!this.isFormValid) {
         alert('Пожалуйста, заполните все поля корректно');
         return;
       }
-      
+
       if (this.regPassword !== this.regPasswordRepeat) {
         alert('Пароли не совпадают');
         return;
       }
-      
+
       this.loading = true;
       try {
-        const response = await axios.post('http://127.0.0.1:8000/auth/register', {
+        const response = await axios.post('/api/auth/register', {
           username: this.regUsername,
           email: this.regEmail,
           password: this.regPassword,
@@ -84,12 +84,12 @@ export default {
           <span class="back-icon">←</span>
           Назад к входу
         </router-link>
-        
+
         <div class="logo-container">
           <div class="logo">L</div>
           <h2 class="register-title">Регистрация в Platform</h2>
         </div>
-        
+
         <p class="register-subtitle">Создайте аккаунт, чтобы начать решать задачи</p>
       </div>
 
@@ -136,8 +136,8 @@ export default {
                   class="form-input"
                   :disabled="loading"
                 />
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   class="password-toggle"
                   @click="togglePasswordVisibility('password')"
                   :disabled="loading"
@@ -159,8 +159,8 @@ export default {
                   class="form-input"
                   :disabled="loading"
                 />
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   class="password-toggle"
                   @click="togglePasswordVisibility('repeat')"
                   :disabled="loading"
@@ -193,7 +193,7 @@ export default {
             <span class="btn-text" v-if="!loading">Зарегистрироваться</span>
             <span class="loading-text" v-if="loading">Создание аккаунта...</span>
           </button>
-          
+
           <!-- Сообщение о невалидной форме -->
           <div v-if="!isFormValid && !loading" class="validation-message">
             <p>Заполните все поля правильно для регистрации</p>
@@ -537,46 +537,46 @@ export default {
   .register-container {
     padding: 12px;
   }
-  
+
   .register-card {
     padding: 20px 16px;
     border-radius: 16px;
   }
-  
+
   .logo {
     width: 44px;
     height: 44px;
     font-size: 20px;
   }
-  
+
   .register-title {
     font-size: 22px;
   }
-  
+
   .register-subtitle {
     font-size: 13px;
   }
-  
+
   .form-input {
     padding: 12px;
     font-size: 14px;
   }
-  
+
   .password-toggle {
     right: 12px;
     padding: 4px;
   }
-  
+
   .toggle-icon {
     font-size: 16px;
   }
-  
+
   .register-btn {
     padding: 14px;
     font-size: 15px;
     min-height: 48px;
   }
-  
+
   .requirements-list {
     font-size: 12px;
   }
@@ -587,13 +587,13 @@ export default {
   .register-card {
     padding: 22px 18px;
   }
-  
+
   .logo {
     width: 46px;
     height: 46px;
     font-size: 22px;
   }
-  
+
   .register-title {
     font-size: 23px;
   }
@@ -611,52 +611,52 @@ export default {
   .register-container {
     padding: 24px;
   }
-  
+
   .register-card {
     padding: 32px;
     border-radius: 24px;
     max-width: 560px;
   }
-  
+
   .logo {
     width: 56px;
     height: 56px;
     font-size: 28px;
   }
-  
+
   .register-title {
     font-size: 28px;
   }
-  
+
   .register-subtitle {
     font-size: 15px;
   }
-  
+
   .form-input {
     padding: 16px;
     font-size: 16px;
   }
-  
+
   .password-toggle {
     font-size: 18px;
     padding: 8px;
   }
-  
+
   .toggle-icon {
     font-size: 20px;
   }
-  
+
   .register-btn {
     padding: 18px;
     font-size: 17px;
     min-height: 56px;
   }
-  
+
   .password-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 20px;
   }
-  
+
   .requirements-list {
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;
@@ -669,19 +669,19 @@ export default {
     max-width: 600px;
     padding: 40px;
   }
-  
+
   .register-title {
     font-size: 32px;
   }
-  
+
   .register-subtitle {
     font-size: 16px;
   }
-  
+
   .back-link {
     font-size: 15px;
   }
-  
+
   .back-icon {
     font-size: 20px;
   }
@@ -692,16 +692,16 @@ export default {
   .register-container {
     padding: 32px;
   }
-  
+
   .register-card {
     max-width: 640px;
     padding: 48px;
   }
-  
+
   .register-title {
     font-size: 36px;
   }
-  
+
   .logo {
     width: 64px;
     height: 64px;
@@ -714,15 +714,15 @@ export default {
   .register-card {
     max-width: 680px;
   }
-  
+
   .register-title {
     font-size: 40px;
   }
-  
+
   .form-fields {
     gap: 24px;
   }
-  
+
   .form-input {
     padding: 18px;
   }
@@ -734,20 +734,20 @@ export default {
     max-width: 720px;
     padding: 56px;
   }
-  
+
   .register-title {
     font-size: 44px;
   }
-  
+
   .register-subtitle {
     font-size: 18px;
   }
-  
+
   .form-input {
     font-size: 17px;
     padding: 20px;
   }
-  
+
   .register-btn {
     font-size: 18px;
     padding: 20px;
