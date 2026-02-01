@@ -1,0 +1,33 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+      - master  # Если ветка называется master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Deploy to Server via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            cd /var/www/olymp-platform
+            
+            # Скачиваем обновления
+            git pull origin main
+            
+            # Пересобираем контейнеры (Docker увидит изменения и пересоберет только нужное)
+            docker-compose up -d --build
+            
+            # Чистим старые образы, чтобы не забивать память
+            docker image prune -f
