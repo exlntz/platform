@@ -198,7 +198,7 @@ const closeMenu = () => {
   align-items: center;
   gap: 8px;
   text-decoration: none;
-  z-index: 101;
+  z-index: 101; 
   position: relative;
 }
 
@@ -246,7 +246,7 @@ const closeMenu = () => {
   border: none;
   cursor: pointer;
   padding: 0;
-  z-index: 102;
+  z-index: 102; 
   position: relative;
 }
 
@@ -304,7 +304,7 @@ const closeMenu = () => {
   left: 0;
   width: 100%;
   height: 100vh;
-  z-index: 103;
+  z-index: 102; 
 }
 
 .mobile-menu-overlay {

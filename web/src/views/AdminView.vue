@@ -758,7 +758,7 @@ onMounted(() => {
 /* Мобильное меню */
 .mobile-menu-btn {
   position: fixed;
-  top: 12px;
+  top: 16px;
   left: 16px;
   z-index: 100;
   width: 40px;
