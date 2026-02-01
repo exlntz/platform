@@ -7,14 +7,13 @@ const router = useRouter()
 
 // --- СОСТОЯНИЕ ---
 const socket = ref(null)
-const gameState = ref('idle') // 'idle' | 'searching' | 'playing' | 'result'
-const gameResult = ref(null) // 'win' | 'loss' | 'disconnect' | 'draw'
+const gameState = ref('idle')
+const gameResult = ref(null)
 const activeTask = ref(null)
 const userAnswer = ref('')
 const logs = ref([])
 const logContainer = ref(null)
 
-// Моковые данные для статистики (можно потом подтянуть с бэка)
 const stats = ref({ rank: "Gold IV", points: 1250, winStreak: 3 })
 const leaderboard = ref([
   { id: 1, name: "Alex_Pro", points: 2840, avatar: "⚔️" },
@@ -22,7 +21,6 @@ const leaderboard = ref([
   { id: 3, name: "PythonLover", points: 2590, avatar: "🐍" }
 ])
 
-// Вычисляемые свойства для результатов
 const resultTitle = computed(() => {
   switch (gameResult.value) {
     case 'win': return 'Победа! 🎉'
@@ -61,17 +59,17 @@ const connectPvp = () => {
     return
   }
 
-  // Сбрасываем состояние перед новой игрой
   gameState.value = 'searching'
   gameResult.value = null
   activeTask.value = null
   logs.value = []
   userAnswer.value = ''
 
-  // Автоматически определяем протокол (wss для https, ws для http)
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  // Подключаемся к /pvp/join на текущем домене
-  socket.value = new WebSocket(`${protocol}//${window.location.host}/pvp/join`);
+
+  // ИСПРАВЛЕНИЕ: Добавили /api/ в путь
+  // Nginx увидит /api/..., отрежет его и отправит на бэкенд /pvp/join
+  socket.value = new WebSocket(`${protocol}//${window.location.host}/api/pvp/join`);
 
   socket.value.onopen = () => {
     addLog('system', 'Соединение установлено...')
@@ -81,9 +79,8 @@ const connectPvp = () => {
     const msg = event.data
     console.log('WS Message:', msg)
 
-    // 1. Рукопожатие и авторизация
     if (msg === 'Connected') {
-      socket.value.send(token) // Отправляем токен сразу после подключения
+      socket.value.send(token)
     }
     else if (msg === 'token accepted') {
       addLog('system', 'Авторизация успешна. Ищем противника...')
@@ -94,10 +91,8 @@ const connectPvp = () => {
       router.push('/auth')
     }
     else if (msg === 'Search started') {
-      // Уже обработано визуально статусом 'searching'
+      // ждем
     }
-
-    // 2. Старт матча
     else if (msg === 'match started') {
       gameState.value = 'playing'
       addLog('system', 'Матч начался! Ждем задачу...')
@@ -106,51 +101,31 @@ const connectPvp = () => {
       alert('В базе нет задач для игры!')
       disconnect()
     }
-
-    // 3. Получение ID задачи (проверяем, является ли сообщение числом)
     else if (!isNaN(parseInt(msg)) && msg.length < 10) {
       await loadTask(msg)
     }
-
-    // 4. Игровой процесс
     else if (msg.includes('time is up')) {
-      addLog('error', 'Время на выполнение задачи вышло. Переход к следующей задаче...')
+      addLog('error', 'Время вышло. Следующая задача...')
     }
-
     else if (msg.includes('other player answered')) {
-      addLog('error', 'Оппонент дал правильный ответ. Переход к следующей задаче...')
+      addLog('error', 'Оппонент ответил верно. Следующая задача...')
     }
-
     else if (msg.includes('incorrect')) {
       addLog('error', 'Неверно! Попробуй еще раз.')
     }
-
     else if (msg.includes('chat message')) {
       addLog('chat', msg.substr(12, msg.length))
     }
-
     else if (msg.includes('please wait')) {
-      addLog('error', 'Пожалуйста подождите несколько секунд между ответами.')
+      addLog('error', 'Подождите несколько секунд...')
     }
-
     else if (msg.includes('correct')) {
       addLog('system', 'Верно!')
     }
-
-    // 5. Результаты
-    else if (msg.includes('win')) {
-      finishGame('win')
-    }
-    else if (msg.includes('loss')) {
-      finishGame('loss')
-    }
-    else if (msg === 'opponent disconnected') {
-      finishGame('disconnect')
-    }
-
-    else if (msg.includes('draw')) {
-      finishGame('draw')
-    }
+    else if (msg.includes('win')) finishGame('win')
+    else if (msg.includes('loss')) finishGame('loss')
+    else if (msg === 'opponent disconnected') finishGame('disconnect')
+    else if (msg.includes('draw')) finishGame('draw')
   }
 
   socket.value.onclose = () => {
@@ -166,44 +141,39 @@ const connectPvp = () => {
   }
 }
 
-// Отправка ответа
 const sendAnswer = () => {
   if (!userAnswer.value.trim() || !socket.value) return
-
   socket.value.send(userAnswer.value)
-  addLog('user', userAnswer.value) // Показываем свой ответ в чате
+  addLog('user', userAnswer.value)
   userAnswer.value = ''
 }
 
-// Загрузка деталей задачи по ID
 const loadTask = async (taskId) => {
   try {
     const token = localStorage.getItem('user-token')
+    // Здесь тоже используем относительный путь, axios.baseURL сам подставит /api если настроен
     const response = await axios.get(`/tasks/${taskId}`, {
       headers: { Authorization: `Bearer ${token}` }
     })
     activeTask.value = response.data
-    addLog('system', 'Задача получена! Решайте быстрее!')
+    addLog('system', 'Задача получена!')
   } catch (e) {
-    console.error('Ошибка загрузки задачи:', e)
-    addLog('error', 'Не удалось загрузить условие задачи')
+    console.error(e)
+    addLog('error', 'Ошибка загрузки задачи')
   }
 }
 
-// Завершение игры
 const finishGame = (result) => {
   gameResult.value = result
   gameState.value = 'result'
   if (socket.value) socket.value.close()
 }
 
-// Принудительный разрыв
 const disconnect = () => {
   if (socket.value) socket.value.close()
   gameState.value = 'idle'
 }
 
-// Логирование в чат
 const addLog = (type, text) => {
   logs.value.push({ type, text, id: Date.now() })
   nextTick(() => {
@@ -213,7 +183,6 @@ const addLog = (type, text) => {
   })
 }
 
-// Чистим за собой
 onUnmounted(() => {
   if (socket.value) socket.value.close()
 })
@@ -227,13 +196,7 @@ onUnmounted(() => {
           <div class="arena-badge">PvP Arena</div>
           <h1 class="arena-title">Готов к битве?</h1>
           <p class="arena-description">Сразись с реальным противником. Кто первый решит задачу — забирает рейтинг.</p>
-
-          <button
-            @click="connectPvp"
-            class="find-opponent-btn"
-          >
-            Найти противника
-          </button>
+          <button @click="connectPvp" class="find-opponent-btn">Найти противника</button>
         </div>
 
         <div v-else-if="gameState === 'searching'" class="searching-state">
@@ -268,9 +231,7 @@ onUnmounted(() => {
                 <p>{{ activeTask.description }}</p>
               </div>
             </div>
-            <div v-else class="loading-task">
-              Загрузка задачи...
-            </div>
+            <div v-else class="loading-task">Загрузка задачи...</div>
           </div>
 
           <div class="game-controls">
@@ -278,21 +239,13 @@ onUnmounted(() => {
               <div v-for="log in logs" :key="log.id" class="log-message">
                 <span v-if="log.type === 'system'" class="log-system">🤖 {{ log.text }}</span>
                 <span v-else-if="log.type === 'error'" class="log-error">❌ {{ log.text }}</span>
-                <span v-else-if="log.type === 'chat'" class="log-user">👤 Оппонент:{{ log.text }}</span>
+                <span v-else-if="log.type === 'chat'" class="log-user">👤 Оппонент: {{ log.text }}</span>
                 <span v-else class="log-user">👤 Вы: {{ log.text }}</span>
               </div>
             </div>
-
             <form @submit.prevent="sendAnswer" class="answer-form">
-              <input
-                v-model="userAnswer"
-                placeholder="Введите ответ..."
-                class="answer-input"
-                autoFocus
-              >
-              <button type="submit" class="submit-answer-btn">
-                Отправить
-              </button>
+              <input v-model="userAnswer" placeholder="Введите ответ..." class="answer-input" autoFocus>
+              <button type="submit" class="submit-answer-btn">Отправить</button>
             </form>
           </div>
         </div>
@@ -304,16 +257,10 @@ onUnmounted(() => {
             <span v-else>🔌</span>
           </div>
           <div class="result-text">
-            <h1 :class="resultTitleClass">
-              {{ resultTitle }}
-            </h1>
-            <p class="result-description">
-              {{ resultDescription }}
-            </p>
+            <h1 :class="resultTitleClass">{{ resultTitle }}</h1>
+            <p class="result-description">{{ resultDescription }}</p>
           </div>
-          <button @click="connectPvp" class="play-again-btn">
-            Играть снова
-          </button>
+          <button @click="connectPvp" class="play-again-btn">Играть снова</button>
         </div>
       </div>
 
@@ -331,15 +278,12 @@ onUnmounted(() => {
             </div>
           </div>
         </div>
-
         <div class="leaderboard-card">
           <div class="leaderboard-header">🏆 ТОП МАСТЕРОВ</div>
           <div class="leaderboard-list">
             <div v-for="(player, index) in leaderboard" :key="player.id" class="leaderboard-item">
               <span class="player-rank">#{{ index + 1 }}</span>
-              <div class="player-avatar">
-                {{ player.avatar }}
-              </div>
+              <div class="player-avatar">{{ player.avatar }}</div>
               <div class="player-info">
                 <p class="player-name">{{ player.name }}</p>
                 <p class="player-points">{{ player.points }} PTS</p>

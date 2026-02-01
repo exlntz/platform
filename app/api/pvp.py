@@ -351,7 +351,6 @@ html = """
 </html>
 """
 
-
 @router.get("/")
 async def get():
     return HTMLResponse(html)
