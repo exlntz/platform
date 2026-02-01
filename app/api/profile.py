@@ -3,27 +3,23 @@ from sqlalchemy import select, func, or_
 from app.core.database import SessionDep
 from app.core.models import AttemptModel, TaskModel
 from app.core.dependencies import UserDep
-from app.schemas.user import FullProfileResponse, UserProfile, UserStats, SubjectStat
+from app.schemas.user import SubjectStats,UserStatsResponse,UserProfileRead
 import shutil
 import uuid
+
+from app.utils.levels import calculate_level_info
 
 ALLOWED_AVATAR_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 
 router = APIRouter(prefix='/profile',tags=['Профиль'])
 
 @router.get('/',summary='Профиль пользователя',description='Возвращает данные пользователя и его статистику в одном структурированном ответе.')
-async def get_full_profile(
+async def get_my_profile(
         session: SessionDep,
         current_user: UserDep
-) -> FullProfileResponse:
+) -> UserProfileRead:
 
-    user_data = UserProfile(
-        username=current_user.username,
-        email = current_user.email,
-        rating=round(current_user.rating,1),
-        created_at=current_user.created_at,
-        avatar_url=current_user.avatar_url
-    )
+    level_data = calculate_level_info(current_user.xp)
 
     query = select(
         func.count(AttemptModel.id).label('total'),
@@ -38,64 +34,23 @@ async def get_full_profile(
 
     success_rate=round((unique_solved/total*100),1) if total>0 else 0.0
 
-    first_success_subquery = (
-        select(
-            AttemptModel.task_id,
-            func.min(AttemptModel.created_at).label('first_correct_at')
-        )
-        .where(
-            AttemptModel.user_id == current_user.id,
-            AttemptModel.is_correct == True
-        )
-        .group_by(AttemptModel.task_id)
-        .subquery()
-    )
+    return UserProfileRead(
+        id=current_user.id,
+        username=current_user.username,
+        email=current_user.email,
+        rating=current_user.rating,
+        avatar_url=current_user.avatar_url,
 
-    subject_query = (
-        select(
-            TaskModel.subject,
-            func.avg(AttemptModel.time_spent).filter(AttemptModel.is_correct == True).label('avg_speed'),
-            func.count(AttemptModel.id).label('attempts_count'),
-            func.count(func.distinct(AttemptModel.task_id)).filter(AttemptModel.is_correct == True).label('correct_count')
-        )
-        .join(AttemptModel, TaskModel.id == AttemptModel.task_id)
-        .outerjoin(first_success_subquery, AttemptModel.task_id == first_success_subquery.c.task_id)
-        .where(
-            AttemptModel.user_id == current_user.id,
-            or_(
-                first_success_subquery.c.first_correct_at == None,
-                AttemptModel.created_at <= first_success_subquery.c.first_correct_at
-            )
-        )
-        .group_by(TaskModel.subject)
-    )
-
-    subject_res = await session.execute(subject_query)
-    subject_rows = subject_res.all()
-
-    subject_breakdown = []
-    for row in subject_rows:
-        subj_attempts = row.attempts_count or 0
-        subj_correct = row.correct_count or 0
-
-        subject_breakdown.append(SubjectStat(
-            subject=row.subject,
-            avg_speed=round(float(row.avg_speed or 0), 2),
-            success_rate=round((subj_correct / subj_attempts * 100), 1) if subj_attempts > 0 else 0.0,
-            total_solved=subj_correct
-        ))
-
-    stats_data = UserStats(
         total_attempts=total,
         correct_solutions=unique_solved,
         success_rate=success_rate,
-        subject_stats=subject_breakdown,
-        message='Данные успешно получены'
-    )
 
-    return FullProfileResponse(
-        user=user_data,
-        stats=stats_data
+        xp=current_user.xp,
+        level=level_data['level'],
+        xp_current=level_data['xp_current'],
+        xp_next=level_data['xp_next'],
+        progress=level_data['progress'],
+
     )
 
 
@@ -125,4 +80,67 @@ async def upload_avatar(
     await session.commit()
 
     return {'url': generated_url}
+
+
+@router.get('/stats', summary='Детальная статистика по предметам')
+async def get_user_stats(
+        current_user: UserDep,
+        session: SessionDep,
+) -> UserStatsResponse:
+
+    first_success_subquery = (
+        select(
+            AttemptModel.task_id,
+            func.min(AttemptModel.created_at).label('first_correct_at')
+        )
+        .where(
+            AttemptModel.user_id == current_user.id,
+            AttemptModel.is_correct == True
+        )
+        .group_by(AttemptModel.task_id)
+        .subquery()
+    )
+
+    subject_query = (
+        select(
+            TaskModel.subject,
+            func.avg(AttemptModel.time_spent).filter(AttemptModel.is_correct == True).label('avg_speed'),
+            func.count(AttemptModel.id).label('attempts_count'),
+            func.count(func.distinct(AttemptModel.task_id)).filter(AttemptModel.is_correct == True).label(
+                'correct_count')
+        )
+        .join(AttemptModel, TaskModel.id == AttemptModel.task_id)
+        .outerjoin(first_success_subquery, AttemptModel.task_id == first_success_subquery.c.task_id)
+        .where(
+            AttemptModel.user_id == current_user.id,
+            or_(
+                first_success_subquery.c.first_correct_at == None,
+                AttemptModel.created_at <= first_success_subquery.c.first_correct_at
+            )
+        )
+        .group_by(TaskModel.subject)
+    )
+
+    subject_res = await session.execute(subject_query)
+    subject_rows = subject_res.all()
+
+    subject_breakdown = []
+
+    for row in subject_rows:
+        subj_attempts = row.attempts_count or 0
+        subj_correct = row.correct_count or 0
+
+        accuracy = round((subj_correct / subj_attempts * 100), 1) if subj_attempts > 0 else 0.0
+
+        avg_time = round(float(row.avg_speed), 1) if row.avg_speed else 0.0
+
+        subject_breakdown.append(SubjectStats(
+            subject=row.subject,
+            total_attempts=subj_attempts,
+            correct_count=subj_correct,
+            accuracy_percent=accuracy,
+            average_time=avg_time
+        ))
+
+    return UserStatsResponse(stats=subject_breakdown)
 

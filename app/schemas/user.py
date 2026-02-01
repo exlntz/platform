@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, EmailStr, model_validator
+from pydantic import BaseModel, Field, EmailStr, model_validator, ConfigDict
 from typing import Self
 from datetime import datetime
 from fastapi.security import OAuth2PasswordRequestForm
@@ -24,32 +24,40 @@ class Token(BaseModel):
     token_type: str = 'bearer'
 
 
-class SubjectStat(BaseModel):
-    subject: str
-    avg_speed: float
-    success_rate: float
-    total_solved: int
 
-
-class UserProfile(BaseModel):
+class UserProfileRead(BaseModel):
+    id: int
     username: str
     email: str
     rating: float
-    created_at: datetime
     avatar_url: str | None = None
 
-
-class UserStats(BaseModel):
     total_attempts: int
     correct_solutions: int
     success_rate: float
-    subject_stats: list[SubjectStat]
-    message: str
+
+    xp: int
+    level: int
+    xp_current: int
+    xp_next: int
+    progress: float
+
+    model_config = ConfigDict(from_attributes=True)
 
 
-class FullProfileResponse(BaseModel):
-    user: UserProfile
-    stats: UserStats
+
+class SubjectStats(BaseModel):
+    subject: str
+    total_attempts: int
+    correct_count: int
+    accuracy_percent: float
+    average_time: float
+
+
+
+class UserStatsResponse(BaseModel):
+    stats: list[SubjectStats]
+
 
 
 class LeaderboardPlayer(BaseModel):

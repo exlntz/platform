@@ -79,10 +79,20 @@ const fetchProfile = async () => {
       return
     }
 
+    // 1. Изменили адрес на /profile/me
     const response = await axios.get('http://127.0.0.1:8000/profile/', {
       headers: { Authorization: `Bearer ${token}` }
     })
-    profile.value = response.data
+
+    // 2. Хитрый маппинг:
+    // Так как бэкенд теперь возвращает плоский объект (все поля в одной куче),
+    // а шаблон ждет profile.user.username и profile.stats.success_rate,
+    // мы просто дублируем данные в оба ключа.
+    profile.value = {
+      user: response.data,
+      stats: response.data
+    }
+
   } catch (err) {
     console.error('Ошибка профиля:', err)
     error.value = 'Не удалось загрузить профиль'

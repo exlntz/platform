@@ -23,7 +23,5 @@ def calculate_level_info(total_xp: int):
 rewards = {'Easy': 10, 'Medium': 20, 'Hard': 30}
 
 
-# 1 lvl 0 xp
-# 2 lvl 50 xp
-# 3 lvl 50+100xp
-# 4 lvl 50+100+150xp
+
+
