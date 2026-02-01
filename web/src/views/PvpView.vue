@@ -70,8 +70,8 @@ const connectPvp = () => {
 
   // Автоматически определяем протокол (wss для https, ws для http)
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  // Подключаемся к /api/pvp/join на текущем домене
-  socket.value = new WebSocket(`${protocol}//${window.location.host}/api/pvp/join`);
+  // Подключаемся к /pvp/join на текущем домене
+  socket.value = new WebSocket(`${protocol}//${window.location.host}/pvp/join`);
 
   socket.value.onopen = () => {
     addLog('system', 'Соединение установлено...')
@@ -179,7 +179,7 @@ const sendAnswer = () => {
 const loadTask = async (taskId) => {
   try {
     const token = localStorage.getItem('user-token')
-    const response = await axios.get(`/api/tasks/${taskId}`, {
+    const response = await axios.get(`/tasks/${taskId}`, {
       headers: { Authorization: `Bearer ${token}` }
     })
     activeTask.value = response.data

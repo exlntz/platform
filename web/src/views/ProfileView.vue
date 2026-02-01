@@ -55,7 +55,7 @@ const handleFileChange = async (event) => {
 
   try {
     const token = localStorage.getItem('user-token')
-    const response = await axios.post('/api/profile/avatar', formData, {
+    const response = await axios.post('/profile/avatar', formData, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'multipart/form-data'
@@ -80,7 +80,7 @@ const fetchProfile = async () => {
     }
 
     // 1. Изменили адрес на /profile/me
-    const response = await axios.get('/api/profile/', {
+    const response = await axios.get('/profile/', {
       headers: { Authorization: `Bearer ${token}` }
     })
 

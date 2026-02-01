@@ -37,7 +37,7 @@ const getAuthHeader = () => {
 // Загрузка задачи
 const fetchTask = async () => {
   try {
-    const response = await axios.get(`/api/tasks/${route.params.id}`, getAuthHeader())
+    const response = await axios.get(`/tasks/${route.params.id}`, getAuthHeader())
     task.value = response.data
   } catch (err) {
     console.error('Ошибка:', err)
@@ -55,7 +55,7 @@ const submitAnswer = async () => {
 
   try {
     const response = await axios.post(
-      `/api/tasks/${task.value.id}/check`,
+      `/tasks/${task.value.id}/check`,
       {
         answer: answer.value,
         time_spent: timer.elapsedSeconds

@@ -50,7 +50,7 @@ export default {
 
       this.loading = true;
       try {
-        const response = await axios.post('/api/auth/register', {
+        const response = await axios.post('/auth/register', {
           username: this.regUsername,
           email: this.regEmail,
           password: this.regPassword,

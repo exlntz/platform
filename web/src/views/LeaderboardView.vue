@@ -8,13 +8,13 @@ const error = ref(null)
 
 /**
  * Загрузка данных таблицы лидеров с бэкенда
- * URL: /api/leaderboard/
+ * URL: /leaderboard/
  */
 const fetchLeaderboard = async () => {
   loading.value = true
   error.value = null
   try {
-    const response = await axios.get('/api/leaderboard/')
+    const response = await axios.get('/leaderboard/')
     // Бэкенд возвращает список моделей UserModel
     topUsers.value = response.data
   } catch (err) {

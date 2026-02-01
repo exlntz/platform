@@ -107,7 +107,7 @@ const handleApiError = (err) => {
 // --- ЗАГРУЗКА ДАННЫХ ---
 const fetchStats = async () => {
   try {
-    const response = await axios.get('/api/admin/stats', getAuthHeader())
+    const response = await axios.get('/admin/stats', getAuthHeader())
     stats.value = response.data
     accessDenied.value = false
   } catch (err) { handleApiError(err) }
@@ -117,7 +117,7 @@ const fetchUsers = async () => {
   if (accessDenied.value) return
   loading.value = true
   try {
-    const response = await axios.get('/api/admin/users?limit=50', getAuthHeader())
+    const response = await axios.get('/admin/users?limit=50', getAuthHeader())
     users.value = response.data
   } catch (err) { handleApiError(err) }
   finally { loading.value = false }
@@ -127,7 +127,7 @@ const fetchTasks = async () => {
   if (accessDenied.value) return
   loading.value = true
   try {
-    const response = await axios.get('/api/tasks/', getAuthHeader())
+    const response = await axios.get('/tasks/', getAuthHeader())
     tasks.value = response.data
   } catch (err) { handleApiError(err) }
   finally { loading.value = false }
@@ -151,7 +151,7 @@ const openEditUser = (user) => {
 // Универсальное обновление пользователя (Бан, Роль, Данные)
 const updateUserAction = async (userId, data, successMessage = null) => {
   try {
-    await axios.patch(`/api/admin/users/${userId}`, data, getAuthHeader())
+    await axios.patch(`/admin/users/${userId}`, data, getAuthHeader())
 
     if (successMessage) alert(successMessage)
 
@@ -167,7 +167,7 @@ const updateUserAction = async (userId, data, successMessage = null) => {
 const deleteUser = async (user) => {
   if (!confirm(`Вы уверены, что хотите безвозвратно удалить пользователя ${user.username}?`)) return
   try {
-    await axios.delete(`/api/admin/users/${user.id}`, getAuthHeader())
+    await axios.delete(`/admin/users/${user.id}`, getAuthHeader())
     users.value = users.value.filter(u => u.id !== user.id)
     fetchStats()
   } catch (err) { handleApiError(err) }
@@ -203,7 +203,7 @@ const openEditModal = async (task) => {
 
   showTaskModal.value = true
   try {
-    const { data } = await axios.get(`/api/admin/tasks/${task.id}`, getAuthHeader())
+    const { data } = await axios.get(`/admin/tasks/${task.id}`, getAuthHeader())
     taskForm.value = { ...data }
     // Обновляем теги и hint из полных данных задачи
     tagsInput.value = (data.tags && Array.isArray(data.tags)) ? data.tags.join(', ') : ''
@@ -219,8 +219,8 @@ const saveTask = async () => {
       .filter(tag => tag.length > 0)
 
     const finalUrl = isEditMode.value
-       ? `/api/admin/tasks/${currentEditId.value}`
-       : '/api/admin/tasks/create'
+       ? `/admin/tasks/${currentEditId.value}`
+       : '/admin/tasks/create'
 
     const method = isEditMode.value ? 'patch' : 'post'
 
@@ -236,7 +236,7 @@ const saveTask = async () => {
 const deleteTask = async (taskId) => {
   if (!confirm(`Вы уверены, что хотите удалить задачу #${taskId}?`)) return
   try {
-    await axios.delete(`/api/admin/tasks/${taskId}`, getAuthHeader())
+    await axios.delete(`/admin/tasks/${taskId}`, getAuthHeader())
     tasks.value = tasks.value.filter(t => t.id !== taskId)
     fetchStats()
   } catch (err) { handleApiError(err) }
@@ -244,7 +244,7 @@ const deleteTask = async (taskId) => {
 
 const exportTasks = async () => {
   try {
-    const response = await axios.get('/api/admin/tasks/export', { ...getAuthHeader(), responseType: 'blob' })
+    const response = await axios.get('/admin/tasks/export', { ...getAuthHeader(), responseType: 'blob' })
     const url = window.URL.createObjectURL(new Blob([response.data]))
     const link = document.createElement('a')
     link.href = url
@@ -261,7 +261,7 @@ const handleImport = async (event) => {
   const formData = new FormData(); formData.append('file', file)
   try {
     loading.value = true
-    const response = await axios.post('/api/admin/tasks/import', formData, {
+    const response = await axios.post('/admin/tasks/import', formData, {
       headers: { ...getAuthHeader().headers, 'Content-Type': 'multipart/form-data' }
     })
     alert(`Импорт завершен!\nСоздано: ${response.data.created}\nОбновлено: ${response.data.updated}`)

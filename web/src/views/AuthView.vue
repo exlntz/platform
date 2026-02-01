@@ -19,7 +19,7 @@ export default {
         params.append('username', this.loginUsername);
         params.append('password', this.loginPassword);
 
-        const response = await axios.post('/api/auth/login', params);
+        const response = await axios.post('/auth/login', params);
 
         console.log('Log in success', response.data);
         const token = response.data.access_token;

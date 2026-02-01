@@ -59,7 +59,7 @@ const fetchTasks = async () => {
     if (filters.value.subject) params.subject = filters.value.subject
     if (filters.value.difficulty) params.difficulty = filters.value.difficulty
 
-    const response = await axios.get('/api/tasks/', {
+    const response = await axios.get('/tasks/', {
       params,
       ...getAuthHeader()
     })
