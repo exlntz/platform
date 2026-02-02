@@ -9,12 +9,13 @@ import router from './router'
 // Импортируем само ядро Chart.js и нужные модули
 import {
   Chart as ChartJS,
-  ArcElement,      // Для Pie
-  CategoryScale,   // Для оси X (Line)
-  LinearScale,     // Для оси Y (Line)
-  PointElement,    // Точки на линии
-  LineElement,     // Сама линия
-  Title,
+  BarElement, // <--- Добавили для столбцов
+  RadialLinearScale, // Нужен для Radar
+  PointElement,      // Нужен для Radar и Line
+  LineElement,       // Нужен для Radar и Line
+  Filler,            // Нужен для заливки (Radar)
+  CategoryScale,     // Нужен для оси X (Line)
+  LinearScale,       // Нужен для оси Y (Line)
   Tooltip,
   Legend
 } from 'chart.js'
@@ -22,15 +23,17 @@ import {
 
 // Регистрируем их глобально для этого компонента
 ChartJS.register(
-  ArcElement,
-  CategoryScale,
-  LinearScale,
+  BarElement, // <--- Не забудьте зарегистрировать
+  RadialLinearScale,
   PointElement,
   LineElement,
-  Title,
+  Filler,
+  CategoryScale,
+  LinearScale,
   Tooltip,
   Legend
 )
+
 axios.defaults.baseURL = '/api';
 const app = createApp(App)
 

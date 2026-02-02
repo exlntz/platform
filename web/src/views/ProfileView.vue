@@ -2,14 +2,16 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
-import { Pie, Line } from 'vue-chartjs'
-
+import { Line, Radar, Bar } from 'vue-chartjs'
 
 const router = useRouter()
 const loading = ref(true)
 const profile = ref(null)
 const error = ref(null)
 const fileInput = ref(null)
+
+const showExtendedStats = ref(false)
+const subjectStats = ref([])
 
 // --- ЛОГИКА РАНГОВ ---
 const getRankInfo = (elo) => {
@@ -79,19 +81,21 @@ const fetchProfile = async () => {
       return
     }
 
-    // 1. Изменили адрес на /profile/me
-    const response = await axios.get('/profile/', {
-      headers: { Authorization: `Bearer ${token}` }
-    })
+    const headers = { Authorization: `Bearer ${token}` }
 
-    // 2. Хитрый маппинг:
-    // Так как бэкенд теперь возвращает плоский объект (все поля в одной куче),
-    // а шаблон ждет profile.user.username и profile.stats.success_rate,
-    // мы просто дублируем данные в оба ключа.
+    // Выполняем запросы параллельно для ускорения
+    const [profileRes, statsRes] = await Promise.all([
+      axios.get('http://127.0.0.1:8000/profile/', { headers }),
+      axios.get('http://127.0.0.1:8000/profile/stats', { headers }) // Запрашиваем статистику по предметам
+    ])
+
     profile.value = {
-      user: response.data,
-      stats: response.data
+      user: profileRes.data,
+      stats: profileRes.data // Общая статистика из профиля
     }
+
+    // Сохраняем статистику по предметам (массив)
+    subjectStats.value = statsRes.data.stats || []
 
   } catch (err) {
     console.error('Ошибка профиля:', err)
@@ -115,30 +119,162 @@ const formatDate = (dateString) => {
 }
 
 
+// Список всех предметов, которые должны быть на графике ВСЕГДА
+const ALL_SUBJECTS = ['Математика', 'Информатика', 'Физика', 'Алгоритмы']
 
-// PIE chart (круговая диаграмма)
-const pieChartData = computed(() => {
-  if (!profile.value) return null
+// --- RADAR CHART (Количество + Точность) ---
+const radarChartData = computed(() => {
+  const currentStats = subjectStats.value || []
+
+  // Создаем карту данных
+  const statsMap = {}
+  currentStats.forEach(s => { statsMap[s.subject] = s })
+
+  const labels = ALL_SUBJECTS
+  const rawSolved = []
+  const rawAccuracy = []
+
+  labels.forEach(subject => {
+    const stat = statsMap[subject]
+    if (stat) {
+      rawSolved.push(stat.correct_count)
+      rawAccuracy.push(stat.accuracy_percent)
+    } else {
+      rawSolved.push(0)
+      rawAccuracy.push(0)
+    }
+  })
+
+  // Нормализация для количества задач (чтобы график был красивым)
+  const maxSolved = Math.max(...rawSolved) || 1
 
   return {
-    labels: ['% Неправильных', '% Правильных'],
+    labels: labels,
     datasets: [
       {
-        data: [
-          100 - profile.value.stats.success_rate,
-          profile.value.stats.success_rate
-        ],
-        backgroundColor: ['#ef4444', '#22c55e']
+        label: 'Решено задач',
+        // Нормализуем к 100% шкале
+        data: rawSolved.map(val => (val / maxSolved) * 100),
+        originalData: rawSolved, // Реальные данные для подсказки
+
+        backgroundColor: 'rgba(34, 197, 94, 0.2)', // Green
+        borderColor: '#22c55e',
+        pointBackgroundColor: '#22c55e',
+        pointBorderColor: '#fff',
+        pointHoverBackgroundColor: '#fff',
+        pointHoverBorderColor: '#22c55e',
+      },
+      {
+        label: 'Точность (%)',
+        // Точность уже в процентах (0-100), нормализация не нужна
+        data: rawAccuracy,
+        originalData: rawAccuracy,
+
+        backgroundColor: 'rgba(59, 130, 246, 0.2)', // Blue
+        borderColor: '#3b82f6',
+        pointBackgroundColor: '#3b82f6',
+        pointBorderColor: '#fff',
+        pointHoverBackgroundColor: '#fff',
+        pointHoverBorderColor: '#3b82f6',
       }
     ]
   }
 })
 
-const pieChartOptions = {
+const radarChartOptions = {
   responsive: true,
   maintainAspectRatio: false,
+  scales: {
+    r: {
+      min: 0,
+      max: 100, // Шкала всегда 0-100%
+      angleLines: { display: true, color: '#e2e8f0' },
+      grid: { color: '#e2e8f0' },
+      pointLabels: {
+        font: { size: 12, weight: '600' },
+        color: '#64748b'
+      },
+      ticks: { display: false, backdropColor: 'transparent' }
+    }
+  },
   plugins: {
-    legend: { position: 'bottom' }
+    legend: { position: 'top', labels: { font: { size: 11 } } },
+    tooltip: {
+      callbacks: {
+        label: function(context) {
+          const label = context.dataset.label || '';
+          const rawValue = context.dataset.originalData[context.dataIndex];
+          // Если это точность, добавляем %, иначе просто число
+          const suffix = label.includes('Точность') ? '%' : '';
+          return `${label}: ${rawValue}${suffix}`;
+        }
+      }
+    }
+  }
+}
+
+
+// --- BAR CHART (Среднее время) ---
+const barChartData = computed(() => {
+  const currentStats = subjectStats.value || []
+  const statsMap = {}
+  currentStats.forEach(s => { statsMap[s.subject] = s })
+
+  const labels = ALL_SUBJECTS
+  const timeData = []
+
+  labels.forEach(subject => {
+    const stat = statsMap[subject]
+    // Округляем время до целых секунд
+    timeData.push(stat ? Math.round(stat.average_time) : 0)
+  })
+
+  return {
+    labels: labels,
+    datasets: [
+      {
+        label: 'Ср. время (сек)',
+        data: timeData,
+        backgroundColor: [
+          'rgba(255, 99, 132, 0.6)',
+          'rgba(54, 162, 235, 0.6)',
+          'rgba(255, 206, 86, 0.6)',
+          'rgba(75, 192, 192, 0.6)',
+        ],
+        borderColor: [
+          'rgba(255, 99, 132, 1)',
+          'rgba(54, 162, 235, 1)',
+          'rgba(255, 206, 86, 1)',
+          'rgba(75, 192, 192, 1)',
+        ],
+        borderWidth: 1,
+        borderRadius: 6,
+      }
+    ]
+  }
+})
+
+const barChartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  scales: {
+    y: {
+      beginAtZero: true,
+      // Убрали max: 100, так как время может быть любым (например, 300 сек)
+      grid: { color: '#e2e8f0' },
+      ticks: {
+        callback: (value) => `${value}с` // Добавляем букву 'с' к оси Y
+      }
+    },
+    x: { grid: { display: false } }
+  },
+  plugins: {
+    legend: { display: false }, // Легенда не нужна, подписи есть снизу
+    tooltip: {
+      callbacks: {
+        label: (context) => `Время: ${context.raw} сек`
+      }
+    }
   }
 }
 
@@ -146,13 +282,9 @@ const pieChartOptions = {
 const lineChartData = computed(() => {
   if (!profile.value) return null
 
-  // если у тебя есть история рейтинга:
-  // profile.value.rating_history = [1200, 1250, 1300, 1400]
+
   const history =  [
-    profile.value.user.rating - 120,
-    profile.value.user.rating - 80,
-    profile.value.user.rating - 40,
-    profile.value.user.rating
+
   ]
 
   return {
@@ -335,27 +467,56 @@ onMounted(() => {
             <p class="stat-description">сила твоего аккаунта</p>
           </div>
         </div>
-        <div class="stat-card chart-container">
-          <h3 class="chart-title">Процент правильных решений</h3>
-          <div class="chart-wrapper">
-            <Pie
-              v-if="pieChartData"
-              :data="pieChartData"
-              :options="pieChartOptions"
-            />
-          </div>
-        </div>
 
-        <div class="stat-card chart-container">
-          <h3 class="chart-title">Динамика рейтинга</h3>
-          <div class="chart-wrapper">
-            <Line
-              v-if="lineChartData"
-              :data="lineChartData"
-              :options="lineChartOptions"
-            />
+        <button
+          @click="showExtendedStats = !showExtendedStats"
+          class="toggle-stats-btn"
+          :class="{ 'active': showExtendedStats }"
+        >
+          <span>{{ showExtendedStats ? 'Скрыть статистику' : 'Расширенная статистика' }}</span>
+          <span class="btn-icon">{{ showExtendedStats ? '▲' : '▼' }}</span>
+        </button>
+
+        <template v-if="showExtendedStats">
+
+          <template v-if="profile.stats.correct_solutions >= 1">
+
+            <div class="stat-card chart-container">
+              <h3 class="chart-title">Баланс навыков</h3>
+              <div class="chart-wrapper">
+                <Radar
+                  v-if="radarChartData"
+                  :data="radarChartData"
+                  :options="radarChartOptions"
+                />
+                <div v-else class="no-data-label">Нет данных</div>
+              </div>
+            </div>
+
+            <div class="stat-card chart-container">
+              <h3 class="chart-title">Среднее время решения</h3>
+              <div class="chart-wrapper">
+                <Bar
+                  v-if="barChartData"
+                  :data="barChartData"
+                  :options="barChartOptions"
+                />
+              </div>
+            </div>
+          </template>
+
+          <div v-else class="stat-card chart-container empty-state-full">
+            <div class="empty-content">
+              <div class="empty-icon">🔒</div>
+              <p class="empty-title">Статистика недоступна</p>
+              <p class="empty-desc">
+                Необходимо решить хотя бы 1 задачу, чтобы алгоритмы могли построить ваши графики.
+              </p>
+              <router-link to="/tasks" class="solve-btn">Перейти к задачам</router-link>
+            </div>
           </div>
-        </div>
+
+        </template>
       </div>
     </div>
 
@@ -1162,5 +1323,101 @@ onMounted(() => {
 
 .stats-grid {
   animation: fadeInUp 0.6s ease-out 0.2s both;
+}
+
+/* Кнопка переключения */
+.toggle-stats-btn {
+  grid-column: 1 / -1; /* Растягиваем на всю ширину сетки */
+  background-color: white;
+  border: 1px solid #e2e8f0;
+  padding: 16px;
+  border-radius: 16px;
+  color: #475569;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+  margin-top: 8px;
+}
+
+.toggle-stats-btn:hover {
+  background-color: #f8fafc;
+  color: #0f172a;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+}
+
+.toggle-stats-btn.active {
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.btn-icon {
+  font-size: 10px;
+}
+
+/* Заглушка на всю ширину */
+.empty-state-full {
+  grid-column: 1 / -1; /* Растягиваем на всю ширину */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  background-color: #f8fafc;
+  border: 2px dashed #cbd5e1;
+  text-align: center;
+}
+
+.empty-content {
+  max-width: 400px;
+  padding: 20px;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.empty-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 8px;
+}
+
+.empty-desc {
+  font-size: 14px;
+  color: #64748b;
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.solve-btn {
+  display: inline-block;
+  padding: 10px 24px;
+  background-color: #4f46e5;
+  color: white;
+  font-weight: 700;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: background-color 0.2s;
+}
+
+.solve-btn:hover {
+  background-color: #4338ca;
+}
+
+/* Адаптив для графиков при раскрытии */
+@media (min-width: 1024px) {
+  /* Если графики открыты, они занимают по половине ширины (или как настроена ваша сетка) */
+  /* Но саму заглушку мы всегда держим на всю ширину */
+  .empty-state-full {
+    grid-column: span 3;
+  }
 }
 </style>
