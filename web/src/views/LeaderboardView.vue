@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import axios from 'axios'
 
 const topUsers = ref([])
@@ -25,6 +25,21 @@ const fetchLeaderboard = async () => {
     setTimeout(() => { loading.value = false }, 500)
   }
 }
+
+// Вычисляемое свойство для обрезанных ников
+const truncatedUsers = computed(() => {
+  return topUsers.value.map(user => {
+    const truncatedUsername = user.username.length > 6 
+      ? user.username.substring(0, 4) + '...'
+      : user.username;
+    
+    return {
+      ...user,
+      truncatedUsername,
+      originalUsername: user.username // Сохраняем оригинальный ник для тултипа
+    };
+  });
+});
 
 onMounted(() => {
   fetchLeaderboard()
@@ -73,17 +88,18 @@ onMounted(() => {
 
         <!-- Данные -->
         <div v-else class="table-rows">
-          <div
-            v-for="(user, index) in topUsers"
-            :key="user.id"
-            class="user-row"
-            :class="{
-              'first-place': index === 0,
-              'second-place': index === 1,
-              'third-place': index === 2,
-              'other-place': index > 2
-            }"
-          >
+        <div
+          v-for="(user, index) in truncatedUsers"
+          :key="user.id"
+          class="user-row"
+          :class="{
+            'first-place': index === 0,
+            'second-place': index === 1,
+            'third-place': index === 2,
+            'other-place': index > 2
+          }"
+          :title="user.originalUsername"
+        >
             <div class="rank-cell">
               <span v-if="index === 0" class="medal">🥇</span>
               <span v-else-if="index === 1" class="medal">🥈</span>
@@ -105,7 +121,7 @@ onMounted(() => {
               </div>
               <div class="user-info">
                 <span class="username" :class="{ 'top-three': index < 3 }">
-                  {{ user.username }}
+                  {{ user.truncatedUsername }}
                 </span>
                 <span v-if="index === 0" class="user-tag">Лидер</span>
                 <span v-if="index === 1" class="user-tag silver">2-е место</span>
