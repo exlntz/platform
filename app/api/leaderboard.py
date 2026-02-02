@@ -23,7 +23,7 @@ async def get_leaderboard(
 
         data=LeaderboardPlayer(
             username=user.username,
-            rating=user.rating,
+            rating=round(float(user.rating),1),
             level=level,
         )
         response_list.append(data)
