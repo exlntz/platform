@@ -7,11 +7,12 @@ from app.core.database import SessionDep
 from app.core.security import SECRET_KEY
 from app.core.models import UserModel, TaskModel, PvPMatchModel, EloHistoryModel
 from app.utils.elo import calculate_elo_change, change_elo, WIN, LOSS, DRAW
+from app.utils.formatters import format_answer
 import time
 import bisect
 from app.core.database import new_session
 from fastapi.responses import HTMLResponse
-from collections import defaultdict
+from collections import defaultdict, deque
 
 
 is_connected = defaultdict(bool) # для отслеживания подключенных пользователей т.к. в fastapi'ной имплементации вебсокетов нельзя проверить отключился ли пользователь
@@ -84,7 +85,7 @@ async def join_match(session: SessionDep, websocket: WebSocket):
         if entry is not None:
             await remove_player(entry)
         try:
-            is_connected[user_id] = False
+            is_connected[user.id] = False
             await websocket.close()
         except Exception as e:
             print('/pvp/join',e)
@@ -110,7 +111,8 @@ async def listen_messages(player: QueueEntry, out: asyncio.Queue,):
 async def start_match(player1: QueueEntry, player2: QueueEntry):
     tasktime = 120 # время на выполнение задачи
     numtasks = 3 # количество задач
-    ans_cooldown = 5 # минимальное время между ответами
+    max_cons_ans = 3 # максимальное количество ответов подряд
+    ans_window = 10 
     ws1 = player1._ws
     ws2 = player2._ws
     await ws1.send_text(f"match started")
@@ -128,9 +130,9 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
             return
         
         task_ids = [task[0].id for task in tasks]
-        correct_answers = {task[0].id:task[0].correct_answer for task in tasks}
+        correct_answers = {task[0].id:format_answer(task[0].correct_answer) for task in tasks}
         is_answered = {task[0].id:False for task in tasks}
-        last_answer = {player1.user_id:0,player2.user_id:0}
+        answer_times = {player1.user_id:deque(),player2.user_id:deque()}
         
         # ответы обоих игроков добавляются в очередь и обрабатываются по порядку
         messages = asyncio.Queue()
@@ -143,12 +145,16 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
         anscnt1 = 0
         anscnt2 = 0
         for task_id in task_ids:
+            # заканчиваем если игрок решил больше половины задач
+            if max(anscnt1,anscnt2) > numtasks//2: break
             # отправляем id задачи пользователям
             await ws1.send_text(f"{task_id}")
             await ws2.send_text(f"{task_id}")
             timestart = time.time()
             while True:
-                if time.time()-timestart > tasktime:
+                now = time.time()
+                
+                if now-timestart > tasktime:
                     await ws1.send_text("time is up. next task")
                     await ws2.send_text("time is up. next task")
                     break # ломаем цикл чтобы перейти к следующей задаче
@@ -165,14 +171,22 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
                 
                 ans = msg
 
-                if time.time() - last_answer[ans.user_id] < ans_cooldown:
-                    if ans.user_id == player1.user_id: await ws1.send_text(f"please wait {ans_cooldown} seconds between answers")
-                    else: await ws2.send_text(f"please wait {ans_cooldown} seconds between answers")
-                    continue
-                
-                last_answer[ans.user_id] = time.time()
+                times = answer_times[ans.user_id]
 
-                if correct_answers[task_id] == ans.text:
+                # убираем старые ответы
+                while times and now - times[0] > ans_window:
+                    times.popleft()
+                
+                if len(times) >= max_cons_ans:
+                    if ans.user_id == player1.user_id:
+                        await ws1.send_text(f"please wait {ans_window} seconds between answers")
+                    else:
+                        await ws2.send_text(f"please wait {ans_window} seconds between answers")
+                    continue
+
+                times.append(now)
+
+                if correct_answers[task_id] == format_answer(ans.text):
                     if ans.user_id == player1.user_id:
                         anscnt1+=1
                         await ws1.send_text("correct")
