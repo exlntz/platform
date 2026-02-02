@@ -39,6 +39,7 @@ services:
       - app
     environment:
       - VITE_IS_PROD=true
+      - VITE_IS_DOCKER=true
 
 volumes:
   postgres_data:
