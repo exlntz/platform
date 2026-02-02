@@ -353,9 +353,6 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  position: sticky;
-  top: 16px;
-  z-index: 30;
   transition: all 0.2s ease;
   margin-bottom: 24px;
 }
