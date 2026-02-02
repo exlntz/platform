@@ -220,12 +220,12 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
 
             db_session.add(EloHistoryModel(
                 user_id=player1.user_id,
-                rating=float(r1),
+                rating=round(float(r1),1),
                 change=float(elochange)
             ))
             db_session.add(EloHistoryModel(
                 user_id=player2.user_id,
-                rating=float(r2),
+                rating=round(float(r2),1),
                 change=float(-elochange)
             ))
 

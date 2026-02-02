@@ -38,7 +38,7 @@ async def get_my_profile(
         id=current_user.id,
         username=current_user.username,
         email=current_user.email,
-        rating=current_user.rating,
+        rating=round(current_user.rating,1),
         avatar_url=current_user.avatar_url,
 
         total_attempts=total,

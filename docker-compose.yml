@@ -37,6 +37,8 @@ services:
       - /app/node_modules
     depends_on:
       - app
+    environment:
+      - VITE_IS_PROD=true
 
 volumes:
   postgres_data:
