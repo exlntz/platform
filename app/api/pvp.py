@@ -113,11 +113,11 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
     numtasks = 3 # количество задач
     max_cons_ans = 3 # максимальное количество ответов подряд
     ans_window = 10 
-    ws1 = player1._ws
-    ws2 = player2._ws
-    await ws1.send_text(f"match started")
-    await ws2.send_text(f"match started")
     try:
+        ws1 = player1._ws
+        ws2 = player2._ws
+        await ws1.send_text(f"match started")
+        await ws2.send_text(f"match started")
         # выбираем рандомные задачи
         async with new_session() as session:
             query = select(TaskModel).order_by(func.random()).limit(numtasks)
