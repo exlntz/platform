@@ -642,6 +642,91 @@ onMounted(() => {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* ==================== ТЁМНАЯ ТЕМА ==================== */
+
+:root.dark .leaderboard-container {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+}
+
+:root.dark .title {
+  color: #f8fafc;
+}
+
+:root.dark .description {
+  color: #cbd5e1;
+}
+
+:root.dark .badge-hall {
+  background-color: #334155;
+  color: #fbbf24;
+  border-color: #f59e0b;
+}
+
+:root.dark .leaderboard-table {
+  background-color: #1e293b;
+  border-color: #334155;
+}
+
+:root.dark .table-header {
+  background-color: #334155;
+  color: #e2e8f0;
+}
+
+:root.dark .user-row {
+  border-bottom-color: #334155;
+}
+
+:root.dark .user-row:hover {
+  background-color: #334155;
+}
+
+:root.dark .rank-number {
+  color: #94a3b8;
+}
+
+:root.dark .avatar-other {
+  background-color: #334155;
+  color: #94a3b8;
+}
+
+:root.dark .username:not(.top-three) {
+  color: #e2e8f0;
+}
+
+:root.dark .stat-card {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #f1f5f9;
+}
+
+:root.dark .stat-card:hover {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+:root.dark .stat-icon {
+  background-color: #334155;
+}
+
+:root.dark .stat-number {
+  color: #f8fafc;
+}
+
+:root.dark .stat-label {
+  color: #94a3b8;
+}
+
+:root.dark .challenge-text {
+  color: #cbd5e1;
+}
+
+/* Skeleton loading */
+:root.dark .skeleton-rank,
+:root.dark .skeleton-avatar,
+:root.dark .skeleton-name,
+:root.dark .skeleton-rating {
+  background: linear-gradient(90deg, #334155 25%, #475569 50%, #334155 75%);
+}
+
 /* ==================== АДАПТИВНЫЕ СТИЛИ ==================== */
 
 @media (max-width: 320px) {

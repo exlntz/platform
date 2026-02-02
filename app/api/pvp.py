@@ -105,7 +105,14 @@ async def listen_messages(player: QueueEntry, out: asyncio.Queue,):
                 )
             )
     except Exception:
-        pass  # вебсокет закрылся
+        await out.put(
+            MessageEvent(
+                user_id=player.user_id,
+                text="__DISCONNECTED__",
+                ts=0,
+            )
+        )
+        # вебсокет закрылся
         
 
 async def start_match(player1: QueueEntry, player2: QueueEntry):
@@ -113,11 +120,11 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
     numtasks = 3 # количество задач
     max_cons_ans = 3 # максимальное количество ответов подряд
     ans_window = 10 
-    ws1 = player1._ws
-    ws2 = player2._ws
-    await ws1.send_text(f"match started")
-    await ws2.send_text(f"match started")
     try:
+        ws1 = player1._ws
+        ws2 = player2._ws
+        await ws1.send_text(f"match started")
+        await ws2.send_text(f"match started")
         # выбираем рандомные задачи
         async with new_session() as session:
             query = select(TaskModel).order_by(func.random()).limit(numtasks)
@@ -163,6 +170,9 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
                     msg = await asyncio.wait_for(messages.get(), timeout=1)
                 except asyncio.TimeoutError:
                     continue
+                
+                if msg.text=='__DISCONNECTED__' and msg.ts == 0:
+                    raise Exception
                 
                 if msg.text[:14] == 'MessageToChat ':
                     if msg.user_id == player1.user_id: await ws2.send_text(f"chat message {msg.text[14:]}")
@@ -272,8 +282,14 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
             pass
 
     finally: # завершаем слушатели ответов
-        t1.cancel()
-        t2.cancel()
+        try:
+            t1.cancel()
+        except Exception:
+            pass
+        try:
+            t2.cancel()
+        except Exception:
+            pass
 
     return
 

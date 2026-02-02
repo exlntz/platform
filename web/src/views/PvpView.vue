@@ -888,6 +888,143 @@ onUnmounted(() => {
   50% { opacity: 0.5; }
 }
 
+/* ==================== ТЁМНАЯ ТЕМА ==================== */
+
+:root.dark .pvp-container {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+}
+
+:root.dark .idle-state {
+  background-color: #1e293b;
+  border-color: #334155;
+}
+
+:root.dark .arena-badge {
+  background-color: rgba(59, 130, 246, 0.2);
+  color: rgba(147, 197, 253, 0.8);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+:root.dark .arena-description {
+  color: #a5b4fc;
+}
+
+:root.dark .searching-state,
+:root.dark .result-state {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #f1f5f9;
+}
+
+:root.dark .searching-text h2 {
+  color: #f8fafc;
+}
+
+:root.dark .searching-text p {
+  color: #cbd5e1;
+}
+
+:root.dark .playing-state {
+  background-color: #1e293b;
+  border-color: #334155;
+}
+
+:root.dark .match-header {
+  background-color: #334155;
+}
+
+:root.dark .task-container {
+  background-color: #0f172a;
+}
+
+:root.dark .task-title {
+  color: #f8fafc;
+}
+
+:root.dark .task-description p {
+  color: #cbd5e1;
+}
+
+:root.dark .game-controls {
+  background-color: #1e293b;
+  border-top-color: #334155;
+}
+
+:root.dark .game-logs {
+  color: #e2e8f0;
+}
+
+:root.dark .answer-input {
+  background-color: #334155;
+  border-color: #475569;
+  color: #f1f5f9;
+}
+
+:root.dark .answer-input:focus {
+  border-color: #3b82f6;
+}
+
+:root.dark .answer-input::placeholder {
+  color: #94a3b8;
+}
+
+:root.dark .stats-card,
+:root.dark .leaderboard-card {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #f1f5f9;
+}
+
+:root.dark .stats-title {
+  color: #f8fafc;
+}
+
+:root.dark .stat-item {
+  background-color: #334155;
+}
+
+:root.dark .stat-label {
+  color: #cbd5e1;
+}
+
+:root.dark .stat-value {
+  color: #f1f5f9;
+}
+
+:root.dark .leaderboard-header {
+  background-color: #334155;
+}
+
+:root.dark .leaderboard-item:hover {
+  background-color: #334155;
+}
+
+:root.dark .player-name {
+  color: #e2e8f0;
+}
+
+:root.dark .player-avatar {
+  background-color: #334155;
+}
+
+/* Loading task */
+:root.dark .loading-task {
+  color: #94a3b8;
+}
+
+/* Game logs */
+:root.dark .log-system {
+  color: #60a5fa;
+}
+
+:root.dark .log-error {
+  color: #f87171;
+}
+
+:root.dark .log-user {
+  color: #cbd5e1;
+}
+
 /* ==================== АДАПТИВНЫЕ СТИЛИ ==================== */
 
 
