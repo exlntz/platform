@@ -21,7 +21,13 @@ async def lifespan(app: FastAPI):
     yield
     print('Выключение сервера')
 
-app=FastAPI(title='Платформа для подготовки к олимпиадам',version='666.666.666',lifespan=lifespan)
+IS_PROD = os.getenv('VITE_IS_PROD') == 'true'
+app=FastAPI(title='Платформа для подготовки к олимпиадам',
+            version='666.666.666',
+            lifespan=lifespan,
+            root_path="/api" if IS_PROD else '',
+            docs_url="/docs",
+            openapi_url="/openapi.json")
 
 
 os.makedirs('static/avatars',exist_ok=True)
