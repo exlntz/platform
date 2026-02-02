@@ -1,11 +1,12 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException,status
 from sqlalchemy import select, func, or_
 from app.core.database import SessionDep
-from app.core.models import AttemptModel, TaskModel
+from app.core.models import AttemptModel, TaskModel, EloHistoryModel
 from app.core.dependencies import UserDep
 from app.schemas.user import SubjectStats,UserStatsResponse,UserProfileRead
 import shutil
 import uuid
+from app.schemas.user import EloHistoryPoint
 
 from app.utils.levels import calculate_level_info
 
@@ -144,3 +145,20 @@ async def get_user_stats(
 
     return UserStatsResponse(stats=subject_breakdown)
 
+
+@router.get('/elo_history',summary='История рейтинга для графика в профиле')
+async def get_elo_history(
+    session: SessionDep,
+    current_user: UserDep
+) -> list[EloHistoryPoint]:
+
+    query = (
+        select(EloHistoryModel)
+        .where(EloHistoryModel.user_id == current_user.id)
+        .order_by(EloHistoryModel.created_at.asc())
+    )
+
+    result = await session.execute(query)
+    history = result.scalars().all()
+
+    return history

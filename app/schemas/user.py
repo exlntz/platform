@@ -64,3 +64,12 @@ class LeaderboardPlayer(BaseModel):
     username: str
     rating: float
     level: int
+
+
+class EloHistoryPoint(BaseModel):
+    rating: float
+    change: float
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
