@@ -63,3 +63,4 @@ class UserStatsResponse(BaseModel):
 class LeaderboardPlayer(BaseModel):
     username: str
     rating: float
+    level: int
