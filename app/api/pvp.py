@@ -105,7 +105,14 @@ async def listen_messages(player: QueueEntry, out: asyncio.Queue,):
                 )
             )
     except Exception:
-        pass  # вебсокет закрылся
+        await out.put(
+            MessageEvent(
+                user_id=player.user_id,
+                text="__DISCONNECTED__",
+                ts=0,
+            )
+        )
+        # вебсокет закрылся
         
 
 async def start_match(player1: QueueEntry, player2: QueueEntry):
@@ -163,6 +170,9 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
                     msg = await asyncio.wait_for(messages.get(), timeout=1)
                 except asyncio.TimeoutError:
                     continue
+                
+                if msg.text=='__DISCONNECTED__' and msg.ts == 0:
+                    raise Exception
                 
                 if msg.text[:14] == 'MessageToChat ':
                     if msg.user_id == player1.user_id: await ws2.send_text(f"chat message {msg.text[14:]}")
