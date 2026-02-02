@@ -88,18 +88,18 @@ onMounted(() => {
 
         <!-- Данные -->
         <div v-else class="table-rows">
-        <div
-          v-for="(user, index) in truncatedUsers"
-          :key="user.id"
-          class="user-row"
-          :class="{
-            'first-place': index === 0,
-            'second-place': index === 1,
-            'third-place': index === 2,
-            'other-place': index > 2
-          }"
-          :title="user.originalUsername"
-        >
+          <div
+            v-for="(user, index) in truncatedUsers"
+            :key="user.id"
+            class="user-row"
+            :class="{
+              'first-place': index === 0,
+              'second-place': index === 1,
+              'third-place': index === 2,
+              'other-place': index > 2
+            }"
+            :title="user.originalUsername"
+          >
             <div class="rank-cell">
               <span v-if="index === 0" class="medal">🥇</span>
               <span v-else-if="index === 1" class="medal">🥈</span>
