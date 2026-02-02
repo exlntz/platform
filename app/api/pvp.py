@@ -282,8 +282,14 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
             pass
 
     finally: # завершаем слушатели ответов
-        t1.cancel()
-        t2.cancel()
+        try:
+            t1.cancel()
+        except Exception:
+            pass
+        try:
+            t2.cancel()
+        except Exception:
+            pass
 
     return
 
