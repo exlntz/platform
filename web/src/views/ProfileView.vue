@@ -812,6 +812,112 @@ onMounted(() => {
   box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
 }
 
+/* ==================== ТЁМНАЯ ТЕМА ==================== */
+
+:root.dark .profile-container {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+}
+
+:root.dark .profile-card {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #f1f5f9;
+}
+
+:root.dark .username {
+  color: #f8fafc;
+}
+
+:root.dark .profile-meta {
+  color: #cbd5e1;
+}
+
+:root.dark .progress-bar {
+  background-color: #334155;
+}
+
+:root.dark .stat-card {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #f1f5f9;
+}
+
+:root.dark .stat-card:hover {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+:root.dark .stat-value {
+  color: #f8fafc;
+}
+
+:root.dark .stat-label {
+  color: #94a3b8;
+}
+
+:root.dark .stat-description {
+  color: #64748b;
+}
+
+:root.dark .action-btn.photo-btn {
+  background-color: #334155;
+  color: #e2e8f0;
+}
+
+:root.dark .action-btn.photo-btn:hover {
+  background-color: #475569;
+}
+
+:root.dark .action-btn.logout-btn {
+  background-color: #1e293b;
+  color: #f87171;
+  border-color: #7f1d1d;
+}
+
+:root.dark .action-btn.logout-btn:hover {
+  background-color: #7f1d1d;
+}
+
+:root.dark .file-input {
+  color-scheme: dark;
+}
+
+:root.dark .chart-title {
+  color: #94a3b8;
+}
+
+/* Loading skeleton */
+:root.dark .loading-card,
+:root.dark .loading-stat {
+  background: linear-gradient(90deg, #334155 25%, #475569 50%, #334155 75%);
+}
+
+:root.dark .avatar {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
+:root.dark .avatar-overlay {
+  background-color: rgba(0, 0, 0, 0.6);
+}
+
+:root.dark .avatar-online {
+  border-color: #1e293b;
+}
+
+/* Error state */
+:root.dark .error-state {
+  background-color: #1e293b;
+  color: #f1f5f9;
+}
+
+:root.dark .error-title {
+  color: #f8fafc;
+}
+
+:root.dark .retry-btn {
+  background: linear-gradient(90deg, #3b82f6, #2563eb);
+  color: white;
+}
+
 /* ==================== АДАПТИВНЫЕ СТИЛИ ==================== */
 
 @media (min-width: 321px) and (max-width: 375px) {

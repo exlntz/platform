@@ -530,9 +530,117 @@ export default {
   margin: 0;
 }
 
+/* ==================== ТЁМНАЯ ТЕМА ==================== */
+
+:root.dark .register-container {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+}
+
+:root.dark .register-card {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #f1f5f9;
+}
+
+:root.dark .register-title {
+  color: #f8fafc;
+}
+
+:root.dark .register-subtitle {
+  color: #cbd5e1;
+}
+
+:root.dark .back-link {
+  color: #94a3b8;
+}
+
+:root.dark .back-link:hover {
+  color: #60a5fa;
+}
+
+:root.dark .logo {
+  background-color: #3b82f6;
+}
+
+:root.dark .form-input {
+  background-color: #334155;
+  border-color: #475569;
+  color: #f1f5f9;
+}
+
+:root.dark .form-input:focus {
+  background-color: #334155;
+  border-color: #3b82f6;
+}
+
+:root.dark .form-input::placeholder {
+  color: #64748b;
+}
+
+:root.dark .form-label {
+  color: #cbd5e1;
+}
+
+:root.dark .password-toggle {
+  color: #94a3b8;
+}
+
+:root.dark .password-toggle:hover:not(:disabled) {
+  color: #60a5fa;
+}
+
+:root.dark .password-requirements {
+  background-color: #334155;
+  border-color: #475569;
+}
+
+:root.dark .requirements-title {
+  color: #e2e8f0;
+}
+
+:root.dark .requirements-list li {
+  color: #94a3b8;
+}
+
+:root.dark .requirements-list li.valid {
+  color: #34d399;
+}
+
+:root.dark .register-btn {
+  background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+}
+
+:root.dark .register-btn:hover:not(:disabled) {
+  background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%);
+}
+
+:root.dark .validation-message {
+  background-color: #78350f;
+  border-color: #92400e;
+}
+
+:root.dark .validation-message p {
+  color: #fbbf24;
+}
+
+:root.dark .register-footer {
+  border-top-color: #334155;
+}
+
+:root.dark .footer-text {
+  color: #94a3b8;
+}
+
+:root.dark .footer-link {
+  color: #60a5fa;
+}
+
+:root.dark .footer-link:hover {
+  color: #93c5fd;
+}
+
 /* ==================== АДАПТИВНЫЕ СТИЛИ ==================== */
 
-/* Очень маленькие экраны (до 320px) */
 @media (max-width: 320px) {
   .register-container {
     padding: 12px;

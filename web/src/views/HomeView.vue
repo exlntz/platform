@@ -272,6 +272,67 @@ export default {
   font-weight: 500;
 }
 
+/* ==================== ТЁМНАЯ ТЕМА ==================== */
+
+:root.dark .home-container {
+  background-color: #0f172a;
+  color: #f1f5f9;
+}
+
+:root.dark .hero-title {
+  color: #60a5fa;
+}
+
+:root.dark .hero-description {
+  color: #cbd5e1;
+}
+
+:root.dark .feature-item {
+  background-color: #1e293b;
+  border-color: #334155;
+}
+
+:root.dark .feature-icon {
+  background-color: #065f46;
+  color: #a7f3d0;
+}
+
+:root.dark .feature-text {
+  color: #e2e8f0;
+}
+
+:root.dark .cta-card {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #f1f5f9;
+}
+
+:root.dark .cta-title {
+  color: #f8fafc;
+}
+
+:root.dark .cta-description {
+  color: #cbd5e1;
+}
+
+:root.dark .btn-login {
+  background-color: #1e293b;
+  border-color: #475569;
+  color: #60a5fa;
+}
+
+:root.dark .btn-login:hover {
+  background-color: #334155;
+}
+
+:root.dark .version-info {
+  border-top-color: #334155;
+}
+
+:root.dark .version-text {
+  color: #94a3b8;
+}
+
 /* ==================== АДАПТИВНЫЕ СТИЛИ ==================== */
 
 @media (min-width: 380px) {

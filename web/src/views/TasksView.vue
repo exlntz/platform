@@ -909,6 +909,7 @@ onUnmounted(() => {
 }
 
 /* ==================== АНИМАЦИИ ==================== */
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
@@ -918,6 +919,179 @@ onUnmounted(() => {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
 }
+
+/* ==================== ТЁМНАЯ ТЕМА ==================== */
+
+:root.dark .tasks-container {
+  background-color: #0f172a;
+  color: #f1f5f9;
+}
+
+:root.dark .title {
+  color: #f8fafc;
+}
+
+:root.dark .description {
+  color: #cbd5e1;
+}
+
+:root.dark .counter-badge {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #cbd5e1;
+}
+
+:root.dark .filters-container {
+  background-color: #1e293b;
+  border-color: #334155;
+}
+
+:root.dark .search-input {
+  background-color: #334155;
+  border-color: #475569;
+  color: #f1f5f9;
+}
+
+:root.dark .search-input:focus {
+  background-color: #334155;
+  border-color: #3b82f6;
+}
+
+:root.dark .search-input::placeholder {
+  color: #94a3b8;
+}
+
+:root.dark .filter-select {
+  background-color: #334155;
+  border-color: #475569;
+  color: #f1f5f9;
+}
+
+:root.dark .filter-select:hover {
+  border-color: #60a5fa;
+}
+
+:root.dark .filter-select:focus {
+  border-color: #3b82f6;
+}
+
+:root.dark .reset-btn {
+  background-color: #334155;
+  border-color: #475569;
+  color: #cbd5e1;
+}
+
+:root.dark .reset-btn:hover {
+  background-color: #475569;
+  color: #f87171;
+  border-color: #f87171;
+}
+
+:root.dark .task-card {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #f1f5f9;
+}
+
+:root.dark .task-card:hover {
+  box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.2);
+}
+
+:root.dark .subject-tag {
+  background-color: #334155;
+  color: #cbd5e1;
+}
+
+:root.dark .task-title {
+  color: #f8fafc;
+}
+
+:root.dark .task-card:hover .task-title {
+  color: #60a5fa;
+}
+
+:root.dark .task-description {
+  color: #94a3b8;
+}
+
+:root.dark .task-footer {
+  border-top-color: #334155;
+}
+
+:root.dark .tag {
+  background-color: #334155;
+  border-color: #475569;
+  color: #cbd5e1;
+}
+
+:root.dark .solve-btn {
+  background-color: #334155;
+  color: #f1f5f9;
+}
+
+:root.dark .task-card:hover .solve-btn {
+  background-color: #3b82f6;
+}
+
+:root.dark .empty-state {
+  color: #f1f5f9;
+}
+
+:root.dark .empty-icon {
+  background-color: #334155;
+}
+
+:root.dark .empty-title {
+  color: #f8fafc;
+}
+
+:root.dark .empty-description {
+  color: #cbd5e1;
+}
+
+:root.dark .reset-filters-btn {
+  color: #60a5fa;
+}
+
+:root.dark .reset-filters-btn:hover {
+  color: #93c5fd;
+}
+
+:root.dark .error-state {
+  background-color: #7f1d1d;
+  border-color: #991b1b;
+  color: #fecaca;
+}
+
+:root.dark .error-title {
+  color: #fca5a5;
+}
+
+:root.dark .error-message {
+  color: #fecaca;
+}
+
+:root.dark .retry-btn {
+  background-color: #1e293b;
+  color: #fca5a5;
+  border-color: #dc2626;
+}
+
+:root.dark .retry-btn:hover {
+  background-color: #991b1b;
+}
+
+/* Skeleton loading */
+:root.dark .task-card-skeleton,
+:root.dark .skeleton-tag,
+:root.dark .skeleton-difficulty,
+:root.dark .skeleton-title,
+:root.dark .skeleton-line,
+:root.dark .skeleton-tags,
+:root.dark .skeleton-button {
+  background-color: #334155;
+}
+
 
 /* ==================== АДАПТИВНЫЕ СТИЛИ ==================== */
 

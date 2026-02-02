@@ -737,6 +737,7 @@ onUnmounted(() => {
 }
 
 /* ==================== АНИМАЦИИ ==================== */
+
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -756,6 +757,186 @@ onUnmounted(() => {
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
+}
+
+/* ==================== ТЁМНАЯ ТЕМА ==================== */
+
+:root.dark .task-container {
+  background-color: #0f172a;
+  color: #f1f5f9;
+}
+
+:root.dark .back-link {
+  color: #94a3b8;
+}
+
+:root.dark .back-link:hover {
+  color: #60a5fa;
+}
+
+:root.dark .task-card {
+  background-color: #1e293b;
+  border-color: #334155;
+}
+
+:root.dark .task-header {
+  background-color: #334155;
+}
+
+:root.dark .task-header-overlay {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.1) 100%);
+}
+
+:root.dark .subject-tag {
+  background-color: rgba(255, 255, 255, 0.15);
+  color: #93c5fd;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+:root.dark .difficulty-tag {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+:root.dark .task-title {
+  color: #f8fafc;
+}
+
+:root.dark .section-title {
+  color: #94a3b8;
+}
+
+:root.dark .task-description {
+  color: #cbd5e1;
+}
+
+:root.dark .divider {
+  border-top-color: #334155;
+}
+
+:root.dark .answer-textarea {
+  background-color: #334155;
+  border-color: #475569;
+  color: #f1f5f9;
+}
+
+:root.dark .answer-textarea:focus {
+  background-color: #334155;
+  border-color: #3b82f6;
+}
+
+:root.dark .answer-textarea::placeholder {
+  color: #94a3b8;
+}
+
+:root.dark .answer-textarea:disabled {
+  background-color: #334155;
+  color: #94a3b8;
+  border-color: #475569;
+}
+
+:root.dark .answer-textarea.correct-answer {
+  border-color: #10b981;
+  background-color: rgba(16, 185, 129, 0.1);
+}
+
+:root.dark .answer-textarea.wrong-answer {
+  border-color: #f87171;
+  background-color: rgba(248, 113, 113, 0.1);
+}
+
+:root.dark .timer-display {
+  background-color: #334155;
+  color: #cbd5e1;
+}
+
+:root.dark .back-to-tasks-btn {
+  background-color: #334155;
+  color: #f1f5f9;
+}
+
+:root.dark .back-to-tasks-btn:hover {
+  background-color: #475569;
+}
+
+:root.dark .submit-btn {
+  background-color: #3b82f6;
+}
+
+:root.dark .submit-btn:hover:not(.disabled) {
+  background-color: #2563eb;
+}
+
+:root.dark .afk-modal {
+  background-color: #1e293b;
+  color: #f1f5f9;
+}
+
+:root.dark .afk-title {
+  color: #f8fafc;
+}
+
+:root.dark .afk-message {
+  color: #cbd5e1;
+}
+
+:root.dark .afk-confirm-btn {
+  background-color: #3b82f6;
+}
+
+:root.dark .afk-confirm-btn:hover {
+  background-color: #2563eb;
+}
+
+/* Loading skeleton */
+:root.dark .loading-title,
+:root.dark .loading-subtitle {
+  background-color: #334155;
+}
+
+/* Hint section */
+:root.dark .hint-btn {
+  border-color: #475569;
+  color: #94a3b8;
+}
+
+:root.dark .hint-btn:hover {
+  background-color: #334155;
+  color: #60a5fa;
+  border-color: #3b82f6;
+}
+
+:root.dark .hint-btn.active {
+  background-color: #1e3a8a;
+  color: #93c5fd;
+  border-color: #3b82f6;
+}
+
+:root.dark .hint-content {
+  background-color: #78350f;
+  border-color: #92400e;
+}
+
+:root.dark .hint-badge {
+  color: #fbbf24;
+  background-color: #92400e;
+}
+
+:root.dark .hint-text {
+  color: #fde68a;
+}
+
+/* Result messages */
+:root.dark .result-message.success {
+  background-color: #065f46;
+  color: #a7f3d0;
+  border-color: #047857;
+}
+
+:root.dark .result-message.error {
+  background-color: #7f1d1d;
+  color: #fecaca;
+  border-color: #991b1b;
 }
 
 /* ==================== АДАПТИВНЫЕ СТИЛИ ==================== */

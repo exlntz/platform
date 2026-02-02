@@ -410,6 +410,100 @@ export default {
   line-height: 1.5;
 }
 
+/* ==================== ТЁМНАЯ ТЕМА ==================== */
+
+:root.dark .auth-container {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+}
+
+:root.dark .auth-card {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #f1f5f9;
+}
+
+:root.dark .auth-title {
+  color: #f8fafc;
+}
+
+:root.dark .auth-subtitle {
+  color: #cbd5e1;
+}
+
+:root.dark .back-link {
+  color: #94a3b8;
+}
+
+:root.dark .back-link:hover {
+  color: #60a5fa;
+}
+
+:root.dark .logo {
+  background-color: #3b82f6;
+}
+
+:root.dark .form-input {
+  background-color: #334155;
+  border-color: #475569;
+  color: #f1f5f9;
+}
+
+:root.dark .form-input:focus {
+  background-color: #334155;
+  border-color: #3b82f6;
+}
+
+:root.dark .form-input::placeholder {
+  color: #64748b;
+}
+
+:root.dark .form-label {
+  color: #cbd5e1;
+}
+
+:root.dark .password-toggle {
+  color: #94a3b8;
+}
+
+:root.dark .password-toggle:hover:not(:disabled) {
+  color: #60a5fa;
+}
+
+:root.dark .submit-btn {
+  background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+}
+
+:root.dark .submit-btn:hover:not(:disabled) {
+  background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%);
+}
+
+:root.dark .divider::before,
+:root.dark .divider::after {
+  background-color: #475569;
+}
+
+:root.dark .alternative-text {
+  color: #94a3b8;
+}
+
+:root.dark .alternative-btn {
+  background-color: #334155;
+  color: #60a5fa;
+  border-color: #475569;
+}
+
+:root.dark .alternative-btn:hover {
+  background-color: #475569;
+}
+
+:root.dark .auth-footer {
+  border-top-color: #334155;
+}
+
+:root.dark .footer-text {
+  color: #64748b;
+}
+
 /* ==================== АДАПТИВНЫЕ СТИЛИ ==================== */
 
 @media (max-width: 320px) {
