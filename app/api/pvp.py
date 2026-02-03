@@ -16,6 +16,7 @@ from collections import defaultdict, deque
 
 
 is_connected = defaultdict(bool) # для отслеживания подключенных пользователей т.к. в fastapi'ной имплементации вебсокетов нельзя проверить отключился ли пользователь
+is_in_match  = defaultdict(bool) # user_id
 queue = [] # комната ожидания, отсортирована по рейтингу
 index = dict() # словарь user_id-QueueEntry
 _queue_lock = asyncio.Lock()
@@ -76,7 +77,14 @@ async def join_match(session: SessionDep, websocket: WebSocket):
             user_id=user.id
         )
         entry._ws = websocket
-
+        async with _queue_lock:
+            if is_in_match[entry.user_id]:
+                try:
+                    await websocket.send_text(f"already in a match")
+                    await websocket.close()
+                    return
+                except Exception as e:
+                    print('pvp join is_in_match  ',e)
         await add_player(entry)
         is_connected[entry.user_id] = True
         await websocket.send_text(f"Search started")
@@ -303,7 +311,10 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
         except Exception:
             pass
 
-    finally: # завершаем слушатели ответов
+    finally:
+        async with _queue_lock:
+            is_in_match[player1.user_id] = False
+            is_in_match[player2.user_id] = False
         try:
             t1.cancel()
         except Exception:
@@ -338,6 +349,9 @@ async def match_players():
             allowed_elo_diff = 100+wait_time*5 # каждую секунду увеличиваем допустимую разницу в эло на 5
 
             if p2.rating - p1.rating < allowed_elo_diff: # если подходить, то начинаем матч
+
+                is_in_match[p1.user_id] = True
+                is_in_match[p2.user_id] = True
                 pairs.append((p1,p2))
                 i+=2
             else: # иначе оставляем игрока в очереди
