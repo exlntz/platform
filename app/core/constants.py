@@ -1,3 +1,4 @@
+# app/core/constants.py
 from enum import Enum
 
 class BaseStrEnum(str, Enum):
@@ -10,17 +11,10 @@ class BaseStrEnum(str, Enum):
         return None
 
 class Subject(BaseStrEnum):
-    MATH = "Математика"
-    PHYSICS = "Физика"
-    CHEMISTRY = "Химия"
-    INFORMATICS = "Информатика"
+    # Предметы в строгом соответствии с твоей БД (Initcap)
     PYTHON = "Python"
-    WEB_DEV = "Web-Разработка"
-    DATABASES = "Базы Данных"
-    ALGORITHMS = "Алгоритмы"
-    LOGIC = "Логика"
-    ENGLISH = "Английский Язык"
     GEOMETRY = "Геометрия"
+    INFORMATICS = "Информатика"
     PROBABILITY_THEORY = "Теория Вероятностей"
     QUANTUM_PHYSICS = "Квантовая Физика"
     BIOINFORMATICS = "Биоинформатика"
@@ -30,92 +24,65 @@ class Subject(BaseStrEnum):
     NETWORKS_SUBJ = "Сети"
     CRYPTOGRAPHY = "Криптография"
     LINGUISTICS = "Лингвистика"
+    ALGORITHMS = "Алгоритмы"
     DISCRETE_MATH = "Дискретная Математика"
     NUCLEAR_PHYSICS = "Ядерная Физика"
     HARDWARE = "Железо"
+    LOGIC = "Логика"
     CHESS = "Шахматы"
+    DATABASES = "Базы Данных"
     WEB = "Web"
     MNEMONICS = "Мнемоника"
+    CHEMISTRY = "Химия"
     ASTRONOMY = "Астрономия"
+    MATH = "Математика"
     GEOGRAPHY = "География"
-    IT_HISTORY = "История It" # Оставлено так, чтобы совпало с ошибкой в БД
+    IT_HISTORY = "История It"
+    PHYSICS = "Физика"
     LITERATURE = "Литература"
     BIOLOGY = "Биология"
     SPORT = "Спорт"
     GENERAL_KNOWLEDGE = "Общие Знания"
     MYTHOLOGY = "Мифология"
     ECONOMICS = "Экономика"
+    # Дополнительные (из прошлых версий)
+    WEB_DEV = "Web-Разработка"
+    ENGLISH = "Английский Язык"
 
 class Tag(BaseStrEnum):
-    ALGEBRA = "Алгебра"
-    GEOMETRY = "Геометрия"
-    PROBABILITY = "Теория Вероятностей"
-    TRIGONOMETRY = "Тригонометрия"
-    ASYNC = "Асинхронность"
-    DECORATORS = "Декораторы"
-    OOP = "Ооп"
-    DATA_TYPES = "Типы Данных"
-    HTML_CSS = "Html/Css"
-    REACT = "React"
-    FASTAPI = "Fastapi"
-    SQL_BASICS = "Основы Sql"
-    SEQUENCES = "Последовательности"
-    SORTING = "Сортировки"
-    GRAPHS = "Графы"
-    RECURSION = "Рекурсия"
-    ELECTRICITY = "Электричество"
-    LAWS = "Законы"
-    SPACE = "Космос"
-    LIGHT = "Свет"
-    DYNAMICS = "Динамика"
-    FORCES = "Силы"
-    MECHANICS = "Механика"
-    ENERGY = "Энергия"
-    AREA = "Площадь"
-    STEREOMETRY = "Стереометрия"
-    VOLUME = "Объем"
-    COMBINATORICS = "Комбинаторика"
-    NUMBERS = "Числа"
-    EQUATIONS = "Уравнения"
-    LOGARITHMS = "Логарифмы"
-    ARITHMETIC = "Арифметика"
-    SEARCH = "Поиск"
-    DATA_STRUCTURES = "Структуры Данных"
-    MEMORY = "Память"
-    TERMINOLOGY = "Терминология"
-    NUMBER_SYSTEMS = "Системы Счисления"
-    BASICS = "Основы"
-    BOOLEAN_ALGEBRA = "Булева Алгебра"
-    DB_SHORT = "Бд"
-    DESIGN = "Проектирование"
-    OPTIMIZATION = "Оптимизация"
-    NETWORKS = "Сети"
-    PROTOCOLS = "Протоколы"
-    STORAGE = "Хранение Данных"
-    UNITS = "Единицы Измерения"
-    LOGIC_TAG = "Логика"
+    # Добавлены недостающие атрибуты из твоего лога (SPACE, LOGARITHMS и др.)
     ALGORITHMS_TAG = "Алгоритмы"
+    NUMBERS = "Числа"
+    GEOMETRY_TAG = "Геометрия"
     ANGLES = "Углы"
+    NUM_SYSTEMS = "Системы Счисления"
+    LOGIC_TAG = "Логика"
     PARADOXES = "Парадоксы"
     STATISTICS = "Статистика"
     QUANTA = "Кванты"
+    INFORMATICS_TAG = "Информатика"
     BIOLOGY_TAG = "Биология"
     STRINGS = "Строки"
     ESOLANG = "Esolang"
     ECONOMICS_TAG = "Экономика"
     STRATEGY = "Стратегия"
     MATH_TAG = "Математика"
-    NETWORK_TAG = "Network"
+    SPACE = "Космос"
+    LOGARITHMS = "Логарифмы"
+    NETWORK = "Network"
     SECURITY = "Безопасность"
     ERRORS = "Ошибки"
     DEVELOPMENT = "Разработка"
     LANGUAGES = "Языки"
     PATTERNS = "Шаблоны"
-    BIG_O = "Bigo"
+    BIGO = "Bigo"
+    SORTING = "Сортировки"
+    GRAPHS = "Графы"
     COLORING = "Раскраска"
     CHEMISTRY_TAG = "Химия"
     DECAY = "Распад"
     BYTES = "Байты"
+    MEMORY = "Память"
     PHILOSOPHY = "Философия"
     PREDICATES = "Предикаты"
     GAMES = "Игры"
@@ -135,6 +102,7 @@ class Tag(BaseStrEnum):
     PROCESSES = "Процессы"
     CARTOONS = "Мультфильмы"
     CLASSICS = "Классика"
+    HARDWARE_TAG = "Железо"
     PC = "Пк"
     NATURE = "Природа"
     ANIMALS = "Животные"
@@ -145,9 +113,10 @@ class Tag(BaseStrEnum):
     FILES = "Файлы"
     NAVIGATION = "Навигация"
     EARTH = "Земля"
-    SHAPES = "Фигуры"
+    FIGURES = "Фигуры"
     LEGENDS = "Легенды"
     CULTURE = "Культура"
+    LIGHT = "Свет"
     OPTICS = "Оптика"
     SOFT = "Софт"
     INTERNET = "Интернет"
@@ -155,8 +124,13 @@ class Tag(BaseStrEnum):
     MONEY = "Деньги"
     RUSSIA = "Россия"
     FUNDAMENTAL = "Фундаментально"
-    INFORMATICS_TAG = "Информатика"
-    HARDWARE_TAG = "Железо"
+    ENERGY = "Энергия"
+    ARITHMETIC = "Арифметика"
+    # Дополнительные
+    ALGEBRA = "Алгебра"
+    TRIGONOMETRY = "Тригонометрия"
+    ASYNC = "Асинхронность"
+    OOP = "Ооп"
 
 class DifficultyLevel(BaseStrEnum):
     EASY = 'Easy'
@@ -187,39 +161,39 @@ class Achievement(BaseStrEnum):
     EARLY_BIRD = "Early bird"
     STREAK_7 = "Streak 7"
 
-# Карта разрешенных тегов (РАСШИРЕННАЯ, чтобы не падал валидатор)
+# Карта связей согласно твоему списку из БД
 SUBJECT_TO_TAGS = {
-    Subject.MATH: [Tag.ALGEBRA, Tag.GEOMETRY, Tag.PROBABILITY, Tag.TRIGONOMETRY, Tag.AREA, Tag.STEREOMETRY, Tag.VOLUME, Tag.COMBINATORICS, Tag.NUMBERS, Tag.EQUATIONS, Tag.LOGARITHMS, Tag.ARITHMETIC, Tag.MATH_TAG, Tag.SHAPES, Tag.LOGIC_TAG, Tag.PARADOXES, Tag.STATISTICS],
-    Subject.GEOMETRY: [Tag.GEOMETRY, Tag.ANGLES, Tag.SHAPES, Tag.MATH_TAG, Tag.FILES],
-    Subject.PYTHON: [Tag.ASYNC, Tag.DECORATORS, Tag.OOP, Tag.DATA_TYPES, Tag.ALGORITHMS_TAG, Tag.NUMBERS, Tag.ERRORS, Tag.DEVELOPMENT, Tag.ESOLANG, Tag.STRINGS],
-    Subject.INFORMATICS: [Tag.BASICS, Tag.NUMBER_SYSTEMS, Tag.TERMINOLOGY, Tag.MEMORY, Tag.BOOLEAN_ALGEBRA, Tag.NETWORKS, Tag.PROTOCOLS, Tag.STORAGE, Tag.UNITS, Tag.LOGIC_TAG, Tag.DB_SHORT, Tag.DESIGN, Tag.PC, Tag.BYTES, Tag.WINDOWS, Tag.FILES, Tag.SOFT, Tag.INTERNET, Tag.IT, Tag.HARDWARE_TAG, Tag.INFORMATICS_TAG, Tag.BIG_O, Tag.SORTING],
-    Subject.PHYSICS: [Tag.ELECTRICITY, Tag.LAWS, Tag.SPACE, Tag.LIGHT, Tag.DYNAMICS, Tag.FORCES, Tag.MECHANICS, Tag.ENERGY, Tag.SUBSTANCE, Tag.PROCESSES, Tag.OPTICS, Tag.FUNDAMENTAL, Tag.QUANTA],
-    Subject.ALGORITHMS: [Tag.SEQUENCES, Tag.SORTING, Tag.GRAPHS, Tag.RECURSION, Tag.SEARCH, Tag.DATA_STRUCTURES, Tag.OPTIMIZATION, Tag.LOGARITHMS, Tag.MEMORY, Tag.TERMINOLOGY, Tag.BIG_O, Tag.ALGORITHMS_TAG, Tag.INFORMATICS_TAG],
-    Subject.LOGIC: [Tag.SEQUENCES, Tag.SORTING, Tag.GRAPHS, Tag.RECURSION, Tag.LOGIC_TAG, Tag.PHILOSOPHY, Tag.PREDICATES, Tag.CALENDAR, Tag.ATTENTIVENESS, Tag.PARADOXES],
-    Subject.TOPOLOGY: [Tag.MATH_TAG, Tag.GEOMETRY],
-    Subject.CHEMISTRY: [Tag.BASIC, Tag.SUBSTANCES, Tag.CHEMISTRY_TAG, Tag.DECAY, Tag.SUBSTANCE],
-    Subject.DATABASES: [Tag.SQL_BASICS, Tag.DB_SHORT, Tag.DESIGN, Tag.SQL, Tag.DATA],
-    Subject.PROBABILITY_THEORY: [Tag.LOGIC_TAG, Tag.PARADOXES, Tag.STATISTICS, Tag.PROBABILITY],
+    Subject.PYTHON: [Tag.ALGORITHMS_TAG, Tag.NUMBERS, Tag.ESOLANG, Tag.ERRORS, Tag.DEVELOPMENT],
+    Subject.GEOMETRY: [Tag.GEOMETRY_TAG, Tag.ANGLES, Tag.FIGURES, Tag.MATH_TAG],
+    Subject.INFORMATICS: [Tag.NUM_SYSTEMS, Tag.HARDWARE_TAG, Tag.PC, Tag.WINDOWS, Tag.FILES, Tag.SOFT, Tag.INTERNET],
+    Subject.PROBABILITY_THEORY: [Tag.LOGIC_TAG, Tag.PARADOXES, Tag.STATISTICS],
     Subject.QUANTUM_PHYSICS: [Tag.QUANTA, Tag.INFORMATICS_TAG],
     Subject.BIOINFORMATICS: [Tag.BIOLOGY_TAG, Tag.STRINGS],
-    Subject.GAME_THEORY: [Tag.ECONOMICS_TAG, Tag.STRATEGY, Tag.GAMES],
-    Subject.ASTROPHYSICS: [Tag.SPACE, Tag.LOGARITHMS, Tag.PLANETS],
-    Subject.NETWORKS_SUBJ: [Tag.NETWORK_TAG, Tag.INFORMATICS_TAG],
+    Subject.GAME_THEORY: [Tag.ECONOMICS_TAG, Tag.STRATEGY],
+    Subject.TOPOLOGY: [Tag.MATH_TAG, Tag.GEOMETRY_TAG],
+    Subject.ASTROPHYSICS: [Tag.SPACE, Tag.LOGARITHMS],
+    Subject.NETWORKS_SUBJ: [Tag.NETWORK, Tag.INFORMATICS_TAG],
     Subject.CRYPTOGRAPHY: [Tag.SECURITY, Tag.NUMBERS],
     Subject.LINGUISTICS: [Tag.LANGUAGES, Tag.PATTERNS],
+    Subject.ALGORITHMS: [Tag.BIGO, Tag.SORTING],
     Subject.DISCRETE_MATH: [Tag.GRAPHS, Tag.COLORING],
-    Subject.NUCLEAR_PHYSICS: [Tag.CHEMISTRY_TAG, Tag.DECAY, Tag.SUBSTANCE],
-    Subject.HARDWARE: [Tag.BYTES, Tag.MEMORY, Tag.PC, Tag.HARDWARE_TAG],
+    Subject.NUCLEAR_PHYSICS: [Tag.CHEMISTRY_TAG, Tag.DECAY],
+    Subject.HARDWARE: [Tag.BYTES, Tag.MEMORY],
+    Subject.LOGIC: [Tag.PHILOSOPHY, Tag.PREDICATES, Tag.CALENDAR, Tag.ATTENTIVENESS],
     Subject.CHESS: [Tag.GAMES, Tag.CHESS_TAG],
+    Subject.DATABASES: [Tag.SQL, Tag.DATA],
     Subject.WEB: [Tag.HTTP, Tag.BACKEND],
     Subject.MNEMONICS: [Tag.NUMBERS, Tag.MEMORY],
+    Subject.CHEMISTRY: [Tag.BASIC, Tag.SUBSTANCES],
     Subject.ASTRONOMY: [Tag.SPACE, Tag.PLANETS],
+    Subject.MATH: [Tag.ARITHMETIC, Tag.NUMBERS, Tag.MATH_TAG, Tag.GEOMETRY_TAG],
     Subject.GEOGRAPHY: [Tag.CITIES, Tag.EUROPE, Tag.NAVIGATION, Tag.EARTH],
     Subject.IT_HISTORY: [Tag.IT, Tag.PERSONALITIES],
+    Subject.PHYSICS: [Tag.SUBSTANCE, Tag.PROCESSES, Tag.LIGHT, Tag.OPTICS, Tag.FUNDAMENTAL, Tag.ENERGY],
     Subject.LITERATURE: [Tag.CARTOONS, Tag.CLASSICS],
-    Subject.BIOLOGY: [Tag.NATURE, Tag.ANIMALS, Tag.BIOLOGY_TAG],
+    Subject.BIOLOGY: [Tag.NATURE, Tag.ANIMALS],
     Subject.SPORT: [Tag.OLYMPIAD, Tag.SYMBOLS],
     Subject.GENERAL_KNOWLEDGE: [Tag.CALENDAR, Tag.NATURE],
     Subject.MYTHOLOGY: [Tag.LEGENDS, Tag.CULTURE],
-    Subject.ECONOMICS: [Tag.MONEY, Tag.RUSSIA, Tag.ECONOMICS_TAG],
+    Subject.ECONOMICS: [Tag.MONEY, Tag.RUSSIA],
 }
