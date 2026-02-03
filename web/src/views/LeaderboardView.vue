@@ -1,10 +1,53 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, onUnmounted } from 'vue'
 import axios from 'axios'
 
 const topUsers = ref([])
 const loading = ref(true)
 const error = ref(null)
+
+// Отслеживаем ширину экрана
+const screenWidth = ref(window.innerWidth)
+
+// Обновляем ширину экрана при изменении размера окна
+const updateScreenSize = () => {
+  screenWidth.value = window.innerWidth
+}
+
+/**
+ * Определяем максимальную длину ника в зависимости от ширины экрана
+ * @param {number} width - ширина экрана
+ * @returns {object} настройки обрезки: maxLength и threshold
+ */
+const getUsernameTruncationConfig = (width) => {
+  if (width < 360) {
+    return { maxLength: 4, threshold: 5 }
+  } else if (width < 480) {
+    return { maxLength: 5, threshold: 6 } 
+  } else if (width < 640) {
+    return { maxLength: 12, threshold: 13 } // Большие мобильные/маленькие планшеты
+ } else {
+    return { maxLength: 20, threshold: 21 }  // Большие экраны
+  }
+}
+
+// Вычисляемое свойство для обрезанных ников
+const truncatedUsers = computed(() => {
+  const config = getUsernameTruncationConfig(screenWidth.value)
+  
+  return topUsers.value.map(user => {
+    const shouldTruncate = user.username.length > config.threshold
+    const truncatedUsername = shouldTruncate 
+      ? user.username.substring(0, config.maxLength) + '...'
+      : user.username;
+    
+    return {
+      ...user,
+      truncatedUsername,
+      originalUsername: user.username // Сохраняем оригинальный ник для тултипа
+    };
+  });
+});
 
 /**
  * Загрузка данных таблицы лидеров с бэкенда
@@ -26,23 +69,13 @@ const fetchLeaderboard = async () => {
   }
 }
 
-// Вычисляемое свойство для обрезанных ников
-const truncatedUsers = computed(() => {
-  return topUsers.value.map(user => {
-    const truncatedUsername = user.username.length > 6 
-      ? user.username.substring(0, 4) + '...'
-      : user.username;
-    
-    return {
-      ...user,
-      truncatedUsername,
-      originalUsername: user.username // Сохраняем оригинальный ник для тултипа
-    };
-  });
-});
-
 onMounted(() => {
+  window.addEventListener('resize', updateScreenSize)
   fetchLeaderboard()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateScreenSize)
 })
 </script>
 
