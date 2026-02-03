@@ -129,7 +129,7 @@ const connectPvp = () => {
     else if (msg.includes('loss')) finishGame('loss')
     else if (msg === 'opponent disconnected') finishGame('disconnect')
     else if (msg.includes('draw')) finishGame('draw')
-    else if (msg.includes('already_in_match')) finishGame('already_in_match')
+    else if (msg.includes('already in a match')) finishGame('already_in_match')
   }
 
   socket.value.onclose = () => {
