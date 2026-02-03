@@ -168,7 +168,7 @@ const radarChartData = computed(() => {
         pointHoverBorderColor: '#22c55e',
       },
       {
-        label: '% Правильных задач',
+        label: '% Правильных',
         // Точность уже в процентах (0-100), нормализация не нужна
         data: rawAccuracy,
         originalData: rawAccuracy,
