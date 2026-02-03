@@ -4,7 +4,7 @@ from app.core.database import SessionDep
 from app.core.models import TaskModel, AttemptModel
 from app.schemas.task import TaskRead, AnswerCheckRequest, AnswerCheckResponse
 from app.core.dependencies import UserDep
-from app.core.models import DifficultyLevel
+from app.core.constants import DifficultyLevel
 from app.utils.levels import rewards
 from app.utils.formatters import format_answer
 

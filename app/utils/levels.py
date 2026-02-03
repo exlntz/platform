@@ -21,7 +21,7 @@ def calculate_level_info(total_xp: int):
 
 
 rewards = {'Easy': 10, 'Medium': 20, 'Hard': 30}
-
+print(calculate_level_info(550))
 
 
 
