@@ -320,6 +320,7 @@ const closeMenu = () => {
   z-index: 101;
   position: relative;
   min-width: fit-content;
+  margin-left: 56px;
 }
 
 .logo {
@@ -961,6 +962,10 @@ const closeMenu = () => {
     padding-left: 24px;
     padding-right: 24px;
     height: 72px;
+  }
+
+  .logo-container {
+    margin-left: 0;
   }
 
   .logo {

@@ -702,6 +702,8 @@ onMounted(() => {
         </form>
       </div>
     </div>
+
+    <!-- Logs Tab -->
     <div v-if="currentTab === 'logs'" class="logs-tab">
       <div class="tab-header">
         <h1>Аудит действий</h1>
@@ -868,7 +870,7 @@ onMounted(() => {
 /* Мобильное меню */
 .mobile-menu-btn {
   position: fixed;
-  top: 16px;
+  top: 10px;
   left: 16px;
   z-index: 100;
   width: 40px;
@@ -1593,6 +1595,11 @@ onMounted(() => {
   font-size: 14px;
 }
 
+/* Logs Tab */
+.logs-tab {
+  padding: 20px;
+}
+
 /* Modals */
 .modal-overlay {
   position: fixed;
@@ -2215,6 +2222,11 @@ onMounted(() => {
   .tasks-table {
     min-width: auto;
   }
+
+  .logs-tab {
+    padding: 32px;
+    margin-left: 256px;
+  }
 }
 
 @media (min-width: 769px) {
@@ -2376,6 +2388,13 @@ onMounted(() => {
 
   .task-modal {
     max-width: 1000px;
+  }
+}
+
+@media (min-width: 1920px) {
+  .admin-sidebar {
+    top: 0;
+    z-index: 100;
   }
 }
 
