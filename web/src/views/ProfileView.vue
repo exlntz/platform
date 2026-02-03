@@ -12,6 +12,7 @@ const fileInput = ref(null)
 
 const showExtendedStats = ref(false)
 const subjectStats = ref([])
+const eloHistory = ref([]) // <--- ДОБАВИТЬ ЭТУ СТРОКУ
 
 // --- ЛОГИКА РАНГОВ ---
 const getRankInfo = (elo) => {
@@ -84,9 +85,10 @@ const fetchProfile = async () => {
     const headers = { Authorization: `Bearer ${token}` }
 
     // Выполняем запросы параллельно для ускорения
-    const [profileRes, statsRes] = await Promise.all([
-      axios.get('http://127.0.0.1:8000/profile/', { headers }),
-      axios.get('http://127.0.0.1:8000/profile/stats', { headers }) // Запрашиваем статистику по предметам
+    const [profileRes, statsRes, elo_history] = await Promise.all([
+      axios.get('/profile/'),       // Убрали http://127.0.0.1:8000
+      axios.get('/profile/stats'),
+      axios.get('/profile/elo_history')
     ])
 
     profile.value = {
@@ -96,6 +98,7 @@ const fetchProfile = async () => {
 
     // Сохраняем статистику по предметам (массив)
     subjectStats.value = statsRes.data.stats || []
+    eloHistory.value = elo_history.data || [] // <--- 2. Сохраняем историю
 
   } catch (err) {
     console.error('Ошибка профиля:', err)
@@ -165,7 +168,7 @@ const radarChartData = computed(() => {
         pointHoverBorderColor: '#22c55e',
       },
       {
-        label: 'Точность (%)',
+        label: '% Правильных задач',
         // Точность уже в процентах (0-100), нормализация не нужна
         data: rawAccuracy,
         originalData: rawAccuracy,
@@ -216,7 +219,10 @@ const radarChartOptions = {
 
 // --- BAR CHART (Среднее время) ---
 const barChartData = computed(() => {
-  const currentStats = subjectStats.value || []
+  // 1. Добавляем проверку на наличие данных (как в Radar)
+  if (!subjectStats.value || subjectStats.value.length === 0) return null
+
+  const currentStats = subjectStats.value
   const statsMap = {}
   currentStats.forEach(s => { statsMap[s.subject] = s })
 
@@ -225,9 +231,11 @@ const barChartData = computed(() => {
 
   labels.forEach(subject => {
     const stat = statsMap[subject]
-    // Округляем время до целых секунд
     timeData.push(stat ? Math.round(stat.average_time) : 0)
   })
+
+  // Если все значения 0, тоже можно считать, что данных нет (опционально)
+  if (timeData.every(t => t === 0)) return null
 
   return {
     labels: labels,
@@ -278,24 +286,40 @@ const barChartOptions = {
   }
 }
 
-// LINE chart (динамика рейтинга — пример)
+// --- LINE CHART (Динамика рейтинга) ---
 const lineChartData = computed(() => {
-  if (!profile.value) return null
+  // 1. Проверяем, есть ли история
+  if (!eloHistory.value || eloHistory.value.length === 0) return null
 
+  // Сортируем: старые -> новые
+  const sortedHistory = [...eloHistory.value].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
 
-  const history =  [
+  // Если истории меньше 2 точек, график строить скучно, но можно.
+  // Если пусто - возвращаем null.
+  if (sortedHistory.length === 0) return null
 
-  ]
+  const labels = sortedHistory.map(h =>
+    new Date(h.created_at).toLocaleDateString('ru-RU', {
+      day: 'numeric',
+      month: 'short'
+    })
+  )
+
+  const dataValues = sortedHistory.map(h => h.rating)
 
   return {
-    labels: history.map((_, i) => `#${i + 1}`),
+    labels: labels,
     datasets: [
       {
         label: 'Рейтинг',
-        data: history,
+        data: dataValues,
         borderColor: '#4f46e5',
         backgroundColor: 'rgba(79,70,229,0.2)',
-        tension: 0.4
+        pointBackgroundColor: '#4f46e5',
+        pointBorderColor: '#fff',
+        borderWidth: 2,
+        tension: 0.4,
+        fill: true
       }
     ]
   }
@@ -482,14 +506,14 @@ onMounted(() => {
           <template v-if="profile.stats.correct_solutions >= 1">
 
             <div class="stat-card chart-container">
-              <h3 class="chart-title">Баланс навыков</h3>
+              <h3 class="chart-title">Статистика по предметам</h3>
               <div class="chart-wrapper">
                 <Radar
                   v-if="radarChartData"
                   :data="radarChartData"
                   :options="radarChartOptions"
                 />
-                <div v-else class="no-data-label">Нет данных</div>
+                <div v-else class="no-data-label">Нет данных по навыкам</div>
               </div>
             </div>
 
@@ -501,24 +525,38 @@ onMounted(() => {
                   :data="barChartData"
                   :options="barChartOptions"
                 />
+                <div v-else class="no-data-label">Нет данных о времени</div>
               </div>
             </div>
-          </template>
 
-          <div v-else class="stat-card chart-container empty-state-full">
-            <div class="empty-content">
-              <div class="empty-icon">🔒</div>
-              <p class="empty-title">Статистика недоступна</p>
-              <p class="empty-desc">
-                Необходимо решить хотя бы 1 задачу, чтобы алгоритмы могли построить ваши графики.
-              </p>
-              <router-link to="/tasks" class="solve-btn">Перейти к задачам</router-link>
+            <div class="stat-card chart-container full-width-chart">
+              <h3 class="chart-title">История рейтинга</h3>
+              <div class="chart-wrapper">
+                <Line
+                  v-if="lineChartData"
+                  :data="lineChartData"
+                  :options="lineChartOptions"
+                />
+                <div v-else class="no-data-label">История рейтинга пуста</div>
+              </div>
             </div>
-          </div>
 
         </template>
-      </div>
-    </div>
+
+        <div v-else class="stat-card chart-container empty-state-full">
+          <div class="empty-content">
+            <div class="empty-icon">🔒</div>
+            <p class="empty-title">Статистика недоступна</p>
+            <p class="empty-desc">
+              Необходимо решить хотя бы 1 задачу, чтобы алгоритмы могли построить ваши графики.
+            </p>
+            <router-link to="/tasks" class="solve-btn">Перейти к задачам</router-link>
+          </div>
+        </div>
+
+      </template>
+  </div>
+</div>
 
     <div v-else-if="error" class="error-state">
       <div class="error-icon">😕</div>
@@ -1524,6 +1562,26 @@ onMounted(() => {
   /* Но саму заглушку мы всегда держим на всю ширину */
   .empty-state-full {
     grid-column: span 3;
+  }
+}
+/* Сообщение "Нет данных" внутри графика */
+.no-data-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  color: #94a3b8;
+  font-weight: 600;
+  background-color: #f8fafc;
+  border-radius: 12px;
+  border: 2px dashed #e2e8f0;
+}
+
+/* Растягиваем график истории на всю ширину на десктопах */
+@media (min-width: 1024px) {
+  .full-width-chart {
+    grid-column: span 2; /* Занять 2 колонки */
   }
 }
 </style>
