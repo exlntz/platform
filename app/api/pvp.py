@@ -32,7 +32,8 @@ async def add_player(entry: QueueEntry):
                 await old._ws.close()
             except Exception:
                 pass
-            await remove_player(old)
+            queue.remove(old)
+            del index[old.user_id]
         idx = bisect.bisect_left(queue, entry) # ищем куда вставить чтобы не поломать сортировку
         queue.insert(idx, entry)
         index[entry.user_id] = entry
