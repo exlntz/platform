@@ -365,8 +365,19 @@ async def matchmaking_loop():
 # при запуске начинаем постоянно подбирать всем матчи
 @router.on_event("startup")
 async def start_matchmaking():
-    asyncio.create_task(matchmaking_loop())
+    global _matchmaking_task
+    _matchmaking_task = asyncio.create_task(matchmaking_loop())
 
+# при остановке перестаём подбирать задачи
+@router.on_event("shutdown")
+async def stop_matchmaking():
+    global _matchmaking_task
+    if _matchmaking_task:
+        _matchmaking_task.cancel()
+        try:
+            await _matchmaking_task
+        except asyncio.CancelledError:
+            pass
 
 # всё снизу для тестирования
 html = """
