@@ -24,8 +24,15 @@ router=APIRouter(prefix='/pvp',tags=['PVP'])
 
 async def add_player(entry: QueueEntry):
     async with _queue_lock:
-        if entry.user_id in index: # если уже в очереди, то не добавляем
-            return
+        old = index.get(entry.user_id)
+        if old is not None: # если уже в очереди
+            #закрываем старый вебсокет
+            try:
+                await old._ws.send_text("opponent disconnected")
+                await old._ws.close()
+            except Exception:
+                pass
+            remove_player(old)
         idx = bisect.bisect_left(queue, entry) # ищем куда вставить чтобы не поломать сортировку
         queue.insert(idx, entry)
         index[entry.user_id] = entry
