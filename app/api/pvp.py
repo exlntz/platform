@@ -120,9 +120,21 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
     numtasks = 3 # количество задач
     max_cons_ans = 3 # максимальное количество ответов подряд
     ans_window = 10 
+    ws1 = player1._ws
+    ws2 = player2._ws
     try:
-        ws1 = player1._ws
-        ws2 = player2._ws
+        await ws1.send_text("ping")
+    except Exception: # игрок1 отключился, добавляем второго обратно в очередь
+        is_connected[player1.user_id] = False
+        await add_player(player2)
+        return
+    try:
+        await ws2.send_text("ping")
+    except Exception: # игрок2 отключился, добавляем первого обратно в очередь
+        is_connected[player2.user_id] = False
+        await add_player(player1)
+        return
+    try:
         await ws1.send_text(f"match started")
         await ws2.send_text(f"match started")
         # выбираем рандомные задачи
