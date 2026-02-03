@@ -55,3 +55,15 @@ class UserEloHistoryResponse(BaseModel):
     username: str
     current_rating: float
     history: list[EloPoint]
+
+
+class AuditLogRead(BaseModel):
+    id: int
+    admin_username: str
+    action: str
+    target_id: int | None = None
+    details: str | None = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

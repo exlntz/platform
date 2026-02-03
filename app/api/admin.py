@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, status, Response, File, UploadFile
 from sqlalchemy import select, func, desc, distinct
 from app.core.database import SessionDep
 from app.core.models import UserModel, TaskModel, AttemptModel, AuditLogModel, EloHistoryModel
-from app.schemas.admin_schemas import UserAdminRead, AdminDashboardStats, UserAdminUpdate, TaskAdminUpdate, UserEloHistoryResponse
+from app.schemas.admin_schemas import UserAdminRead, AdminDashboardStats, UserAdminUpdate, TaskAdminUpdate, UserEloHistoryResponse, AuditLogRead
 from datetime import datetime, timedelta
 from app.schemas.task import TaskAdminRead, TaskRead, TaskCreate
 import json
@@ -422,3 +422,31 @@ async def get_most_popular_subject(
     most_popular_subject = result.scalar_one_or_none()
 
     return {'most_popular_subject': most_popular_subject if most_popular_subject else 'Нет данных'}
+
+
+@router.get('/logs',summary='Логи действий админов (для админов)',response_model=list[AuditLogRead])
+async def get_logs(
+        session: SessionDep,
+        admin: AdminDep,
+        limit: int = 20,
+        offset: int = 0
+):
+    query = (
+        select(
+            AuditLogModel.id,
+            AuditLogModel.admin_id,  # если нужно в схеме
+            UserModel.username.label("admin_username"),
+            AuditLogModel.action,
+            AuditLogModel.target_id,
+            AuditLogModel.details,
+            AuditLogModel.created_at
+        )
+        .join(UserModel, AuditLogModel.admin_id == UserModel.id)
+        .order_by(AuditLogModel.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+
+    result = await session.execute(query)
+
+    return result.mappings().all()
