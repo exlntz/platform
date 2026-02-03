@@ -35,7 +35,7 @@ async def change_elo(
 
         user.rating = round(float(user.rating + elochange), 1)
         new_rank = get_rank_by_elo(user.rating)
-        user.rank = new_rank
+        user.user_rank = new_rank
         await session.commit()
         return user.rating
 

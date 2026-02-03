@@ -12,7 +12,7 @@ class UserModel(Model):
     email: Mapped[str] = mapped_column(unique=True,index=True)
     hashed_password: Mapped[str] = mapped_column()
     rating: Mapped[float] = mapped_column(default=1000.0)
-    rank: Mapped[RankName] = mapped_column(
+    user_rank: Mapped[RankName] = mapped_column(
         SQLEnum(
             RankName,
             native_enum=False,
