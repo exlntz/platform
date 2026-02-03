@@ -1,13 +1,23 @@
-from pydantic import BaseModel, Field
-from app.core.models import DifficultyLevel
+from pydantic import BaseModel, Field, model_validator
+from app.core.constants import DifficultyLevel,Tag,Subject,SUBJECT_TO_TAGS
 
 class TaskBase(BaseModel):
     title: str
     description: str
-    subject: str
-    tags: list[str] = Field(default_factory=list)
+    subject: Subject
+    tags: list[Tag] = Field(default_factory=list)
     difficulty: DifficultyLevel
     hint: str | None = None
+
+    @model_validator(mode='after')
+    def validate_tags(self):
+        if self.subject in SUBJECT_TO_TAGS:
+            allowed_tags = SUBJECT_TO_TAGS[self.subject]
+            for t in self.tags:
+                if t not in allowed_tags:
+                    raise ValueError(f"Тег '{t}' не разрешен для предмета '{self.subject}'")
+        return self
+
 
 class TaskRead(TaskBase): # 1. Наследуем (оставляем старые поля)
     id: int               # 2. Приписываем новое поле (id)

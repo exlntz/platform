@@ -1,8 +1,6 @@
 from pydantic import BaseModel, Field, EmailStr, model_validator, ConfigDict
 from typing import Self
 from datetime import datetime
-from fastapi.security import OAuth2PasswordRequestForm
-from typing import Annotated
 
 
 class UserRegister(BaseModel):

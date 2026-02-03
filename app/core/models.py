@@ -2,21 +2,7 @@ from sqlalchemy.orm import Mapped,mapped_column
 from app.core.database import Model
 from sqlalchemy import Text, ForeignKey, func, Enum as SQLEnum, JSON
 from datetime import datetime
-from enum import Enum
-
-class DifficultyLevel(str, Enum):
-    easy = 'Easy'
-    medium = 'Medium'
-    hard = 'Hard'
-
-    @classmethod
-    def _missing_(cls, value):
-        if isinstance(value,str):
-            v_lower = value.lower()
-            for member in cls:
-                if member.value.lower() == v_lower:
-                    return member
-        return None
+from app.core.constants import DifficultyLevel,Tag,Subject,RankName,Achievement
 
 class UserModel(Model):
     __tablename__ = 'users'
@@ -26,6 +12,16 @@ class UserModel(Model):
     email: Mapped[str] = mapped_column(unique=True,index=True)
     hashed_password: Mapped[str] = mapped_column()
     rating: Mapped[float] = mapped_column(default=1000.0)
+    rank: Mapped[RankName] = mapped_column(
+        SQLEnum(
+            RankName,
+            native_enum=False,
+            values_callable=lambda x: [e.value for e in x]
+        ),
+        default=RankName.BRONZE,
+        server_default="Бронза"
+    )
+    achievements: Mapped[list[Achievement]] = mapped_column(JSON, default_factory=list)
     is_admin: Mapped[bool] = mapped_column(default=False)
     is_banned: Mapped[bool] = mapped_column(default=False)
     xp: Mapped[int] = mapped_column(default=0)
@@ -39,10 +35,26 @@ class TaskModel(Model):
     id: Mapped[int] = mapped_column(primary_key=True,init=False)
     title: Mapped[str] = mapped_column(index=True)
     description: Mapped[str] = mapped_column(Text)
-    subject: Mapped[str] = mapped_column(index=True)
+    subject: Mapped[Subject] = mapped_column(
+        SQLEnum(
+            Subject,
+            native_enum=False,  # Храним как VARCHAR
+            # Говорим SQLAlchemy использовать значения ("Физика") для проверки и записи
+            values_callable=lambda obj: [e.value for e in obj]
+        ),
+        index=True
+    )
     correct_answer: Mapped[str] = mapped_column()
-    difficulty: Mapped[DifficultyLevel] = mapped_column(SQLEnum(DifficultyLevel,native_enum=False),default=DifficultyLevel.easy,index=True)
-    tags: Mapped[list[str]] = mapped_column(JSON, default_factory=list)
+    difficulty: Mapped[DifficultyLevel] = mapped_column(
+        SQLEnum(
+            DifficultyLevel,
+            native_enum=False,
+            # То же самое для сложности ("Easy" вместо "EASY")
+            values_callable=lambda obj: [e.value for e in obj]
+        ),
+        index=True
+    )
+    tags: Mapped[list[Tag]] = mapped_column(JSON, default_factory=list)
     hint: Mapped[str | None] = mapped_column(Text, default=None)
 
 

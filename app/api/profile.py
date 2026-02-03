@@ -1,5 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException,status
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func, or_, distinct
 from app.core.database import SessionDep
 from app.core.models import AttemptModel, TaskModel, EloHistoryModel
 from app.core.dependencies import UserDep
@@ -22,16 +22,39 @@ async def get_my_profile(
 
     level_data = calculate_level_info(current_user.xp)
 
-    query = select(
-        func.count(AttemptModel.id).label('total'),
-        func.count(func.distinct(AttemptModel.task_id)).filter(AttemptModel.is_correct == True).label('unique_correct')
-    ).where(AttemptModel.user_id == current_user.id)
+    first_success_subquery = (
+        select(
+            AttemptModel.task_id,
+            func.min(AttemptModel.created_at).label('first_correct_at')
+        )
+        .where(
+            AttemptModel.user_id == current_user.id,
+            AttemptModel.is_correct == True
+        )
+        .group_by(AttemptModel.task_id)
+        .subquery()
+    )
+
+    query = (
+        select(
+            func.count(AttemptModel.id).label('total'),
+            func.count(distinct(AttemptModel.task_id)).filter(AttemptModel.is_correct == True).label('unique_solved')
+        )
+        .outerjoin(first_success_subquery, AttemptModel.task_id == first_success_subquery.c.task_id)
+        .where(
+            AttemptModel.user_id == current_user.id,
+            or_(
+                first_success_subquery.c.first_correct_at == None,  # Задача еще не решена
+                AttemptModel.created_at <= first_success_subquery.c.first_correct_at  # Попытки до успеха
+            )
+        )
+    )
 
     result = await session.execute(query)
     stats = result.one()
 
     total = stats.total or 0
-    unique_solved = stats.unique_correct or 0
+    unique_solved = stats.unique_solved or 0
 
     success_rate=round((unique_solved/total*100),1) if total>0 else 0.0
 

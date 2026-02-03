@@ -182,20 +182,13 @@ async def get_admin_stats(
     )
 
 
-@router.post('/tasks/create', summary='Создать задачу (для админов)')
+@router.post('/tasks/create', summary='Создать задачу (для админов)',response_model=TaskRead)
 async def create_task(
         new_task: TaskCreate,
         session: SessionDep,
         admin: AdminDep
 ) -> TaskRead:
-    task_db = TaskModel(
-        title=new_task.title,
-        description=new_task.description,
-        subject=new_task.subject,
-        tags=new_task.tags,
-        hint=new_task.hint,
-        difficulty=new_task.difficulty,
-        correct_answer=new_task.correct_answer)
+    task_db = TaskModel(**new_task.model_dump())
 
     session.add(task_db)
 
@@ -293,16 +286,13 @@ async def import_tasks(
         title = item.get('title')
         if not title: continue
 
-        raw_diff = item.get('difficulty')
-        clean_diff = raw_diff.capitalize() if raw_diff else "Easy"
-
         if title in existing_tasks:
             task = existing_tasks[title]
             task.description = item.get("description", task.description)
             task.subject = item.get("subject", task.subject)
             task.tags = item.get("tags", task.tags)
             task.hint = item.get("hint", task.hint)
-            task.difficulty = clean_diff
+            task.difficulty = item.get("difficulty", task.difficulty)
             task.correct_answer = item.get("correct_answer", task.correct_answer)
             updated_count += 1
         else:
@@ -312,7 +302,7 @@ async def import_tasks(
                 subject=item.get("subject", "Общее"),
                 tags=item.get("tags", []),
                 hint=item.get("hint"),
-                difficulty=clean_diff,
+                difficulty=item.get("difficulty", "Easy"),
                 correct_answer=item.get("correct_answer", "")
             )
             session.add(new_task)
@@ -381,9 +371,6 @@ async def update_task(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Задача не найдена")
 
     data = update_data.model_dump(exclude_unset=True)
-
-    if 'difficulty' in data and data['difficulty']:
-        data['difficulty'] = data['difficulty'].capitalize()
 
     changes_log = calculate_changes(task, data)
 
