@@ -32,7 +32,7 @@ async def add_player(entry: QueueEntry):
                 await old._ws.close()
             except Exception:
                 pass
-            remove_player(old)
+            await remove_player(old)
         idx = bisect.bisect_left(queue, entry) # ищем куда вставить чтобы не поломать сортировку
         queue.insert(idx, entry)
         index[entry.user_id] = entry
@@ -132,12 +132,14 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
     try:
         await ws1.send_text("ping")
     except Exception: # игрок1 отключился, добавляем второго обратно в очередь
+        print('pvp start_match player1 disconnected') # DEBUG
         is_connected[player1.user_id] = False
         await add_player(player2)
         return
     try:
         await ws2.send_text("ping")
     except Exception: # игрок2 отключился, добавляем первого обратно в очередь
+        print('pvp start_match player1 disconnected') # DEBUG
         is_connected[player2.user_id] = False
         await add_player(player1)
         return
