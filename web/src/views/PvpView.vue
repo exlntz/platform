@@ -27,6 +27,7 @@ const resultTitle = computed(() => {
     case 'loss': return 'Поражение 😔'
     case 'disconnect': return 'Обрыв соединения 😔'
     case 'draw': return 'Ничья'
+    case 'already_in_match': return 'Матч уже идёт'
     default: return ''
   }
 })
@@ -37,6 +38,7 @@ const resultDescription = computed(() => {
     case 'loss': return 'Соперник был быстрее. Не сдавайся!'
     case 'disconnect': return 'Игра не будет засчитана'
     case 'draw': return 'Силы оказались равны'
+    case 'already_in_match': return 'Матч уже идёт'
     default: return ''
   }
 })
@@ -46,7 +48,8 @@ const resultTitleClass = computed(() => {
     'text-win': gameResult.value === 'win',
     'text-loss': gameResult.value === 'loss',
     'text-disconnect': gameResult.value === 'disconnect',
-    'text-draw': gameResult.value === 'draw'
+    'text-draw': gameResult.value === 'draw',
+    'text-already_in_match': gameResult.value === 'already_in_match',
   }
 })
 
@@ -126,6 +129,7 @@ const connectPvp = () => {
     else if (msg.includes('loss')) finishGame('loss')
     else if (msg === 'opponent disconnected') finishGame('disconnect')
     else if (msg.includes('draw')) finishGame('draw')
+    else if (msg.includes('already_in_match')) finishGame('already_in_match')
   }
 
   socket.value.onclose = () => {
@@ -719,6 +723,10 @@ onUnmounted(() => {
 
 .text-draw {
   color: #f59e0b;
+}
+
+.text-already_in_match {
+  color: #dc2626;
 }
 
 .result-description {
