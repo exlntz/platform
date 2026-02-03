@@ -16,6 +16,7 @@ from collections import defaultdict, deque
 
 
 is_connected = defaultdict(bool) # для отслеживания подключенных пользователей т.к. в fastapi'ной имплементации вебсокетов нельзя проверить отключился ли пользователь
+is_in_match  = defaultdict(bool) # user_id
 queue = [] # комната ожидания, отсортирована по рейтингу
 index = dict() # словарь user_id-QueueEntry
 _queue_lock = asyncio.Lock()
@@ -24,8 +25,16 @@ router=APIRouter(prefix='/pvp',tags=['PVP'])
 
 async def add_player(entry: QueueEntry):
     async with _queue_lock:
-        if entry.user_id in index: # если уже в очереди, то не добавляем
-            return
+        old = index.get(entry.user_id)
+        if old is not None: # если уже в очереди
+            #закрываем старый вебсокет
+            try:
+                await old._ws.send_text("opponent disconnected")
+                await old._ws.close()
+            except Exception:
+                pass
+            queue.remove(old)
+            del index[old.user_id]
         idx = bisect.bisect_left(queue, entry) # ищем куда вставить чтобы не поломать сортировку
         queue.insert(idx, entry)
         index[entry.user_id] = entry
@@ -68,7 +77,14 @@ async def join_match(session: SessionDep, websocket: WebSocket):
             user_id=user.id
         )
         entry._ws = websocket
-
+        async with _queue_lock:
+            if is_in_match[entry.user_id]:
+                try:
+                    await websocket.send_text(f"already in a match")
+                    await websocket.close()
+                    return
+                except Exception as e:
+                    print('pvp join is_in_match  ',e)
         await add_player(entry)
         is_connected[entry.user_id] = True
         await websocket.send_text(f"Search started")
@@ -120,9 +136,23 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
     numtasks = 3 # количество задач
     max_cons_ans = 3 # максимальное количество ответов подряд
     ans_window = 10 
+    ws1 = player1._ws
+    ws2 = player2._ws
     try:
-        ws1 = player1._ws
-        ws2 = player2._ws
+        await ws1.send_text("ping")
+    except Exception: # игрок1 отключился, добавляем второго обратно в очередь
+        print('pvp start_match player1 disconnected') # DEBUG
+        is_connected[player1.user_id] = False
+        await add_player(player2)
+        return
+    try:
+        await ws2.send_text("ping")
+    except Exception: # игрок2 отключился, добавляем первого обратно в очередь
+        print('pvp start_match player1 disconnected') # DEBUG
+        is_connected[player2.user_id] = False
+        await add_player(player1)
+        return
+    try:
         await ws1.send_text(f"match started")
         await ws2.send_text(f"match started")
         # выбираем рандомные задачи
@@ -281,7 +311,10 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
         except Exception:
             pass
 
-    finally: # завершаем слушатели ответов
+    finally:
+        async with _queue_lock:
+            is_in_match[player1.user_id] = False
+            is_in_match[player2.user_id] = False
         try:
             t1.cancel()
         except Exception:
@@ -316,6 +349,9 @@ async def match_players():
             allowed_elo_diff = 100+wait_time*5 # каждую секунду увеличиваем допустимую разницу в эло на 5
 
             if p2.rating - p1.rating < allowed_elo_diff: # если подходить, то начинаем матч
+
+                is_in_match[p1.user_id] = True
+                is_in_match[p2.user_id] = True
                 pairs.append((p1,p2))
                 i+=2
             else: # иначе оставляем игрока в очереди
@@ -343,8 +379,19 @@ async def matchmaking_loop():
 # при запуске начинаем постоянно подбирать всем матчи
 @router.on_event("startup")
 async def start_matchmaking():
-    asyncio.create_task(matchmaking_loop())
+    global _matchmaking_task
+    _matchmaking_task = asyncio.create_task(matchmaking_loop())
 
+# при остановке перестаём подбирать задачи
+@router.on_event("shutdown")
+async def stop_matchmaking():
+    global _matchmaking_task
+    if _matchmaking_task:
+        _matchmaking_task.cancel()
+        try:
+            await _matchmaking_task
+        except asyncio.CancelledError:
+            pass
 
 # всё снизу для тестирования
 html = """

@@ -36,6 +36,16 @@ const stats = ref({
 })
 const users = ref([])
 const tasks = ref([])
+const logs = ref([])
+
+// Определяем цвет бейджа на основе действия
+const getBadgeClass = (action) => {
+  const act = action.toLowerCase()
+  if (act.includes('delete') || act.includes('ban')) return 'hard'   // Красный
+  if (act.includes('update') || act.includes('edit')) return 'medium' // Желтый
+  if (act.includes('create') || act.includes('add')) return 'easy'    // Зеленый
+  return '' // Серый по умолчанию
+}
 
 // Форма задачи (Обновлена структура под новые требования)
 const taskForm = ref({
@@ -103,6 +113,20 @@ const handleApiError = (err) => {
     alert('Ошибка: ' + (err.response?.data?.detail || err.message))
   }
 }
+// Специальный форматтер для логов (UTC -> Local)
+const formatLogDate = (dateString) => {
+  if (!dateString) return '-'
+  // Если бэкенд отдает "2023-10-10T12:00:00" без Z, считаем это UTC
+  const dateValue = dateString.endsWith('Z') ? dateString : dateString + 'Z'
+  return new Date(dateValue).toLocaleString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  })
+}
 
 // --- ЗАГРУЗКА ДАННЫХ ---
 const fetchStats = async () => {
@@ -133,6 +157,16 @@ const fetchTasks = async () => {
   finally { loading.value = false }
 }
 
+const fetchLogs = async () => {
+  if (accessDenied.value) return
+  loading.value = true
+  try {
+    // Загружаем последние 50 логов (можно увеличить limit)
+    const response = await axios.get('/admin/logs?limit=50', getAuthHeader())
+    logs.value = response.data
+  } catch (err) { handleApiError(err) }
+  finally { loading.value = false }
+}
 // --- УПРАВЛЕНИЕ ПОЛЬЗОВАТЕЛЯМИ (НОВОЕ) ---
 
 // Переключение меню действий
@@ -346,6 +380,13 @@ onMounted(() => {
           :class="{ active: currentTab === 'tasks' }"
         >
           <span class="nav-icon">📝</span> <span class="nav-text">Задачи</span>
+        </button>
+        <button
+          @click="currentTab = 'logs'; fetchLogs(); isSidebarCollapsed = false"
+          class="nav-btn"
+          :class="{ active: currentTab === 'logs' }"
+        >
+          <span class="nav-icon">🛡️</span> <span class="nav-text">Логи</span>
         </button>
       </nav>
 
@@ -661,6 +702,77 @@ onMounted(() => {
         </form>
       </div>
     </div>
+
+    <!-- Logs Tab -->
+    <div v-if="currentTab === 'logs'" class="logs-tab">
+      <div class="tab-header">
+        <h1>Аудит действий</h1>
+        <button @click="fetchLogs" class="refresh-btn">
+          🔄 Обновить
+        </button>
+      </div>
+
+      <div class="table-wrapper">
+        <div class="responsive-table">
+          <table class="users-table">
+            <thead>
+            <tr class="table-head">
+              <th>ID</th>
+              <th>Время</th>
+              <th>Администратор</th>
+              <th>Действие</th>
+              <th>Цель</th>
+              <th style="width: 40%">Детали</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr v-for="log in logs" :key="log.id" class="table-row">
+              <td class="user-id">#{{ log.id }}</td>
+
+              <td class="register-date">
+                {{ formatLogDate(log.created_at) }}
+              </td>
+
+              <td class="user-cell">
+                <div class="user-avatar" :class="{'admin-badge-bg': true}">
+                  {{ log.admin_username ? log.admin_username.charAt(0).toUpperCase() : '?' }}
+                </div>
+                <div class="user-details">
+                  <p class="user-name">{{ log.admin_username || 'Неизвестно' }}</p>
+                  <p class="user-email">Admin ID: {{ log.admin_id }}</p>
+                </div>
+              </td>
+
+              <td>
+                    <span
+                      class="difficulty-badge"
+                      :class="getBadgeClass(log.action)"
+                    >
+                      {{ log.action }}
+                    </span>
+              </td>
+
+              <td class="user-id">
+                {{ log.target_id ? '#' + log.target_id : '-' }}
+              </td>
+
+              <td class="task-cell" style="max-width: 300px;">
+                <p class="task-description" :title="log.details">
+                  {{ log.details }}
+                </p>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-if="!loading && logs.length === 0" class="empty-table">
+          <div class="empty-icon">📝</div>
+          <p class="empty-title">Логов пока нет</p>
+          <p class="empty-subtitle">Действия администраторов будут появляться здесь</p>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -758,7 +870,7 @@ onMounted(() => {
 /* Мобильное меню */
 .mobile-menu-btn {
   position: fixed;
-  top: 16px;
+  top: 10px;
   left: 16px;
   z-index: 100;
   width: 40px;
@@ -1483,6 +1595,11 @@ onMounted(() => {
   font-size: 14px;
 }
 
+/* Logs Tab */
+.logs-tab {
+  padding: 20px;
+}
+
 /* Modals */
 .modal-overlay {
   position: fixed;
@@ -2105,6 +2222,11 @@ onMounted(() => {
   .tasks-table {
     min-width: auto;
   }
+
+  .logs-tab {
+    padding: 32px;
+    margin-left: 256px;
+  }
 }
 
 @media (min-width: 769px) {
@@ -2268,4 +2390,12 @@ onMounted(() => {
     max-width: 1000px;
   }
 }
+
+@media (min-width: 1920px) {
+  .admin-sidebar {
+    top: 0;
+    z-index: 100;
+  }
+}
+
 </style>
