@@ -3,6 +3,7 @@ from sqlalchemy import select, func, or_, distinct
 from app.core.database import SessionDep
 from app.core.models import AttemptModel, TaskModel, EloHistoryModel
 from app.core.dependencies import UserDep
+from app.core.config import settings
 from app.schemas.user import SubjectStats,UserStatsResponse,UserProfileRead
 import shutil
 import uuid
@@ -93,7 +94,10 @@ async def upload_avatar(
     if not file.content_type.startswith('image/'):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail='Файл должен быть изображением')
 
-    file_path = f'static/avatars/user_{current_user.id}_{uuid.uuid4().hex}.{ext}'
+    if settings.VITE_IS_PROD == 'false':
+        file_path = f'/static/avatars/user_{current_user.id}_{uuid.uuid4().hex}.{ext}'
+    else:
+        file_path = f'/api/static/avatars/user_{current_user.id}_{uuid.uuid4().hex}.{ext}'
 
     with open(file_path,'wb') as buffer:
         shutil.copyfileobj(file.file, buffer) #type: ignore
