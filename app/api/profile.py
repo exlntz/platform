@@ -101,7 +101,10 @@ async def upload_avatar(
     with open(disk_path, 'wb') as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    generated_url = f"/static/avatars/{file_name}"
+    if IS_PROD == 'true':
+        generated_url = f"/api/static/avatars/{file_name}"
+    else:
+        generated_url = f"/static/avatars/{file_name}"
 
     current_user.avatar_url = generated_url
     session.add(current_user)
