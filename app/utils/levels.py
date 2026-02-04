@@ -1,4 +1,5 @@
 import math
+from app.core.constants import DifficultyLevel
 
 def calculate_level_info(total_xp: int):
 
@@ -20,7 +21,7 @@ def calculate_level_info(total_xp: int):
     }
 
 
-rewards = {'Easy': 10, 'Medium': 20, 'Hard': 30}
+rewards = {DifficultyLevel.EASY: 10, DifficultyLevel.MEDIUM: 20, DifficultyLevel.HARD: 30}
 print(calculate_level_info(550))
 
 
