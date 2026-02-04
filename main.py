@@ -1,6 +1,3 @@
-#uvicorn app.main:app --reload запуск приложения, запускать строго из case
-#можно также запустить просто main.py
-#вся документация тут http://127.0.0.1:8000/docs либо http://127.0.0.1:8000/redoc
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -10,6 +7,7 @@ from app.api.pvp import router as pvp_router
 from app.api.profile import router as profile_router
 from app.api.leaderboard import router as leaderboard_router
 from app.api.admin import router as admin_router
+from app.api.constants import router as constants_router
 from fastapi.staticfiles import StaticFiles
 import os
 
@@ -59,7 +57,7 @@ app.include_router(pvp_router)
 app.include_router(profile_router)
 app.include_router(leaderboard_router)
 app.include_router(admin_router)
-
+app.include_router(constants_router)
 
 
 @app.get('/',tags=['Главная страница'])
