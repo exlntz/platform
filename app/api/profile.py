@@ -7,6 +7,7 @@ from app.schemas.user import SubjectStats,UserStatsResponse,UserProfileRead
 import shutil
 import uuid
 from app.schemas.user import EloHistoryPoint
+from app.utils.achievments import check_and_award_achievement
 
 from app.utils.levels import calculate_level_info
 
@@ -101,9 +102,14 @@ async def upload_avatar(
 
     current_user.avatar_url = generated_url
     session.add(current_user)
+
+    new_badges = await check_and_award_achievement(current_user, session)
+
     await session.commit()
 
-    return {'url': generated_url}
+    return {'url': generated_url,
+            'new_achievements': new_badges,
+    }
 
 
 @router.get('/stats', summary='Детальная статистика по предметам')

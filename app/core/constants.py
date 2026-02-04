@@ -56,7 +56,18 @@ class RankName(BaseStrEnum):
     LEGEND = "LEGEND"
 
 class Achievement(BaseStrEnum):
-    NEW = "NEW"
+    FIRST_STEP = "FIRST_STEP"  # Решил 1 задачу
+    GURU = "GURU"  # Решил 10 задач
+    PROFILE_MASTER = "PROFILE_MASTER" # Поставил аватарку
+
+    @property
+    def label(self):
+        labels = {
+            Achievement.FIRST_STEP: "Первый шаг",
+            Achievement.GURU: "Гуру",
+            Achievement.PROFILE_MASTER: "Красавчик!"
+        }
+        return labels.get(self, self.value)
 
 
 

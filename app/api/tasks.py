@@ -7,6 +7,7 @@ from app.core.dependencies import UserDep
 from app.core.constants import DifficultyLevel, Subject
 from app.utils.levels import rewards
 from app.utils.formatters import format_answer
+from app.utils.achievments import check_and_award_achievement
 
 router=APIRouter(prefix='/tasks',tags=['Задачи'])
 
@@ -40,7 +41,7 @@ async def check_task_answer(
         session: SessionDep,
         current_user: UserDep
 ) -> AnswerCheckResponse:
-
+    new_badges = []
     task = await session.get(TaskModel, task_id)
 
     if task is None:
@@ -66,11 +67,13 @@ async def check_task_answer(
         time_spent=user_data.time_spent
     )
     session.add(attempt)
-
+    await session.flush()
     message = 'Неверно! Попробуй еще раз.'
 
     if is_correct:
         message = 'Правильно!!!'
+
+        new_badges = await check_and_award_achievement(current_user,session)
 
         if not was_solved_before:
             reward = rewards.get(task.difficulty)
@@ -83,7 +86,8 @@ async def check_task_answer(
 
     return AnswerCheckResponse(
         is_correct=is_correct,
-        message=message
+        message=message,
+        achievements=new_badges
     )
 
 

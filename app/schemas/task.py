@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, model_validator
-from app.core.constants import DifficultyLevel,Tag,Subject,SUBJECT_TO_TAGS
+from app.core.constants import DifficultyLevel,Tag,Subject,SUBJECT_TO_TAGS, Achievement
 
 class TaskBase(BaseModel):
     title: str
@@ -38,6 +38,7 @@ class AnswerCheckResponse(BaseModel):
     is_correct: bool
     correct_answer: str | None = None
     message: str
+    achievements: list[str]
 
 class TaskAdminRead(TaskRead):
     correct_answer: str
