@@ -4,7 +4,7 @@ from app.core.database import SessionDep
 from app.core.models import TaskModel, AttemptModel
 from app.schemas.task import TaskRead, AnswerCheckRequest, AnswerCheckResponse
 from app.core.dependencies import UserDep
-from app.core.constants import DifficultyLevel
+from app.core.constants import DifficultyLevel, Subject
 from app.utils.levels import rewards
 from app.utils.formatters import format_answer
 
@@ -13,7 +13,7 @@ router=APIRouter(prefix='/tasks',tags=['Задачи'])
 @router.get('/',summary='Получить все задачи',description='Возвращает задачи в соответствии с фильтрами')
 async def get_tasks(
         session: SessionDep,
-        subject: str | None = None,
+        subject: Subject | None = None,
         difficulty: DifficultyLevel | None = None
 
 ) -> list[TaskRead]:

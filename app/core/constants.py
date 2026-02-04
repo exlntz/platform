@@ -1,75 +1,95 @@
-# app/core/constants.py
 from enum import Enum
 
+
 class BaseStrEnum(str, Enum):
+    @property
+    def label(self):
+        return SUBJECT_DISPLAY.get(self) or TAG_DISPLAY.get(self) or self.value
+
     @classmethod
     def _missing_(cls, value):
         if isinstance(value, str):
+            v_upper = value.upper()
             for member in cls:
-                if member.value.lower() == value.lower():
+                if member.value == v_upper:
                     return member
         return None
 
+
 class Subject(BaseStrEnum):
-    PYTHON = "Python"
-    MATH = 'Математика'
-    INF = 'Информатика'
-    RUSS = 'Русский язык'
-    ENGLISH = 'Английский язык'
-    PHYS = 'Физика'
+    PYTHON = "PYTHON"
+    MATH = "MATH"
+    INF = "INF"
+    RUSS = "RUSS"
+    ENGLISH = "ENGLISH"
+    PHYS = "PHYS"
+    ASTROPHYSICS = "ASTROPHYSICS"
+
 
 class Tag(BaseStrEnum):
-    ARITHMETIC = "Арифметика"
-    GEOM = 'Геометрия'
-    ALGEBRA = 'Алгебра'
-    TRIG = 'Тригонометрия'
+    SPACE = "SPACE"
+    LOGARITHMS = "LOGARITHMS"
+    ARITHMETIC = "ARITHMETIC"
 
-    TYPES = 'Типы данных'
+    GEOM = "GEOM"
+    ALGEBRA = "ALGEBRA"
+    TRIG = "TRIG"
+    TYPES = "TYPES"
+    SYS = "SYS"
+    SENTENCES = "SENTENCES"
+    TIMES = "TIMES"
+    SECTIONS = "SECTIONS"
 
-    SYS = 'Системы счисления'
-
-    SENTENCES = 'Виды предложений'
-
-    TIMES = 'Времена'
-
-    SECTIONS = 'Разделы физики'
 
 class DifficultyLevel(BaseStrEnum):
-    EASY = 'Easy'
-    MEDIUM = 'Medium'
-    HARD = 'Hard'
+    EASY = "EASY"
+    MEDIUM = "MEDIUM"
+    HARD = "HARD"
+
 
 class RankName(BaseStrEnum):
-    BRONZE = "Бронза"
-    SILVER = "Серебро"
-    GOLD = "Золото"
-    ELITE = "Элита"
-    SENSEI = "Сенсей"
-    LEGEND = "Легенда"
+    BRONZE = "BRONZE"
+    SILVER = "SILVER"
+    GOLD = "GOLD"
+    ELITE = "ELITE"
+    SENSEI = "SENSEI"
+    LEGEND = "LEGEND"
 
 class Achievement(BaseStrEnum):
-    FIRST_WIN = "First win"
-    FIRST_STEP = "First step"
-    PROFILE_MASTER = "Profile master"
-    TASK_MASTER = "Task master"
-    KNOWLEDGE_TITAN = "Knowledge titan"
-    CENTURION = "Centurion"
-    SPEEDRUNNER = "Speedrunner"
-    INTELLECTUAL = "Intellectual"
-    INVINCIBLE = "Invincible"
-    PROGRAMMING_GURU = "Programming guru"
-    MATH_WIZARD = "Math wizard"
-    LOGIC_KING = "Logic king"
-    EARLY_BIRD = "Early bird"
-    STREAK_7 = "Streak 7"
+    NEW = "NEW"
 
+
+
+SUBJECT_DISPLAY = {
+    Subject.PYTHON: "Python",
+    Subject.MATH: "Математика",
+    Subject.INF: "Информатика",
+    Subject.RUSS: "Русский язык",
+    Subject.ENGLISH: "Английский язык",
+    Subject.PHYS: "Физика",
+    Subject.ASTROPHYSICS: "Астрофизика"
+}
+
+TAG_DISPLAY = {
+    Tag.SPACE: "Космос",
+    Tag.LOGARITHMS: "Логарифмы",
+    Tag.ARITHMETIC: "Арифметика",
+    Tag.GEOM: "Геометрия",
+    Tag.ALGEBRA: "Алгебра",
+    Tag.TRIG: "Тригонометрия",
+    Tag.TYPES: "Типы данных",
+    Tag.SYS: "Системы счисления",
+    Tag.SENTENCES: "Виды предложений",
+    Tag.TIMES: "Времена",
+    Tag.SECTIONS: "Разделы физики"
+}
 
 SUBJECT_TO_TAGS = {
     Subject.PYTHON: [Tag.TYPES],
-    Subject.MATH: [Tag.ALGEBRA,Tag.ARITHMETIC,Tag.TRIG,Tag.GEOM],
+    Subject.MATH: [Tag.ALGEBRA, Tag.ARITHMETIC, Tag.TRIG, Tag.GEOM, Tag.LOGARITHMS],
     Subject.INF: [Tag.SYS],
     Subject.RUSS: [Tag.SENTENCES],
     Subject.ENGLISH: [Tag.TIMES],
     Subject.PHYS: [Tag.SECTIONS],
-
+    Subject.ASTROPHYSICS: [Tag.SPACE, Tag.LOGARITHMS]
 }

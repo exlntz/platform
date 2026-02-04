@@ -4,56 +4,33 @@ from sqlalchemy import Text, ForeignKey, func, Enum as SQLEnum, JSON
 from datetime import datetime
 from app.core.constants import DifficultyLevel,Tag,Subject,RankName,Achievement
 
+
 class UserModel(Model):
     __tablename__ = 'users'
 
-    id: Mapped[int] = mapped_column(primary_key=True,init=False)
-    username: Mapped[str] = mapped_column(unique=True,index=True)
-    email: Mapped[str] = mapped_column(unique=True,index=True)
+    id: Mapped[int] = mapped_column(primary_key=True, init=False)
+    username: Mapped[str] = mapped_column(unique=True, index=True)
+    email: Mapped[str] = mapped_column(unique=True, index=True)
     hashed_password: Mapped[str] = mapped_column()
     rating: Mapped[float] = mapped_column(default=1000.0)
-    user_rank: Mapped[RankName] = mapped_column(
-        SQLEnum(
-            RankName,
-            native_enum=False,
-            values_callable=lambda x: [e.value for e in x]
-        ),
-        default=RankName.BRONZE,
-        server_default="Бронза"
-    )
+    user_rank: Mapped[RankName] = mapped_column(SQLEnum(RankName, native_enum=False),default=RankName.BRONZE,server_default="BRONZE")
     achievements: Mapped[list[Achievement]] = mapped_column(JSON, default_factory=list)
     is_admin: Mapped[bool] = mapped_column(default=False)
     is_banned: Mapped[bool] = mapped_column(default=False)
     xp: Mapped[int] = mapped_column(default=0)
     avatar_url: Mapped[str | None] = mapped_column(default=None)
-    created_at: Mapped[datetime] = mapped_column(server_default=func.now(),init=False)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now(), init=False)
 
 
 class TaskModel(Model):
     __tablename__ = 'tasks'
 
-    id: Mapped[int] = mapped_column(primary_key=True,init=False)
+    id: Mapped[int] = mapped_column(primary_key=True, init=False)
     title: Mapped[str] = mapped_column(index=True)
     description: Mapped[str] = mapped_column(Text)
-    subject: Mapped[Subject] = mapped_column(
-        SQLEnum(
-            Subject,
-            native_enum=False,  # Храним как VARCHAR
-            # Говорим SQLAlchemy использовать значения ("Физика") для проверки и записи
-            values_callable=lambda obj: [e.value for e in obj]
-        ),
-        index=True
-    )
+    subject: Mapped[Subject] = mapped_column(SQLEnum(Subject, native_enum=False), index=True)
     correct_answer: Mapped[str] = mapped_column()
-    difficulty: Mapped[DifficultyLevel] = mapped_column(
-        SQLEnum(
-            DifficultyLevel,
-            native_enum=False,
-            # То же самое для сложности ("Easy" вместо "EASY")
-            values_callable=lambda obj: [e.value for e in obj]
-        ),
-        index=True
-    )
+    difficulty: Mapped[DifficultyLevel] = mapped_column(SQLEnum(DifficultyLevel, native_enum=False), index=True)
     tags: Mapped[list[Tag]] = mapped_column(JSON, default_factory=list)
     hint: Mapped[str | None] = mapped_column(Text, default=None)
 
