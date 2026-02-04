@@ -143,13 +143,19 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
     except Exception: # игрок1 отключился, добавляем второго обратно в очередь
         print('pvp start_match player1 disconnected') # DEBUG
         is_connected[player1.user_id] = False
+        async with _queue_lock:
+            is_in_match[player1.user_id] = False
+            is_in_match[player2.user_id] = False
         await add_player(player2)
         return
     try:
         await ws2.send_text("ping")
     except Exception: # игрок2 отключился, добавляем первого обратно в очередь
-        print('pvp start_match player1 disconnected') # DEBUG
+        print('pvp start_match player2 disconnected') # DEBUG
         is_connected[player2.user_id] = False
+        async with _queue_lock:
+            is_in_match[player1.user_id] = False
+            is_in_match[player2.user_id] = False
         await add_player(player1)
         return
     try:
