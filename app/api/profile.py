@@ -3,14 +3,15 @@ from sqlalchemy import select, func, or_, distinct
 from app.core.database import SessionDep
 from app.core.models import AttemptModel, TaskModel, EloHistoryModel
 from app.core.dependencies import UserDep
-from app.core.config import settings
 from app.schemas.user import SubjectStats,UserStatsResponse,UserProfileRead
 import shutil
 import uuid
 from app.schemas.user import EloHistoryPoint
 from app.utils.achievments import check_and_award_achievement
-
 from app.utils.levels import calculate_level_info
+import os
+
+IS_PROD = os.getenv('VITE_IS_PROD') == 'true'
 
 ALLOWED_AVATAR_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 
@@ -80,7 +81,7 @@ async def get_my_profile(
     )
 
 
-@router.post('/avatar',summary='Загрузить аватарку')
+@router.post('/avatar', summary='Загрузить аватарку')
 async def upload_avatar(
         session: SessionDep,
         current_user: UserDep,
@@ -89,20 +90,22 @@ async def upload_avatar(
 
     ext = file.filename.rsplit('.', 1)[-1].lower()
     if ext not in ALLOWED_AVATAR_EXTENSIONS or '.' not in file.filename:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail=f'Недопустимое расширение файла')
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Недопустимое расширение файла')
 
     if not file.content_type.startswith('image/'):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail='Файл должен быть изображением')
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Файл должен быть изображением')
 
-    if settings.VITE_IS_PROD == 'false':
-        file_path = f'/static/avatars/user_{current_user.id}_{uuid.uuid4().hex}.{ext}'
+    file_name = f"user_{current_user.id}_{uuid.uuid4().hex}.{ext}"
+    disk_path = os.path.join("static", "avatars", file_name)
+    os.makedirs(os.path.dirname(disk_path), exist_ok=True)
+
+    with open(disk_path, 'wb') as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    if IS_PROD == 'true':
+        generated_url = f"/api/static/avatars/{file_name}"
     else:
-        file_path = f'/api/static/avatars/user_{current_user.id}_{uuid.uuid4().hex}.{ext}'
-
-    with open(file_path,'wb') as buffer:
-        shutil.copyfileobj(file.file, buffer) #type: ignore
-
-    generated_url = f'/{file_path}'
+        generated_url = f"/static/avatars/{file_name}"
 
     current_user.avatar_url = generated_url
     session.add(current_user)
@@ -111,8 +114,9 @@ async def upload_avatar(
 
     await session.commit()
 
-    return {'url': generated_url,
-            'new_achievements': new_badges,
+    return {
+        'url': generated_url,
+        'new_achievements': new_badges,
     }
 
 

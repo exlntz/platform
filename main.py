@@ -10,7 +10,6 @@ from app.api.admin import router as admin_router
 from app.api.constants import router as constants_router
 from fastapi.staticfiles import StaticFiles
 import os
-from app.core.config import settings
 
 
 @asynccontextmanager
@@ -30,11 +29,9 @@ app=FastAPI(title='Платформа для подготовки к олимп�
 
 
 os.makedirs('static/avatars',exist_ok=True)
+static_prefix = "/api/static" if IS_PROD else "/static"
+app.mount(static_prefix, StaticFiles(directory="static"), name="static")
 
-if settings.VITE_IS_PROD == 'false':
-    app.mount('/static',StaticFiles(directory='static'),name='static')
-else:
-    app.mount('/api/static',StaticFiles(directory='static'),name='static')
 
 
 origins = [
