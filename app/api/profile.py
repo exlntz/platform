@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from fastapi import APIRouter, UploadFile, File, HTTPException,status
 from sqlalchemy import select, func, or_, distinct
 from app.core.database import SessionDep
@@ -96,12 +98,15 @@ async def upload_avatar(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Файл должен быть изображением')
 
     file_name = f"user_{current_user.id}_{uuid.uuid4().hex}.{ext}"
-    disk_path = os.path.join("static", "avatars", file_name)
+    base_dir = Path(__file__).resolve().parent.parent.parent  # корень проекта
+    static_dir = base_dir / "static" / "avatars"
+    static_dir.mkdir(parents=True, exist_ok=True)
+    file_disk_path = static_dir / file_name
 
-    with open(disk_path, 'wb') as buffer:
+    with open(file_disk_path, 'wb') as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    generated_url = f"/static/avatars/{file_name}"
+    generated_url = f"{'/api' if IS_PROD else ''}/static/avatars/{file_name}"
 
     current_user.avatar_url = generated_url
     session.add(current_user)
