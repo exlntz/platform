@@ -29,6 +29,7 @@ class UserProfileRead(BaseModel):
     email: str
     rating: float
     avatar_url: str | None = None
+    achievements: list[str]
 
     total_attempts: int
     correct_solutions: int
@@ -39,6 +40,7 @@ class UserProfileRead(BaseModel):
     xp_current: int
     xp_next: int
     progress: float
+    created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 

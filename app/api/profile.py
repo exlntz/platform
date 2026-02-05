@@ -15,8 +15,6 @@ import os
 
 IS_PROD = os.getenv('VITE_IS_PROD') == 'true'
 
-ALLOWED_AVATAR_EXTENSIONS = {'png', 'jpg', 'jpeg'}
-
 router = APIRouter(prefix='/profile',tags=['Профиль'])
 
 @router.get('/',summary='Профиль пользователя',description='Возвращает данные пользователя и его статистику в одном структурированном ответе.')
@@ -69,6 +67,7 @@ async def get_my_profile(
         email=current_user.email,
         rating=round(current_user.rating,1),
         avatar_url=current_user.avatar_url,
+        achievements=current_user.achievements,
 
         total_attempts=total,
         correct_solutions=unique_solved,
@@ -79,9 +78,12 @@ async def get_my_profile(
         xp_current=level_data['xp_current'],
         xp_next=level_data['xp_next'],
         progress=level_data['progress'],
+        created_at=current_user.created_at,
 
     )
 
+
+ALLOWED_AVATAR_EXTENSIONS = {'png', 'jpg', 'jpeg', '.webp', 'heic', 'heif'}
 
 @router.post('/avatar', summary='Загрузить аватарку')
 async def upload_avatar(
@@ -90,29 +92,41 @@ async def upload_avatar(
         file: UploadFile = File(...)
 ):
 
-    ext = file.filename.rsplit('.', 1)[-1].lower()
-    if ext not in ALLOWED_AVATAR_EXTENSIONS or '.' not in file.filename:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Недопустимое расширение файла')
+    filename = file.filename or ""
+    ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ""
 
-    if not file.content_type.startswith('image/'):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Файл должен быть изображением')
+    if not ext and file.content_type:
+        ext = file.content_type.split('/')[-1]
+
+    if ext not in ALLOWED_AVATAR_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f'Формат {ext} не поддерживается. Разрешены: {ALLOWED_AVATAR_EXTENSIONS}'
+        )
+
+    if current_user.avatar_url:
+        old_file_relative_path = current_user.avatar_url.replace('/api/', '').lstrip('/')
+        if os.path.exists(old_file_relative_path):
+            try:
+                os.remove(old_file_relative_path)
+            except Exception as e:
+                print(f"Не удалось удалить старый файл: {e}")
 
     file_name = f"user_{current_user.id}_{uuid.uuid4().hex}.{ext}"
-    base_dir = Path(__file__).resolve().parent.parent.parent  # корень проекта
-    static_dir = base_dir / "static" / "avatars"
-    static_dir.mkdir(parents=True, exist_ok=True)
-    file_disk_path = static_dir / file_name
+    static_dir = os.path.join("static", "avatars")
+    os.makedirs(static_dir, exist_ok=True)
+    file_disk_path = os.path.join(static_dir, file_name)
 
     with open(file_disk_path, 'wb') as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    generated_url = f"{'/api' if IS_PROD else ''}/static/avatars/{file_name}"
+    is_prod = IS_PROD == 'true'  #
+    generated_url = f"{'/api' if is_prod else ''}/static/avatars/{file_name}"
 
     current_user.avatar_url = generated_url
     session.add(current_user)
 
-    new_badges = await check_and_award_achievement(current_user, session)
-
+    new_badges = await check_and_award_achievement(current_user, session)  #
     await session.commit()
 
     return {
