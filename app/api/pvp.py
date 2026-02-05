@@ -14,7 +14,7 @@ from app.core.database import new_session
 from fastapi.responses import HTMLResponse
 from collections import defaultdict, deque
 
-
+pending_reconnects = {}  # user_id -> asyncio.Future
 is_connected = defaultdict(bool) # для отслеживания подключенных пользователей т.к. в fastapi'ной имплементации вебсокетов нельзя проверить отключился ли пользователь
 is_in_match  = defaultdict(bool) # user_id
 queue = [] # комната ожидания, отсортирована по рейтингу
@@ -77,6 +77,23 @@ async def join_match(session: SessionDep, websocket: WebSocket):
             user_id=user.id
         )
         entry._ws = websocket
+
+
+        # если пользователь переподключается
+        if user.id in pending_reconnects:
+            try:
+                # добавляем новый websocket
+                pending_reconnects[user.id].set_result(websocket)
+            except Exception:
+                pass
+            is_connected[user.id] = True
+            # пока пользователь подключен не завершаем функцию, чтобы не отключится
+            while is_connected[user.id]:
+                await asyncio.sleep(10)
+            del is_connected[user.id]
+            return # возвращаем после отключения чтобы игрок не добавился в очередь
+
+
         async with _queue_lock:
             if is_in_match[entry.user_id]:
                 try:
@@ -131,11 +148,25 @@ async def listen_messages(player: QueueEntry, out: asyncio.Queue,):
         # вебсокет закрылся
         
 
+async def wait_for_reconnect(user_id: int, timeout: float):
+    fut = asyncio.get_event_loop().create_future()
+    pending_reconnects[user_id] = fut
+    try:
+        # ждём пока пользователь переподключится
+        new_ws = await asyncio.wait_for(fut, timeout=timeout)
+        return new_ws
+    except asyncio.TimeoutError:
+        return None
+    finally:
+        pending_reconnects.pop(user_id, None)
+
+
 async def start_match(player1: QueueEntry, player2: QueueEntry):
-    tasktime = 120 # время на выполнение задачи
+    tasktime = 120 # время в секундах на выполнение задачи
     numtasks = 3 # количество задач
     max_cons_ans = 3 # максимальное количество ответов подряд
     ans_window = 10 
+    reconnect_timeout = 5 # время в секундах за которое можно переподключиться
     ws1 = player1._ws
     ws2 = player2._ws
     try:
@@ -208,7 +239,32 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
                     continue
                 
                 if msg.text=='__DISCONNECTED__' and msg.ts == 0:
-                    raise Exception
+                    print('here')
+                    discplayer = None # отключившийся игрок
+                    if msg.user_id == player1.user_id:
+                        discplayer = player1
+                    else:
+                        discplayer = player2
+                    print('here2')
+                    # ждём пока игрок переподключится
+                    new_ws = await wait_for_reconnect(discplayer.user_id, timeout=reconnect_timeout)
+                    if new_ws:
+                        # заменяем ws на новый
+                        discplayer._ws = new_ws
+                        if msg.user_id == player1.user_id:
+                            ws1 = new_ws
+                            t1 = asyncio.create_task(listen_messages(player1, messages))
+                        else:
+                            ws2 = new_ws
+                            t2 = asyncio.create_task(listen_messages(player2, messages))
+                        await discplayer._ws.send_text("match started")
+                        await discplayer._ws.send_text(f"{task_id}")
+                        print("player reconnected") # DEBUG
+                        continue # чтобы не обрабатывать дисконнект как ответ
+
+                    else: # игрок не переподключился
+                        print("player did not reconnect") # DEBUG
+                        raise Exception # завершаем матч
                 
                 if msg.text[:14] == 'MessageToChat ':
                     if msg.user_id == player1.user_id: await ws2.send_text(f"chat message {msg.text[14:]}")
