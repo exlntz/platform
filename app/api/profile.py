@@ -10,7 +10,7 @@ from app.schemas.user import EloHistoryPoint
 from app.utils.achievments import check_and_award_achievement
 from app.utils.levels import calculate_level_info
 import os
-from PIL import Image
+from PIL import Image, ImageOps
 from pillow_heif import register_heif_opener
 
 IS_PROD = os.getenv('VITE_IS_PROD') == 'true'
@@ -97,8 +97,10 @@ async def upload_avatar(
     ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ""
 
     if not ext and file.content_type:
-        ext = file.content_type.split('/')[-1].lower()
-        if ext == 'octet-stream' and filename.lower().endswith('.heic'):
+        ctype = file.content_type.split('/')[-1].lower()
+        if 'heic' in ctype or 'heif' in ctype:
+            ext = 'heic'
+        elif ctype == 'octet-stream' and filename.lower().endswith('.heic'):
             ext = 'heic'
 
     if ext not in ALLOWED_AVATAR_EXTENSIONS:
@@ -125,6 +127,8 @@ async def upload_avatar(
 
     try:
         image = Image.open(file.file)
+
+        image = ImageOps.exif_transpose(image)
 
         if image.mode in ("RGBA", "P"):
             image = image.convert("RGB")
