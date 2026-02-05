@@ -64,6 +64,7 @@ class LeaderboardPlayer(BaseModel):
     username: str
     rating: float
     level: int
+    avatar_url: str | None
 
 
 class EloHistoryPoint(BaseModel):

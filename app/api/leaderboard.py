@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from app.core.database import SessionDep
 from sqlalchemy import select
 from app.core.models import UserModel
@@ -10,11 +10,12 @@ router = APIRouter(prefix='/leaderboard',tags=['Таблица лидеров'])
 @router.get('/',summary='Таблица лидеров',description='Вывод первых 10 пользователей с наибольшим рейтингом')
 async def get_leaderboard(
         session: SessionDep,
-        limit: int = 10
+        limit: int = Query(default=10,gt=0,le=100)
 ) -> list[LeaderboardPlayer]:
+
     query=select(UserModel).order_by(UserModel.rating.desc()).limit(limit)
     result = await session.execute(query)
-    users=result.scalars().all() #список кортежей - 3 обьекта LeaderboardPlayer - список LeaderboardPlayer
+    users=result.scalars().all()
 
     response_list =[]
 
@@ -25,7 +26,8 @@ async def get_leaderboard(
             username=user.username,
             rating=round(float(user.rating),1),
             level=level,
+            avatar_url=user.avatar_url,
         )
         response_list.append(data)
 
-    return response_list # список LeaderboardPlayer моделей
+    return response_list
