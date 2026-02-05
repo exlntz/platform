@@ -1,17 +1,17 @@
 from pathlib import Path
-
 from fastapi import APIRouter, UploadFile, File, HTTPException,status
 from sqlalchemy import select, func, or_, distinct
 from app.core.database import SessionDep
 from app.core.models import AttemptModel, TaskModel, EloHistoryModel
 from app.core.dependencies import UserDep
 from app.schemas.user import SubjectStats,UserStatsResponse,UserProfileRead
-import shutil
 import uuid
 from app.schemas.user import EloHistoryPoint
 from app.utils.achievments import check_and_award_achievement
 from app.utils.levels import calculate_level_info
 import os
+from PIL import Image
+from pillow_heif import register_heif_opener
 
 IS_PROD = os.getenv('VITE_IS_PROD') == 'true'
 
@@ -83,18 +83,8 @@ async def get_my_profile(
     )
 
 
+register_heif_opener()
 ALLOWED_AVATAR_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'heic', 'heif'}
-
-# app/api/profile.py
-import os
-import shutil
-import uuid
-from fastapi import UploadFile, File, HTTPException, status
-from app.core.config import settings
-
-# Добавляем расширения Apple и веб-форматы
-ALLOWED_AVATAR_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'heic', 'heif'}
-
 
 @router.post('/avatar', summary='Загрузить аватарку')
 async def upload_avatar(
@@ -125,6 +115,7 @@ async def upload_avatar(
             except Exception as e:
                 print(f"Ошибка удаления старого файла: {e}")
 
+    ext = 'jpg'
 
     file_name = f"user_{current_user.id}_{uuid.uuid4().hex}.{ext}"
     base_dir = Path(__file__).resolve().parent.parent.parent
@@ -132,8 +123,16 @@ async def upload_avatar(
     static_dir.mkdir(parents=True, exist_ok=True)
     file_disk_path = static_dir / file_name
 
-    with open(file_disk_path, 'wb') as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    try:
+        image = Image.open(file.file)
+
+        if image.mode in ("RGBA", "P"):
+            image = image.convert("RGB")
+
+        image.save(file_disk_path, "JPEG", quality=85)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка обработки изображения: {e}")
 
     prefix = "/api" if IS_PROD else ""
     generated_url = f"{prefix}/static/avatars/{file_name}"
