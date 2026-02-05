@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, status, Response, File, UploadFile, Query
 from sqlalchemy import select, func, desc, distinct
 from app.core.database import SessionDep
-from app.core.models import UserModel, TaskModel, AttemptModel, AuditLogModel, EloHistoryModel
-from app.schemas.admin_schemas import UserAdminRead, AdminDashboardStats, UserAdminUpdate, TaskAdminUpdate, UserEloHistoryResponse, AuditLogRead
+from app.core.models import UserModel, TaskModel, AttemptModel, AuditLogModel
+from app.schemas.admin_schemas import UserAdminRead, AdminDashboardStats, UserAdminUpdate, TaskAdminUpdate, AuditLogRead,AdminUserFullResponse
 from datetime import datetime, timedelta
 from app.schemas.task import TaskAdminRead, TaskRead, TaskCreate
 import json
@@ -10,6 +10,7 @@ import csv
 import io
 from app.core.dependencies import AdminDep
 from app.utils.changes import calculate_changes
+from app.services.user_stats import calculate_user_stats,calculate_profile_info,calculate_elo_history
 
 router = APIRouter(prefix='/admin', tags=['Админ панель'])
 
@@ -122,29 +123,25 @@ async def delete_user(
 
     return {'message': f'Пользователь {user.username} успешно удален'}
 
-@router.get('/users/{user_id}/elo_history', summary='История Эло пользователя (для админов)')
-async def get_user_elo_history(
+@router.get('/users/{user_id}/full_details',summary='Возвращает полную информацию о пользователе (для админов)',response_model=AdminUserFullResponse)
+async def get_user_full_details(
         user_id: int,
         session: SessionDep,
         admin: AdminDep
-) -> UserEloHistoryResponse:
+) -> AdminUserFullResponse:
+
     user = await session.get(UserModel, user_id)
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Пользователь не найден')
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail='Пользователь не найден')
 
-    query = (
-        select(EloHistoryModel)
-        .where(EloHistoryModel.user_id == user_id)
-        .order_by(EloHistoryModel.created_at.asc())
-    )
+    profile_info = await calculate_profile_info(session,user_id)
+    subject_stats = await calculate_user_stats(session,user_id)
+    elo_history = await calculate_elo_history(session,user_id)
 
-    result = await session.execute(query)
-    history = list(result.scalars().all())
-
-    return UserEloHistoryResponse(
-        username=user.username,
-        current_rating=user.rating,
-        history=history
+    return AdminUserFullResponse(
+        profile=profile_info,
+        stats=subject_stats,
+        elo_history=elo_history
     )
 
 @router.get('/stats', summary='Статистика для дашборда (для админов)')

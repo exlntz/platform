@@ -53,6 +53,19 @@ class AttemptModel(Model):
     time_spent: Mapped[int] = mapped_column(default=0)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(),init=False)
 
+Index(
+    'ix_attempts_user_task_correct_created',
+    AttemptModel.user_id,
+    AttemptModel.task_id,
+    AttemptModel.is_correct,
+    AttemptModel.created_at
+)
+
+Index(
+    'ix_attempts_user_created',
+    AttemptModel.user_id,
+    AttemptModel.created_at
+)
 
 class AuditLogModel(Model):
     __tablename__ = 'audit_logs'

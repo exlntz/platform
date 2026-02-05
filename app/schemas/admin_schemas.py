@@ -2,6 +2,7 @@ from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
 
 from app.core.models import DifficultyLevel
+from app.schemas.user import UserProfileRead, UserStatsResponse
 
 
 class UserAdminRead(BaseModel):
@@ -24,6 +25,9 @@ class UserAdminUpdate(BaseModel):
     rating: float | None = None
     is_admin: bool | None = None
     is_banned: bool | None = None
+    avatar_url: str | None = None
+    achievements: list[str] | None
+    xp: int | None = None
 
 
 class TaskAdminUpdate(BaseModel):
@@ -67,3 +71,9 @@ class AuditLogRead(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class AdminUserFullResponse(BaseModel):
+    profile: UserProfileRead
+    stats: UserStatsResponse
+    elo_history: list[EloPoint]
