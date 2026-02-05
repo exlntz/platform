@@ -51,7 +51,7 @@ async def login_user(
     if not user or not is_password_correct(form_data.password,user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail='Неверная почта или пароль!'
+            detail='Неверное имя пользователя или пароль!'
         )
     token=create_access_token(data={'sub': user.username})
 

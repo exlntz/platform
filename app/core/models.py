@@ -1,8 +1,8 @@
 from sqlalchemy.orm import Mapped,mapped_column
 from app.core.database import Model
-from sqlalchemy import Text, ForeignKey, func, Enum as SQLEnum, Index,text
+from sqlalchemy import Text, ForeignKey, func, Enum as SQLEnum, Index, text, DateTime
 from sqlalchemy.dialects.postgresql import JSONB
-from datetime import datetime
+from datetime import datetime, timezone
 from app.core.constants import DifficultyLevel,Tag,Subject,RankName,Achievement
 
 
@@ -20,7 +20,7 @@ class UserModel(Model):
     is_banned: Mapped[bool] = mapped_column(default=False)
     xp: Mapped[int] = mapped_column(default=0)
     avatar_url: Mapped[str | None] = mapped_column(default=None)
-    created_at: Mapped[datetime] = mapped_column(server_default=func.now(), init=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),server_default=func.now(),init=False)
 
 
 class TaskModel(Model):
@@ -51,7 +51,7 @@ class AttemptModel(Model):
     user_answer: Mapped[str] = mapped_column()
     is_correct: Mapped[bool] = mapped_column()
     time_spent: Mapped[int] = mapped_column(default=0)
-    created_at: Mapped[datetime] = mapped_column(server_default=func.now(),init=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),server_default=func.now(),init=False)
 
 Index(
     'ix_attempts_user_task_correct_created',
@@ -75,7 +75,7 @@ class AuditLogModel(Model):
     action: Mapped[str] = mapped_column()
     target_id: Mapped[int | None] = mapped_column(default=None)
     details: Mapped[str | None] = mapped_column(default=None)
-    created_at: Mapped[datetime] = mapped_column(server_default=func.now(),init=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),server_default=func.now(),init=False)
 
 
 class PvPMatchModel(Model):
@@ -87,7 +87,7 @@ class PvPMatchModel(Model):
     winner_id: Mapped[int | None] = mapped_column(ForeignKey('users.id'))
     p1_elo_change: Mapped[float] = mapped_column()
     p2_elo_change: Mapped[float] = mapped_column()
-    created_at: Mapped[datetime] = mapped_column(default=datetime.now, init=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),insert_default=lambda: datetime.now(timezone.utc),init=False)
 
 
 class EloHistoryModel(Model):
@@ -97,4 +97,4 @@ class EloHistoryModel(Model):
     user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), index=True)
     rating: Mapped[float] = mapped_column() #рейтинг после матча
     change: Mapped[float] = mapped_column()
-    created_at: Mapped[datetime] = mapped_column(default=datetime.now, init=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),insert_default=lambda: datetime.now(timezone.utc),init=False)

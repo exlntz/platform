@@ -3,7 +3,7 @@ from sqlalchemy import select, func, desc, distinct
 from app.core.database import SessionDep
 from app.core.models import UserModel, TaskModel, AttemptModel, AuditLogModel
 from app.schemas.admin_schemas import UserAdminRead, AdminDashboardStats, UserAdminUpdate, TaskAdminUpdate, AuditLogRead,AdminUserFullResponse
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from app.schemas.task import TaskAdminRead, TaskRead, TaskCreate
 import json
 import csv
@@ -149,7 +149,7 @@ async def get_admin_stats(
         session: SessionDep,
         admin: AdminDep
 ) -> AdminDashboardStats:
-    good_time = datetime.now() - timedelta(hours=24)
+    good_time = datetime.now(timezone.utc) - timedelta(hours=24)
 
     total_users = await session.scalar(select(func.count(UserModel.id))) or 0
     total_tasks = await session.scalar(select(func.count(TaskModel.id))) or 0

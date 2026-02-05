@@ -8,7 +8,7 @@ from app.core.constants import DifficultyLevel, Subject, Tag
 from app.utils.levels import rewards
 from app.utils.formatters import format_answer
 from app.utils.achievments import check_and_award_achievement
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 router=APIRouter(prefix='/tasks',tags=['Задачи'])
 
 @router.get('/',summary='Получить все задачи',description='Возвращает задачи в соответствии с фильтрами')
@@ -66,7 +66,7 @@ async def check_task_answer(
     result = await session.execute(last_attempts_query)
     last_attempts = result.scalars().all()
 
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     spam_threshold = timedelta(seconds=2)
     cooldown_duration = timedelta(seconds=10)
 

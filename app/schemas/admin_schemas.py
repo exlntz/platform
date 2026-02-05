@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from datetime import datetime
 
 from app.core.models import DifficultyLevel
@@ -14,9 +14,7 @@ class UserAdminRead(BaseModel):
     is_banned: bool
     created_at: datetime
 
-    model_config = {
-        "from_attributes": True
-    }
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserAdminUpdate(BaseModel):
@@ -52,8 +50,7 @@ class EloPoint(BaseModel):
     change: float
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class UserEloHistoryResponse(BaseModel):
     username: str
@@ -69,8 +66,7 @@ class AuditLogRead(BaseModel):
     details: str | None = None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AdminUserFullResponse(BaseModel):
