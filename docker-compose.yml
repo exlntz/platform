@@ -15,27 +15,27 @@ services:
   app:
     build: .
     container_name: fastapi_app
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    restart: always
+    # Убираем --reload для стабильности на сервере (ТЗ 2.2)
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     volumes:
-      - .:/app
       - ./static:/app/static
     env_file:
       - .env
     depends_on:
       - db
 
-  # НОВЫЙ СЕРВИС ДЛЯ ФРОНТЕНДА
   web:
-    build: ./web
+    build:
+      context: ./web
+      # Указываем финальный этап из Dockerfile
+      target: production
     container_name: vue_frontend
+    restart: always
     ports:
-      - "5173:5173"
-    volumes:
-      - ./web:/app
-      # Игнорируем node_modules в контейнере, чтобы не было конфликтов с Windows
-      - /app/node_modules
+      - "127.0.0.1:8080:80" # Внешний Nginx будет стучаться сюда
     depends_on:
       - app
     environment:

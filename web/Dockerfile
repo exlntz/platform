@@ -1,19 +1,25 @@
-# Используем Node.js для сборки и запуска фронтенда
-FROM node:20-alpine
-
+# --- Этап 1: Общая база ---
+FROM node:18-alpine as base
 WORKDIR /app
-
-# Копируем файлы зависимостей
 COPY package*.json ./
-
-# Устанавливаем зависимости
 RUN npm install
-
-# Копируем остальной код фронтенда
 COPY . .
 
-# Открываем порт для Vite
+# --- Этап 2: РАЗРАБОТКА (Local) ---
+# Этот этап будет запускаться у тебя на компе
+FROM base as development
 EXPOSE 5173
+CMD ["npm", "run", "dev"]
 
-# Запускаем в режиме разработки с флагом --host, чтобы Docker мог пробросить порт
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+# --- Этап 3: СБОРКА (Build) ---
+FROM base as build-stage
+RUN npm run build
+
+# --- Этап 4: ПРОДАКШЕН (Server) ---
+# Этот этап запустится на сервере: легкий Nginx со статикой
+FROM nginx:stable-alpine as production
+COPY --from=build-stage /app/dist /usr/share/nginx/html
+# Копируем конфиг Nginx (создадим его в след. шаге)
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
