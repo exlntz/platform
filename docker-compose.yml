@@ -30,14 +30,17 @@ services:
   web:
     build:
       context: ./web
-      # Указываем финальный этап из Dockerfile
       target: production
+      args:
+        - VITE_IS_PROD=true
+        - VITE_IS_DOCKER=true
     container_name: vue_frontend
     restart: always
     ports:
-      - "127.0.0.1:8080:80" # Внешний Nginx будет стучаться сюда
+      - "127.0.0.1:8080:80"
     depends_on:
       - app
+    # Эти переменные нужны и при запуске (runtime)
     environment:
       - VITE_IS_PROD=true
       - VITE_IS_DOCKER=true
