@@ -239,13 +239,11 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
                     continue
                 
                 if msg.text=='__DISCONNECTED__' and msg.ts == 0:
-                    print('here')
                     discplayer = None # отключившийся игрок
                     if msg.user_id == player1.user_id:
                         discplayer = player1
                     else:
                         discplayer = player2
-                    print('here2')
                     # ждём пока игрок переподключится
                     new_ws = await wait_for_reconnect(discplayer.user_id, timeout=reconnect_timeout)
                     if new_ws:
@@ -259,11 +257,11 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
                             t2 = asyncio.create_task(listen_messages(player2, messages))
                         await discplayer._ws.send_text("match started")
                         await discplayer._ws.send_text(f"{task_id}")
-                        print("player reconnected") # DEBUG
+                        #print("player reconnected") # DEBUG
                         continue # чтобы не обрабатывать дисконнект как ответ
 
                     else: # игрок не переподключился
-                        print("player did not reconnect") # DEBUG
+                        #print("player did not reconnect") # DEBUG
                         raise Exception # завершаем матч
                 
                 if msg.text[:14] == 'MessageToChat ':
@@ -356,7 +354,7 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
         return
 
     except Exception as e: # если кто-то отключился
-        print('pvp start_match,',e)
+        #print('pvp start_match,',e) #DEBUG
         is_connected[player1.user_id] = False
         is_connected[player2.user_id] = False
         # мы не знаем, кто отключился, поэтому пытаемся отправить сообщение обоим.
