@@ -1,10 +1,10 @@
 from fastapi import APIRouter,HTTPException,status
-from sqlalchemy import select, exists
+from sqlalchemy import select, exists, func
 from app.core.database import SessionDep
 from app.core.models import TaskModel, AttemptModel
 from app.schemas.task import TaskRead, AnswerCheckRequest, AnswerCheckResponse
 from app.core.dependencies import UserDep
-from app.core.constants import DifficultyLevel, Subject
+from app.core.constants import DifficultyLevel, Subject, Tag
 from app.utils.levels import rewards
 from app.utils.formatters import format_answer
 from app.utils.achievments import check_and_award_achievement
@@ -14,10 +14,13 @@ router=APIRouter(prefix='/tasks',tags=['Задачи'])
 @router.get('/',summary='Получить все задачи',description='Возвращает задачи в соответствии с фильтрами')
 async def get_tasks(
         session: SessionDep,
+        search: str | None = None,
         subject: Subject | None = None,
-        difficulty: DifficultyLevel | None = None
+        difficulty: DifficultyLevel | None = None,
+        tag: Tag | None = None
 
 ) -> list[TaskRead]:
+
     query= select(TaskModel)
 
     if subject:
@@ -26,11 +29,23 @@ async def get_tasks(
     if difficulty:
         query=query.where(TaskModel.difficulty == difficulty)
 
-    result = await session.execute(query) # ответ от бд, ждем ответа
+    if tag:
+        query=query.where(TaskModel.tags.contains([tag]))
 
-    tasks = result.scalars().all() # Здесь мы получаем [TaskModel, TaskModel...]
+    if search:
+        words = search.strip().split()
+        formatted_search = " & ".join([f"{word}:*" for word in words])
 
-    return tasks # FastAPI превратит это в [TaskRead, TaskRead...]
+        ts_query = func.to_tsquery('russian', formatted_search)
+        ts_vector = func.to_tsvector('russian', TaskModel.title + ' ' + TaskModel.description)
+
+        query = query.where(ts_vector.op('@@')(ts_query))
+
+    result = await session.execute(query)
+
+    tasks = result.scalars().all()
+
+    return tasks
 
 
 

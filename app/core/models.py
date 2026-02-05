@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Mapped,mapped_column
 from app.core.database import Model
-from sqlalchemy import Text, ForeignKey, func, Enum as SQLEnum, JSON
+from sqlalchemy import Text, ForeignKey, func, Enum as SQLEnum, Index,text
+from sqlalchemy.dialects.postgresql import JSONB
 from datetime import datetime
 from app.core.constants import DifficultyLevel,Tag,Subject,RankName,Achievement
 
@@ -14,7 +15,7 @@ class UserModel(Model):
     hashed_password: Mapped[str] = mapped_column()
     rating: Mapped[float] = mapped_column(default=1000.0)
     user_rank: Mapped[RankName] = mapped_column(SQLEnum(RankName, native_enum=False),default=RankName.BRONZE,server_default="BRONZE")
-    achievements: Mapped[list[Achievement]] = mapped_column(JSON, default_factory=list)
+    achievements: Mapped[list[Achievement]] = mapped_column(JSONB, default_factory=list)
     is_admin: Mapped[bool] = mapped_column(default=False)
     is_banned: Mapped[bool] = mapped_column(default=False)
     xp: Mapped[int] = mapped_column(default=0)
@@ -31,10 +32,15 @@ class TaskModel(Model):
     subject: Mapped[Subject] = mapped_column(SQLEnum(Subject, native_enum=False), index=True)
     correct_answer: Mapped[str] = mapped_column()
     difficulty: Mapped[DifficultyLevel] = mapped_column(SQLEnum(DifficultyLevel, native_enum=False), index=True)
-    tags: Mapped[list[Tag]] = mapped_column(JSON, default_factory=list)
+    tags: Mapped[list[Tag]] = mapped_column(JSONB, default_factory=list)
     hint: Mapped[str | None] = mapped_column(Text, default=None)
 
-
+Index(
+    'ix_tasks_fts',
+    func.to_tsvector(text("'russian'"), TaskModel.title + ' ' + TaskModel.description),
+    postgresql_using='gin'
+)
+Index('ix_tasks_tags', TaskModel.tags, postgresql_using='gin')
 
 class AttemptModel(Model):
     __tablename__ = 'attempts'
