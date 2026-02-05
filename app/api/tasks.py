@@ -1,5 +1,5 @@
 from fastapi import APIRouter,HTTPException,status
-from sqlalchemy import select, exists, func
+from sqlalchemy import select, exists, func, desc
 from app.core.database import SessionDep
 from app.core.models import TaskModel, AttemptModel
 from app.schemas.task import TaskRead, AnswerCheckRequest, AnswerCheckResponse
@@ -8,7 +8,7 @@ from app.core.constants import DifficultyLevel, Subject, Tag
 from app.utils.levels import rewards
 from app.utils.formatters import format_answer
 from app.utils.achievments import check_and_award_achievement
-
+from datetime import datetime, timedelta
 router=APIRouter(prefix='/tasks',tags=['Задачи'])
 
 @router.get('/',summary='Получить все задачи',description='Возвращает задачи в соответствии с фильтрами')
@@ -56,6 +56,30 @@ async def check_task_answer(
         session: SessionDep,
         current_user: UserDep
 ) -> AnswerCheckResponse:
+
+    last_attempts_query = (
+        select(AttemptModel)
+        .where(AttemptModel.user_id == current_user.id, AttemptModel.task_id == task_id)
+        .order_by(desc(AttemptModel.created_at))
+        .limit(2)
+    )
+    result = await session.execute(last_attempts_query)
+    last_attempts = result.scalars().all()
+
+    now = datetime.now()
+    spam_threshold = timedelta(seconds=2)
+    cooldown_duration = timedelta(seconds=10)
+
+    if len(last_attempts) >= 2:
+        previous_gap = last_attempts[0].created_at - last_attempts[1].created_at
+        current_gap = now - last_attempts[0].created_at
+        if previous_gap < spam_threshold:
+            if current_gap < cooldown_duration:
+                seconds_left = int((cooldown_duration - current_gap).total_seconds())
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail=f"Слишком много попыток! Подождите еще {seconds_left} сек."
+                )
     new_badges = []
     task = await session.get(TaskModel, task_id)
 
