@@ -83,7 +83,18 @@ async def get_my_profile(
     )
 
 
-ALLOWED_AVATAR_EXTENSIONS = {'png', 'jpg', 'jpeg', '.webp', 'heic', 'heif'}
+ALLOWED_AVATAR_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'heic', 'heif'}
+
+# app/api/profile.py
+import os
+import shutil
+import uuid
+from fastapi import UploadFile, File, HTTPException, status
+from app.core.config import settings
+
+# Добавляем расширения Apple и веб-форматы
+ALLOWED_AVATAR_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'heic', 'heif'}
+
 
 @router.post('/avatar', summary='Загрузить аватарку')
 async def upload_avatar(
@@ -96,37 +107,41 @@ async def upload_avatar(
     ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ""
 
     if not ext and file.content_type:
-        ext = file.content_type.split('/')[-1]
+        ext = file.content_type.split('/')[-1].lower()
+        if ext == 'octet-stream' and filename.lower().endswith('.heic'):
+            ext = 'heic'
 
     if ext not in ALLOWED_AVATAR_EXTENSIONS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f'Формат {ext} не поддерживается. Разрешены: {ALLOWED_AVATAR_EXTENSIONS}'
+            detail=f'Формат {ext} не поддерживается. Разрешены: {", ".join(ALLOWED_AVATAR_EXTENSIONS)}'
         )
 
     if current_user.avatar_url:
-        old_file_relative_path = current_user.avatar_url.replace('/api/', '').lstrip('/')
-        if os.path.exists(old_file_relative_path):
+        old_path = current_user.avatar_url.replace('/api/', '').lstrip('/')
+        if os.path.exists(old_path):
             try:
-                os.remove(old_file_relative_path)
+                os.remove(old_path)
             except Exception as e:
-                print(f"Не удалось удалить старый файл: {e}")
+                print(f"Ошибка удаления старого файла: {e}")
+
 
     file_name = f"user_{current_user.id}_{uuid.uuid4().hex}.{ext}"
-    static_dir = os.path.join("static", "avatars")
-    os.makedirs(static_dir, exist_ok=True)
-    file_disk_path = os.path.join(static_dir, file_name)
+    base_dir = Path(__file__).resolve().parent.parent.parent
+    static_dir = base_dir / "static" / "avatars"
+    static_dir.mkdir(parents=True, exist_ok=True)
+    file_disk_path = static_dir / file_name
 
     with open(file_disk_path, 'wb') as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    is_prod = IS_PROD == 'true'  #
-    generated_url = f"{'/api' if is_prod else ''}/static/avatars/{file_name}"
+    prefix = "/api" if IS_PROD else ""
+    generated_url = f"{prefix}/static/avatars/{file_name}"
 
     current_user.avatar_url = generated_url
     session.add(current_user)
 
-    new_badges = await check_and_award_achievement(current_user, session)  #
+    new_badges = await check_and_award_achievement(current_user, session)
     await session.commit()
 
     return {
