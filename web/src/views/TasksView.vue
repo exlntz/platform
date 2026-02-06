@@ -1,107 +1,105 @@
 <script setup>
 import { ref, reactive, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+import axios from 'axios'; // Используем axios, как и в твоем сторе
 import { useConstantsStore } from '@/pinia/ConstantsStore';
 
-// --- State & Stores ---
+// --- Config ---
+// Если у тебя axios настроен глобально (baseURL), можно убрать /api, 
+// но для надежности оставлю относительный путь или используй импорт инстанса
+const API_URL = '/tasks/'; 
+
+// --- Store & Router ---
 const constantsStore = useConstantsStore();
 const router = useRouter();
 const route = useRoute();
 
-// --- Data State ---
+// --- State ---
 const tasks = ref([]);
 const totalTasks = ref(0);
 const isLoading = ref(false);
 const error = ref(null);
 
 // --- Filters State ---
-// Инициализируем из query параметров URL для сохранения состояния при перезагрузке
+// Используем названия полей как в сторе: subject (вместо category)
 const filters = reactive({
   search: route.query.search || '',
-  category: route.query.category || '',
+  subject: route.query.subject || '',
   difficulty: route.query.difficulty || '',
 });
 
-// --- Pagination State ---
+// --- Pagination ---
 const pagination = reactive({
   page: Number(route.query.page) || 1,
-  limit: 20, // Размер страницы
+  limit: 20,
 });
 
-// --- Debounce Logic for Search ---
-let searchTimeout = null;
+// --- Utils ---
+let searchTimeout = null;     // Для debounce поиска
+let abortController = null;   // Для отмены старых запросов
 
-// --- Abort Controller (для отмены старых запросов) ---
-let abortController = null;
+// --- Actions ---
 
-// --- API Interaction ---
+/**
+ * Основная функция получения задач с сервера
+ */
 const fetchTasks = async () => {
-  // Отменяем предыдущий запрос, если он еще идет
-  if (abortController) {
-    abortController.abort();
-  }
+  // 1. Отмена предыдущего запроса (Race condition protection)
+  if (abortController) abortController.abort();
   abortController = new AbortController();
 
   isLoading.value = true;
   error.value = null;
 
   try {
-    // Формируем Query Parameters
-    const params = new URLSearchParams({
+    // 2. Формируем параметры запроса
+    const params = {
       skip: (pagination.page - 1) * pagination.limit,
       limit: pagination.limit,
+      // Добавляем фильтры только если они выбраны
+      ...(filters.search && { search: filters.search }),
+      ...(filters.subject && { subject: filters.subject }),
+      ...(filters.difficulty && { difficulty: filters.difficulty }),
+    };
+
+    // 3. Запрос через Axios
+    const response = await axios.get(API_URL, {
+      params,
+      signal: abortController.signal, // Связываем с контроллером отмены
     });
 
-    if (filters.search) params.append('search', filters.search);
-    if (filters.category) params.append('category', filters.category);
-    if (filters.difficulty) params.append('difficulty', filters.difficulty);
-
-    // Выполняем запрос
-    const response = await fetch(`/api/tasks/?${params.toString()}`, {
-      signal: abortController.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        // Добавь Authorization заголовок, если нужно (обычно берется из AuthStore или http-interceptor)
-      }
-    });
-
-    if (!response.ok) throw new Error(`Error: ${response.statusText}`);
-
-    const data = await response.json();
+    // 4. Обработка ответа
+    // Предполагаем формат { items: [], total: 100 } или просто []
+    const data = response.data;
     
-    // Адаптация под формат ответа (предполагая { items: [], total: ... } или просто [])
-    // Если бекенд возвращает просто массив:
     if (Array.isArray(data)) {
       tasks.value = data;
-      // Если API не возвращает total, считаем по факту (но лучше просить бекенд вернуть count)
-      totalTasks.value = data.length; 
+      totalTasks.value = data.length; // Или запросить count отдельным запросом
     } else {
-      // Если формат пагинации { items: [...], total: 100 }
       tasks.value = data.items || data.data || [];
       totalTasks.value = data.total || data.count || 0;
     }
 
-    // Синхронизация URL с фильтрами (Clean URL)
+    // 5. Синхронизация URL (чтобы можно было скинуть ссылку другу)
     updateUrl();
 
   } catch (err) {
-    if (err.name === 'AbortError') {
-      // Игнорируем ошибку отмены запроса
+    if (axios.isCancel(err)) {
+      // Запрос был отменен (нормальное поведение при быстром вводе)
       return;
     }
-    console.error('Failed to fetch tasks:', err);
-    error.value = 'Не удалось загрузить задачи. Попробуйте позже.';
+    console.error('Ошибка при загрузке задач:', err);
+    error.value = 'Не удалось загрузить список задач.';
   } finally {
     isLoading.value = false;
   }
 };
 
-// --- Helpers ---
 const updateUrl = () => {
   router.replace({
     query: {
       ...filters,
-      page: pagination.page > 1 ? pagination.page : undefined, // Не пишем page=1 в URL для чистоты
+      page: pagination.page > 1 ? pagination.page : undefined, // Не мусорим в URL
     }
   });
 };
@@ -114,30 +112,37 @@ const handlePageChange = (newPage) => {
 
 // --- Watchers ---
 
-// Следим за фильтрами (кроме поиска, для него отдельная логика с debounce)
+// 1. При изменении выпадающих списков — сразу грузим (сбрасывая на 1 страницу)
 watch(
-  () => [filters.category, filters.difficulty],
+  () => [filters.subject, filters.difficulty],
   () => {
-    pagination.page = 1; // Сброс на первую страницу при смене фильтров
+    pagination.page = 1;
     fetchTasks();
   }
 );
 
-// Специальный вотчер для поиска с Debounce (задержка ввода)
+// 2. При поиске — ждем (Debounce), чтобы не DDOS-ить сервер
 watch(
   () => filters.search,
-  (newVal) => {
+  () => {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
       pagination.page = 1;
       fetchTasks();
-    }, 400); // Ждем 400мс после последнего нажатия
+    }, 400); // 400ms задержка
   }
 );
 
 // --- Lifecycle ---
-onMounted(() => {
-  fetchTasks();
+onMounted(async () => {
+  // Запускаем параллельно: загрузку задач и загрузку справочников (если их нет)
+  const tasksPromise = fetchTasks();
+  
+  if (!constantsStore.isLoaded) {
+    await constantsStore.fetchConstants();
+  }
+  
+  await tasksPromise;
 });
 
 onUnmounted(() => {
@@ -145,131 +150,172 @@ onUnmounted(() => {
   clearTimeout(searchTimeout);
 });
 </script>
+
 <template>
   <div class="container mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold mb-8 text-gray-800 dark:text-white">Все задачи</h1>
+    
+    <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+      <h1 class="text-3xl font-bold text-gray-800 dark:text-white">Все задачи</h1>
+      <div v-if="!isLoading" class="text-sm text-gray-500 bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full">
+        Найдено: {{ totalTasks }}
+      </div>
+    </div>
 
-    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow mb-6 grid gap-4 md:grid-cols-4 items-end">
+    <div class="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 mb-8 grid gap-4 md:grid-cols-4 items-end">
       
       <div class="col-span-1 md:col-span-2">
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Поиск</label>
-        <input 
-          v-model="filters.search"
-          type="text" 
-          placeholder="Название задачи или тег..." 
-          class="w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none transition"
-        />
+        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Поиск</label>
+        <div class="relative">
+          <input 
+            v-model="filters.search"
+            type="text" 
+            placeholder="Название, тег или ключевое слово..." 
+            class="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+          />
+          <span class="absolute left-3 top-3 text-gray-400">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+          </span>
+        </div>
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Категория</label>
-        <select 
-          v-model="filters.category" 
-          class="w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none"
-        >
-          <option value="">Все категории</option>
-          <option 
-            v-for="cat in constantsStore.TASK_CATEGORIES" 
-            :key="cat.value || cat" 
-            :value="cat.value || cat"
+        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Предмет</label>
+        <div class="relative">
+          <select 
+            v-model="filters.subject" 
+            class="w-full appearance-none pl-4 pr-10 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition-all cursor-pointer"
+            :disabled="constantsStore.loading"
           >
-            {{ cat.label || cat }}
-          </option>
-        </select>
+            <option value="">Все предметы</option>
+            <option 
+              v-for="subj in constantsStore.subjects" 
+              :key="subj.key" 
+              :value="subj.key"
+            >
+              {{ subj.label }}
+            </option>
+          </select>
+          <div class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-500">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+          </div>
+        </div>
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Сложность</label>
-        <select 
-          v-model="filters.difficulty"
-          class="w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none"
-        >
-          <option value="">Любая сложность</option>
-          <option 
-            v-for="diff in constantsStore.TASK_DIFFICULTIES" 
-            :key="diff.value || diff" 
-            :value="diff.value || diff"
+        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Сложность</label>
+        <div class="relative">
+          <select 
+            v-model="filters.difficulty"
+            class="w-full appearance-none pl-4 pr-10 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition-all cursor-pointer"
+            :disabled="constantsStore.loading"
           >
-            {{ diff.label || diff }}
-          </option>
-        </select>
+            <option value="">Любая</option>
+            <option 
+              v-for="diff in constantsStore.difficulty" 
+              :key="diff.key" 
+              :value="diff.key"
+            >
+              {{ diff.label }}
+            </option>
+          </select>
+           <div class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-500">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div v-if="error" class="bg-red-100 text-red-700 p-4 rounded mb-6">
-      {{ error }}
+    <div v-if="error" class="bg-red-50 text-red-600 p-4 rounded-lg mb-6 border border-red-100 flex items-center gap-3">
+      <svg class="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+      <span>{{ error }}</span>
     </div>
 
-    <div v-if="isLoading && !tasks.length" class="flex justify-center py-12">
-      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+    <div v-if="isLoading && !tasks.length" class="grid grid-cols-1 md:grid-cols-3 gap-6 animate-pulse">
+       <div v-for="i in 6" :key="i" class="h-48 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
     </div>
 
-    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      <div 
+    <div v-else-if="tasks.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <article 
         v-for="task in tasks" 
         :key="task.id" 
-        class="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition duration-300 p-6 flex flex-col"
+        class="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-300 p-6 flex flex-col border border-gray-100 dark:border-gray-700"
       >
-        <div class="flex justify-between items-start mb-4">
-          <span 
-            class="px-2 py-1 text-xs font-semibold rounded bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-          >
-            {{ task.category }}
+        <div class="flex flex-wrap gap-2 mb-3">
+          <span class="px-2.5 py-0.5 text-xs font-semibold rounded-md bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
+            {{ constantsStore.getSubjectLabel(task.subject) }}
           </span>
           <span 
-            class="text-sm font-medium"
+            class="px-2.5 py-0.5 text-xs font-semibold rounded-md"
             :class="{
-              'text-green-500': task.difficulty === 'Easy',
-              'text-yellow-500': task.difficulty === 'Medium',
-              'text-red-500': task.difficulty === 'Hard'
+              'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300': task.difficulty === 'EASY',
+              'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300': task.difficulty === 'MEDIUM',
+              'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300': task.difficulty === 'HARD'
             }"
           >
-            {{ task.difficulty }}
+            {{ constantsStore.getDifficultyLabel(task.difficulty) }}
           </span>
         </div>
         
-        <h3 class="text-xl font-bold mb-2 text-gray-900 dark:text-white">{{ task.title }}</h3>
-        <p class="text-gray-600 dark:text-gray-400 text-sm mb-4 line-clamp-3 flex-grow">
-          {{ task.description || 'Нет описания' }}
+        <h3 class="text-xl font-bold mb-2 text-gray-900 dark:text-white leading-tight">
+          {{ task.title }}
+        </h3>
+        
+        <p class="text-gray-600 dark:text-gray-400 text-sm mb-5 line-clamp-3 flex-grow">
+          {{ task.description || 'Описание отсутствует' }}
         </p>
 
         <router-link 
           :to="`/tasks/${task.id}`" 
-          class="mt-auto block text-center w-full py-2 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded transition"
+          class="mt-auto block text-center w-full py-2.5 px-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg hover:bg-gray-800 dark:hover:bg-gray-100 transition font-medium"
         >
-          Решить задачу
+          Перейти к задаче
         </router-link>
-      </div>
+      </article>
     </div>
 
-    <div v-if="!isLoading && tasks.length === 0 && !error" class="text-center py-12 text-gray-500">
-      Задачи не найдены. Попробуйте изменить параметры поиска.
+    <div v-else-if="!isLoading && !error" class="flex flex-col items-center justify-center py-16 text-center">
+        <div class="bg-gray-100 dark:bg-gray-700 p-4 rounded-full mb-4">
+           <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+        </div>
+        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Ничего не найдено</h3>
+        <p class="text-gray-500 mt-1 max-w-sm">
+          Попробуйте изменить параметры поиска или сбросить фильтры.
+        </p>
+        <button 
+          @click="filters.search = ''; filters.subject = ''; filters.difficulty = ''" 
+          class="mt-4 text-indigo-600 hover:text-indigo-700 font-medium"
+        >
+            Очистить фильтры
+        </button>
     </div>
 
-    <div v-if="tasks.length && !isLoading" class="mt-8 flex justify-center items-center gap-4">
+    <div v-if="tasks.length > 0" class="mt-10 flex justify-center items-center gap-3 select-none">
       <button 
-        :disabled="pagination.page === 1"
+        :disabled="pagination.page === 1 || isLoading"
         @click="handlePageChange(pagination.page - 1)"
-        class="px-4 py-2 bg-white dark:bg-gray-800 border rounded disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+        class="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition"
       >
-        Назад
+        <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
       </button>
-      <span class="text-gray-700 dark:text-gray-300">
-        Страница {{ pagination.page }}
+      
+      <span class="text-sm font-medium text-gray-700 dark:text-gray-300 min-w-[3rem] text-center">
+        {{ pagination.page }}
       </span>
+
       <button 
-        :disabled="tasks.length < pagination.limit" 
+        :disabled="(tasks.length < pagination.limit) || isLoading" 
         @click="handlePageChange(pagination.page + 1)"
-        class="px-4 py-2 bg-white dark:bg-gray-800 border rounded disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+        class="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition"
       >
-        Вперед
+         <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
       </button>
     </div>
+
   </div>
 </template>
 
 <style scoped>
-/* Scoped styles if needed, but we rely on Tailwind */
+/* Утилита для обрезки текста */
 .line-clamp-3 {
   display: -webkit-box;
   -webkit-line-clamp: 3;
