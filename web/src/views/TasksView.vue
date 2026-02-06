@@ -3,6 +3,7 @@ import { ref, reactive, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import axios from 'axios'; // Используем axios, как и в твоем сторе
 import { useConstantsStore } from '@/pinia/ConstantsStore';
+import { shallowRef } from 'vue';
 
 // --- Config ---
 // Если у тебя axios настроен глобально (baseURL), можно убрать /api, 
@@ -15,7 +16,9 @@ const router = useRouter();
 const route = useRoute();
 
 // --- State ---
-const tasks = ref([]);
+
+
+const tasks = shallowRef([]);
 const totalTasks = ref(0);
 const isLoading = ref(false);
 const error = ref(null);
@@ -271,6 +274,12 @@ onUnmounted(() => {
           Перейти к задаче
         </router-link>
       </article>
+      <BasePagination 
+        :current="pagination.page" 
+        :total="totalTasks" 
+        :limit="pagination.limit"
+        @change="handlePageChange"
+      />
     </div>
 
     <div v-else-if="!isLoading && !error" class="flex flex-col items-center justify-center py-16 text-center">
