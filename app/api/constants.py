@@ -6,18 +6,10 @@ router = APIRouter(prefix='/constants', tags=['Константы'])
 @router.get("/", summary='Получить все константы')
 async def get_constants():
     return {
-        "subjects": [
-            {"key": s.value, "label": s.label} for s in Subject
-        ],
-        "tags": [
-            {"key": t.value, "label": t.label} for t in Tag
-        ],
-        "difficulty": [
-            {"key": d.value, "label": d.value} for d in DifficultyLevel
-        ],
-        "ranks": [
-            {"key": r.value, "label": r.label} for r in RankName
-        ]
+        "subjects": Subject.to_list(),
+        "tags": Tag.to_list(),
+        "difficulty": DifficultyLevel.to_list(),
+        "ranks": RankName.to_list()
     }
 
 
@@ -25,6 +17,13 @@ async def get_constants():
 async def get_available_tags(subject: Subject | None = None):
 
     if subject and subject in SUBJECT_TO_TAGS:
-        return SUBJECT_TO_TAGS[subject]
+        tags_list = SUBJECT_TO_TAGS[subject]
+        return [
+            {
+                "key": t.value,
+                "label": t.label,
+            }
+            for t in tags_list
+        ]
 
-    return list(Tag)
+    return Tag.to_list()

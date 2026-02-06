@@ -3,17 +3,18 @@ from enum import Enum
 
 class BaseStrEnum(str, Enum):
     @property
-    def label(self):
-        return SUBJECT_DISPLAY.get(self) or TAG_DISPLAY.get(self) or self.value
+    def label(self) -> str:
+        return self.value
 
     @classmethod
-    def _missing_(cls, value):
-        if isinstance(value, str):
-            v_upper = value.upper()
-            for member in cls:
-                if member.value == v_upper:
-                    return member
-        return None
+    def to_list(cls):
+        return [
+            {
+                "key": item.value,
+                "label": item.label,
+            }
+            for item in cls
+        ]
 
 
 class Subject(BaseStrEnum):
@@ -23,28 +24,82 @@ class Subject(BaseStrEnum):
     RUSS = "RUSS"
     ENGLISH = "ENGLISH"
     PHYS = "PHYS"
-    ASTROPHYSICS = "ASTROPHYSICS"
+
+    @property
+    def label(self):
+        labels = {
+            Subject.PYTHON: "Python",
+            Subject.MATH: "Математика",
+            Subject.INF: "Информатика",
+            Subject.RUSS: "Русский язык",
+            Subject.ENGLISH: "Английский язык",
+            Subject.PHYS: "Физика"
+        }
+        return labels[self]
 
 
 class Tag(BaseStrEnum):
-    SPACE = "SPACE"
+    TYPES = "TYPES"
+    OOP = "OOP"
+    WEB = "WEB"
     LOGARITHMS = "LOGARITHMS"
     ARITHMETIC = "ARITHMETIC"
-
     GEOM = "GEOM"
     ALGEBRA = "ALGEBRA"
     TRIG = "TRIG"
-    TYPES = "TYPES"
     SYS = "SYS"
+    DP = "DP"
+    GRAPHS = "GRAPHS"
     SENTENCES = "SENTENCES"
+    ORTHOGRAPHY = "ORTHOGRAPHY"
+    PUNCTUATION = "PUNCTUATION"
     TIMES = "TIMES"
+    GRAMMAR = "GRAMMAR"
+    VOCABULARY = "VOCABULARY"
     SECTIONS = "SECTIONS"
+    MECHANICS = "MECHANICS"
+    THERMO = "THERMO"
+
+    @property
+    def label(self) -> str:
+        labels = {
+            Tag.TYPES: "Типы данных",
+            Tag.OOP: "ООП",
+            Tag.WEB: "Веб-разработка",
+            Tag.LOGARITHMS: "Логарифмы",
+            Tag.ARITHMETIC: "Арифметика",
+            Tag.GEOM: "Геометрия",
+            Tag.ALGEBRA: "Алгебра",
+            Tag.TRIG: "Тригонометрия",
+            Tag.SYS: "Системы счисления",
+            Tag.DP: "Динамическое программирование",
+            Tag.GRAPHS: "Теория графов",
+            Tag.SENTENCES: "Синтаксис и предложения",
+            Tag.ORTHOGRAPHY: "Орфография",
+            Tag.PUNCTUATION: "Пунктуация",
+            Tag.TIMES: "Времена (Tenses)",
+            Tag.GRAMMAR: "Грамматика",
+            Tag.VOCABULARY: "Лексика",
+            Tag.SECTIONS: "Разделы физики",
+            Tag.MECHANICS: "Механика",
+            Tag.THERMO: "Термодинамика",
+        }
+        return labels[self]
 
 
 class DifficultyLevel(BaseStrEnum):
     EASY = "EASY"
     MEDIUM = "MEDIUM"
     HARD = "HARD"
+
+    @property
+    def label(self):
+        labels = {
+            self.EASY: "Легкая",
+            self.MEDIUM: "Средняя",
+            self.HARD: "Сложная"
+        }
+        return labels[self]
 
 
 class RankName(BaseStrEnum):
@@ -54,6 +109,18 @@ class RankName(BaseStrEnum):
     ELITE = "ELITE"
     SENSEI = "SENSEI"
     LEGEND = "LEGEND"
+
+    @property
+    def label(self):
+        labels = {
+            RankName.BRONZE: "Бронза",
+            RankName.SILVER: "Серебро",
+            RankName.GOLD: "Золото",
+            RankName.ELITE: "Элита",
+            RankName.SENSEI: "Сенсей",
+            RankName.LEGEND: "Легенда"
+        }
+        return labels[self]
 
 class Achievement(BaseStrEnum):
     FIRST_STEP = "FIRST_STEP"  # Решил 1 задачу
@@ -67,40 +134,25 @@ class Achievement(BaseStrEnum):
             Achievement.GURU: "Гуру",
             Achievement.PROFILE_MASTER: "Красавчик!"
         }
-        return labels.get(self, self.value)
-
-
-
-SUBJECT_DISPLAY = {
-    Subject.PYTHON: "Python",
-    Subject.MATH: "Математика",
-    Subject.INF: "Информатика",
-    Subject.RUSS: "Русский язык",
-    Subject.ENGLISH: "Английский язык",
-    Subject.PHYS: "Физика",
-    Subject.ASTROPHYSICS: "Астрофизика"
-}
-
-TAG_DISPLAY = {
-    Tag.SPACE: "Космос",
-    Tag.LOGARITHMS: "Логарифмы",
-    Tag.ARITHMETIC: "Арифметика",
-    Tag.GEOM: "Геометрия",
-    Tag.ALGEBRA: "Алгебра",
-    Tag.TRIG: "Тригонометрия",
-    Tag.TYPES: "Типы данных",
-    Tag.SYS: "Системы счисления",
-    Tag.SENTENCES: "Виды предложений",
-    Tag.TIMES: "Времена",
-    Tag.SECTIONS: "Разделы физики"
-}
+        return labels[self]
 
 SUBJECT_TO_TAGS = {
-    Subject.PYTHON: [Tag.TYPES],
-    Subject.MATH: [Tag.ALGEBRA, Tag.ARITHMETIC, Tag.TRIG, Tag.GEOM, Tag.LOGARITHMS],
-    Subject.INF: [Tag.SYS],
-    Subject.RUSS: [Tag.SENTENCES],
-    Subject.ENGLISH: [Tag.TIMES],
-    Subject.PHYS: [Tag.SECTIONS],
-    Subject.ASTROPHYSICS: [Tag.SPACE, Tag.LOGARITHMS]
+    Subject.PYTHON: [
+        Tag.TYPES, Tag.OOP, Tag.WEB
+    ],
+    Subject.MATH: [
+        Tag.LOGARITHMS, Tag.ARITHMETIC, Tag.GEOM, Tag.ALGEBRA, Tag.TRIG
+    ],
+    Subject.INF: [
+        Tag.SYS, Tag.DP, Tag.GRAPHS
+    ],
+    Subject.RUSS: [
+        Tag.SENTENCES, Tag.ORTHOGRAPHY, Tag.PUNCTUATION
+    ],
+    Subject.ENGLISH: [
+        Tag.TIMES, Tag.GRAMMAR, Tag.VOCABULARY
+    ],
+    Subject.PHYS: [
+        Tag.SECTIONS, Tag.MECHANICS, Tag.THERMO
+    ],
 }
