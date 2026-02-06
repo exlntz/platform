@@ -2,8 +2,10 @@
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { ref, onMounted, watch, computed } from 'vue'
 import { useTimerRunner } from '@/pinia/TimerRunner.js'
-
+import { useConstantsStore } from '@/pinia/ConstantsStore.js' // <--- Импортируем
 // runs once for entire SPA
+
+const constantsStore = useConstantsStore() // <--- Инициализируем
 useTimerRunner()
 
 /**
@@ -69,7 +71,7 @@ const themeLabel = computed(() => {
 })
 
 // Инициализация проверки при первой загрузке компонента
-onMounted(() => {
+onMounted(async () => {
   checkAuth()
   checkSavedTheme()
   
@@ -81,6 +83,7 @@ onMounted(() => {
       localStorage.setItem('dark-theme', 'true')
     }
   }
+  await constantsStore.fetchConstants()
 })
 
 /**
@@ -132,6 +135,9 @@ const closeMenu = () => {
         </RouterLink>
         <RouterLink to="/leaderboard" class="nav-link">
           Рейтинг
+        </RouterLink>
+        <RouterLink to="/statistics" class="nav-link">
+          Статистика
         </RouterLink>
         
         <!-- Кнопка переключения темы (только для десктопа) -->
@@ -247,6 +253,10 @@ const closeMenu = () => {
             <RouterLink to="/leaderboard" class="mobile-nav-link" @click="closeMenu">
               <span class="mobile-nav-icon">🏆</span>
               <span class="mobile-nav-text">Рейтинг</span>
+            </RouterLink>
+            <RouterLink to="/leaderboard" class="mobile-nav-link" @click="closeMenu">
+              <span class="mobile-nav-icon">📊</span>
+              <span class="mobile-nav-text">Статистика</span>
             </RouterLink>
           </div>
 

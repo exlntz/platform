@@ -1,3 +1,4 @@
+from fastapi import HTTPException,status
 from app.core.constants import Tag, Subject, DifficultyLevel
 from app.core.config import settings
 from groq import AsyncGroq
@@ -19,7 +20,8 @@ ai_prompt = """Ты — профессиональный методист и с�
 5. Строго соблюдай предоставленную JSON-схему. Вывод должен содержать ТОЛЬКО валидный JSON без лишнего текста.
 6. Задача должна быть на русском языке"""
 
-lst=['llama-3.3-70b-versatile','openai/gpt-oss-120b']
+lst=['openai/gpt-oss-120b','llama-3.3-70b-versatile','meta-llama/llama-4-maverick-17b-128e-instruct','meta-llama/llama-4-scout-17b-16e-instruct']
+
 async def generate_task(subject: Subject, difficulty: DifficultyLevel):
 
     allowed_tags = [t.value for t in Tag]
@@ -34,32 +36,52 @@ async def generate_task(subject: Subject, difficulty: DifficultyLevel):
             - Ответ должен быть однозначным.
             """
 
-    completion = await client.chat.completions.create(
-        messages=[
-            {
-                "role": "system",
-                "content": ai_prompt
-            },
-            {
-                "role": "user",
-                "content": user_prompt
-            }
-        ],
-        response_format={
-            "type": "json_schema",
-            "json_schema": {
-                "name": "generated_task_schema",
-                "strict": True,
-                "schema": GeneratedTask.model_json_schema()
-            }
-        },
-        model="openai/gpt-oss-120b",
-        temperature=0.5,
-        max_completion_tokens=2000,
-        top_p=0.9,
-        stream=False,
-        stop=None,
-        include_reasoning=False,
+    for model in lst:
+        try:
+            if model == 'openai/gpt-oss-120b':
+                response_format = {
+                    {
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": "generated_task_schema",
+                            "strict": True,
+                            "schema": GeneratedTask.model_json_schema()
+                        }
+                    }
+                }
+            else:
+                response_format = {
+                    {
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": "generated_task_schema",
+                            "schema": GeneratedTask.model_json_schema()
+                        }
+                    }
+                }
+            completion = await client.chat.completions.create(
+                messages=[
+                    {
+                        "role": "system",
+                        "content": ai_prompt
+                    },
+                    {
+                        "role": "user",
+                        "content": user_prompt
+                    }
+                ],
+                response_format=response_format,
+                model="openai/gpt-oss-120b",
+                temperature=0.5,
+                max_completion_tokens=2000,
+                top_p=0.9,
+                stream=False,
+                stop=None,
+                include_reasoning=False,
 
-    )
-    return GeneratedTask.model_validate_json(completion.choices[0].message.content)
+            )
+            return GeneratedTask.model_validate_json(completion.choices[0].message.content)
+        except:
+            continue
+
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE)

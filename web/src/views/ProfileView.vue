@@ -10,9 +10,6 @@ const profile = ref(null)
 const error = ref(null)
 const fileInput = ref(null)
 
-const showExtendedStats = ref(false)
-const subjectStats = ref([])
-const eloHistory = ref([]) // <--- ДОБАВИТЬ ЭТУ СТРОКУ
 
 // --- ЛОГИКА РАНГОВ ---
 const getRankInfo = (elo) => {
@@ -85,20 +82,14 @@ const fetchProfile = async () => {
     const headers = { Authorization: `Bearer ${token}` }
 
     // Выполняем запросы параллельно для ускорения
-    const [profileRes, statsRes, elo_history] = await Promise.all([
-      axios.get('/profile/'),       // Убрали http://127.0.0.1:8000
-      axios.get('/profile/stats'),
-      axios.get('/profile/elo_history')
+    const [profileRes] = await Promise.all([
+      axios.get('/profile/'),
     ])
 
     profile.value = {
       user: profileRes.data,
       stats: profileRes.data // Общая статистика из профиля
     }
-
-    // Сохраняем статистику по предметам (массив)
-    subjectStats.value = statsRes.data.stats || []
-    eloHistory.value = elo_history.data || [] // <--- 2. Сохраняем историю
 
   } catch (err) {
     console.error('Ошибка профиля:', err)
@@ -121,245 +112,6 @@ const formatDate = (dateString) => {
   })
 }
 
-
-// Список всех предметов, которые должны быть на графике ВСЕГДА
-const ALL_SUBJECTS = ['Математика', 'Информатика', 'Физика', 'Алгоритмы']
-
-// --- RADAR CHART (Количество + Точность) ---
-const radarChartData = computed(() => {
-  const currentStats = subjectStats.value || []
-
-  // Создаем карту данных
-  const statsMap = {}
-  currentStats.forEach(s => { statsMap[s.subject] = s })
-
-  const labels = ALL_SUBJECTS
-  const rawSolved = []
-  const rawAccuracy = []
-
-  labels.forEach(subject => {
-    const stat = statsMap[subject]
-    if (stat) {
-      rawSolved.push(stat.correct_count)
-      rawAccuracy.push(stat.accuracy_percent)
-    } else {
-      rawSolved.push(0)
-      rawAccuracy.push(0)
-    }
-  })
-
-  // Нормализация для количества задач (чтобы график был красивым)
-  const maxSolved = Math.max(...rawSolved) || 1
-
-  return {
-    labels: labels,
-    datasets: [
-      {
-        label: 'Решено задач',
-        // Нормализуем к 100% шкале
-        data: rawSolved.map(val => (val / maxSolved) * 100),
-        originalData: rawSolved, // Реальные данные для подсказки
-
-        backgroundColor: 'rgba(34, 197, 94, 0.2)', // Green
-        borderColor: '#22c55e',
-        pointBackgroundColor: '#22c55e',
-        pointBorderColor: '#fff',
-        pointHoverBackgroundColor: '#fff',
-        pointHoverBorderColor: '#22c55e',
-      },
-      {
-        label: '% Правильных',
-        // Точность уже в процентах (0-100), нормализация не нужна
-        data: rawAccuracy,
-        originalData: rawAccuracy,
-
-        backgroundColor: 'rgba(59, 130, 246, 0.2)', // Blue
-        borderColor: '#3b82f6',
-        pointBackgroundColor: '#3b82f6',
-        pointBorderColor: '#fff',
-        pointHoverBackgroundColor: '#fff',
-        pointHoverBorderColor: '#3b82f6',
-      }
-    ]
-  }
-})
-
-const radarChartOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  scales: {
-    r: {
-      min: 0,
-      max: 100, // Шкала всегда 0-100%
-      angleLines: { display: true, color: '#e2e8f0' },
-      grid: { color: '#e2e8f0' },
-      pointLabels: {
-        font: { size: 12, weight: '600' },
-        color: '#64748b'
-      },
-      ticks: { display: false, backdropColor: 'transparent' }
-    }
-  },
-  plugins: {
-    legend: { position: 'top', labels: { font: { size: 11 } } },
-    tooltip: {
-      callbacks: {
-        label: function(context) {
-          const label = context.dataset.label || '';
-          const rawValue = context.dataset.originalData[context.dataIndex];
-          // Если это точность, добавляем %, иначе просто число
-          const suffix = label.includes('Точность') ? '%' : '';
-          return `${label}: ${rawValue}${suffix}`;
-        }
-      }
-    }
-  }
-}
-
-
-// --- BAR CHART (Среднее время) ---
-const barChartData = computed(() => {
-  // 1. Добавляем проверку на наличие данных (как в Radar)
-  if (!subjectStats.value || subjectStats.value.length === 0) return null
-
-  const currentStats = subjectStats.value
-  const statsMap = {}
-  currentStats.forEach(s => { statsMap[s.subject] = s })
-
-  const labels = ALL_SUBJECTS
-  const timeData = []
-
-  labels.forEach(subject => {
-    const stat = statsMap[subject]
-    timeData.push(stat ? Math.round(stat.average_time) : 0)
-  })
-
-  // Если все значения 0, тоже можно считать, что данных нет (опционально)
-  if (timeData.every(t => t === 0)) return null
-
-  return {
-    labels: labels,
-    datasets: [
-      {
-        label: 'Ср. время (сек)',
-        data: timeData,
-        backgroundColor: [
-          'rgba(255, 99, 132, 0.6)',
-          'rgba(54, 162, 235, 0.6)',
-          'rgba(255, 206, 86, 0.6)',
-          'rgba(75, 192, 192, 0.6)',
-        ],
-        borderColor: [
-          'rgba(255, 99, 132, 1)',
-          'rgba(54, 162, 235, 1)',
-          'rgba(255, 206, 86, 1)',
-          'rgba(75, 192, 192, 1)',
-        ],
-        borderWidth: 1,
-        borderRadius: 6,
-      }
-    ]
-  }
-})
-
-const barChartOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  scales: {
-    y: {
-      beginAtZero: true,
-      // Убрали max: 100, так как время может быть любым (например, 300 сек)
-      grid: { color: '#e2e8f0' },
-      ticks: {
-        callback: (value) => `${value}с` // Добавляем букву 'с' к оси Y
-      }
-    },
-    x: { grid: { display: false } }
-  },
-  plugins: {
-    legend: { display: false }, // Легенда не нужна, подписи есть снизу
-    tooltip: {
-      callbacks: {
-        label: (context) => `Время: ${context.raw} сек`
-      }
-    }
-  }
-}
-
-// --- LINE CHART (Динамика рейтинга) ---
-const lineChartData = computed(() => {
-  // 1. Проверяем, есть ли история
-  if (!eloHistory.value || eloHistory.value.length === 0) return null
-
-  // Сортируем: старые -> новые
-  const sortedHistory = [...eloHistory.value].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
-
-  // Если истории меньше 2 точек, график строить скучно, но можно.
-  // Если пусто - возвращаем null.
-  if (sortedHistory.length === 0) return null
-
-  const labels = sortedHistory.map(h =>
-    new Date(h.created_at).toLocaleDateString('ru-RU', {
-      day: 'numeric',
-      month: 'short'
-    })
-  )
-
-  const dataValues = sortedHistory.map(h => h.rating)
-
-  return {
-    labels: labels,
-    datasets: [
-      {
-        label: 'Рейтинг',
-        data: dataValues,
-        borderColor: '#4f46e5',
-        backgroundColor: 'rgba(79,70,229,0.2)',
-        pointBackgroundColor: '#4f46e5',
-        pointBorderColor: '#fff',
-        borderWidth: 2,
-        tension: 0.4,
-        fill: true
-      }
-    ]
-  }
-})
-
-const lineChartOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: {
-      display: false // Скрываем легенду, если там всего одна линия
-    },
-    tooltip: {
-      backgroundColor: '#1e293b',
-      padding: 12,
-      cornerRadius: 8,
-      displayColors: false, // Убираем цветной квадрат в тултипе
-    }
-  },
-  scales: {
-    x: {
-      grid: {
-        display: false // Убираем вертикальные линии сетки
-      },
-      ticks: {
-        color: '#94a3b8'
-      }
-    },
-    y: {
-      grid: {
-        borderDash: [5, 5], // Пунктирная сетка
-        color: '#e2e8f0'
-      },
-      ticks: {
-        color: '#94a3b8',
-        precision: 0 // Только целые числа
-      }
-    }
-  }
-}
 onMounted(() => {
   fetchProfile()
 })
@@ -491,70 +243,6 @@ onMounted(() => {
             <p class="stat-description">сила твоего аккаунта</p>
           </div>
         </div>
-
-        <button
-          @click="showExtendedStats = !showExtendedStats"
-          class="toggle-stats-btn"
-          :class="{ 'active': showExtendedStats }"
-        >
-          <span>{{ showExtendedStats ? 'Скрыть статистику' : 'Расширенная статистика' }}</span>
-          <span class="btn-icon">{{ showExtendedStats ? '▲' : '▼' }}</span>
-        </button>
-
-        <template v-if="showExtendedStats">
-
-          <template v-if="profile.stats.correct_solutions >= 1">
-
-            <div class="stat-card chart-container">
-              <h3 class="chart-title">Статистика по предметам</h3>
-              <div class="chart-wrapper">
-                <Radar
-                  v-if="radarChartData"
-                  :data="radarChartData"
-                  :options="radarChartOptions"
-                />
-                <div v-else class="no-data-label">Нет данных по навыкам</div>
-              </div>
-            </div>
-
-            <div class="stat-card chart-container">
-              <h3 class="chart-title">Среднее время решения</h3>
-              <div class="chart-wrapper">
-                <Bar
-                  v-if="barChartData"
-                  :data="barChartData"
-                  :options="barChartOptions"
-                />
-                <div v-else class="no-data-label">Нет данных о времени</div>
-              </div>
-            </div>
-
-            <div class="stat-card chart-container full-width-chart">
-              <h3 class="chart-title">История рейтинга</h3>
-              <div class="chart-wrapper">
-                <Line
-                  v-if="lineChartData"
-                  :data="lineChartData"
-                  :options="lineChartOptions"
-                />
-                <div v-else class="no-data-label">История рейтинга пуста</div>
-              </div>
-            </div>
-
-        </template>
-
-        <div v-else class="stat-card chart-container empty-state-full">
-          <div class="empty-content">
-            <div class="empty-icon">🔒</div>
-            <p class="empty-title">Статистика недоступна</p>
-            <p class="empty-desc">
-              Необходимо решить хотя бы 1 задачу, чтобы алгоритмы могли построить ваши графики.
-            </p>
-            <router-link to="/tasks" class="solve-btn">Перейти к задачам</router-link>
-          </div>
-        </div>
-
-      </template>
   </div>
 </div>
 
