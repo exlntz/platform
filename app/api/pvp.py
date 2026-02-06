@@ -406,7 +406,8 @@ async def match_players():
                 now - p1.joined_at,
                 now - p2.joined_at
             )
-            allowed_elo_diff = 100+wait_time*5 # каждую секунду увеличиваем допустимую разницу в эло на 5
+
+            allowed_elo_diff = 50*wait_time # с каждой секундой увеличиваем допустимую разницу в эло
 
             if p2.rating - p1.rating < allowed_elo_diff: # если подходить, то начинаем матч
 
