@@ -4,17 +4,19 @@ import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { Line, Radar, Bar } from 'vue-chartjs'
 
+import { useConstantsStore } from '@/pinia/ConstantsStore.js' // 1. Импорт стора
+
+
 
 const router = useRouter()
+const constants = useConstantsStore() // 2. Инициализация стора
+
 const loading = ref(true)
 const error = ref(null)
 
 const subjectStats = ref([])
 const eloHistory = ref([])
-const profile = ref(null) // Нужно для проверки, решил ли пользователь хоть одну задачу
-
-// Список предметов для графиков
-const ALL_SUBJECTS = ['Математика', 'Информатика', 'Физика', 'Алгоритмы']
+const profile = ref(null)
 
 // --- API ---
 const fetchStats = async () => {
@@ -34,7 +36,6 @@ const fetchStats = async () => {
       axios.get('/profile/elo_history', { headers })
     ])
 
-    // Сохраняем данные
     profile.value = profileRes.data
     subjectStats.value = statsRes.data.stats || []
     eloHistory.value = eloHistoryRes.data || []
@@ -51,13 +52,21 @@ const fetchStats = async () => {
 const radarChartData = computed(() => {
   const currentStats = subjectStats.value || []
   const statsMap = {}
+  // Создаем карту: 'MATH' -> { correct_count: 10, ... }
   currentStats.forEach(s => { statsMap[s.subject] = s })
 
+  const subjectsList = constants.subjects // Берем список из стора
+  const labels = []
   const rawSolved = []
   const rawAccuracy = []
 
-  ALL_SUBJECTS.forEach(subject => {
-    const stat = statsMap[subject]
+  subjectsList.forEach(subj => {
+    // 3. Формируем подписи (Labels)
+    labels.push(subj.label) 
+
+    // 4. Ищем данные по Ключу (Key)
+    const stat = statsMap[subj.key] 
+
     if (stat) {
       rawSolved.push(stat.correct_count)
       rawAccuracy.push(stat.accuracy_percent)
@@ -70,7 +79,7 @@ const radarChartData = computed(() => {
   const maxSolved = Math.max(...rawSolved) || 1
 
   return {
-    labels: ALL_SUBJECTS,
+    labels: labels, // Динамические лейблы
     datasets: [
       {
         label: 'Решено задач',
@@ -122,26 +131,50 @@ const radarChartOptions = {
 // --- BAR CHART (Время) ---
 const barChartData = computed(() => {
   if (!subjectStats.value || subjectStats.value.length === 0) return null
+  
   const currentStats = subjectStats.value
   const statsMap = {}
   currentStats.forEach(s => { statsMap[s.subject] = s })
+  
+  const subjectsList = constants.subjects
+  const labels = []
   const timeData = []
   
-  ALL_SUBJECTS.forEach(subject => {
-    const stat = statsMap[subject]
+  subjectsList.forEach(subj => {
+    labels.push(subj.label)
+    const stat = statsMap[subj.key]
     timeData.push(stat ? Math.round(stat.average_time) : 0)
   })
   
   if (timeData.every(t => t === 0)) return null
 
+  // Генерируем массив цветов (циклично), так как количество предметов теперь динамическое
+  const bgColors = []
+  const borderColors = []
+  const baseColors = [
+    ['rgba(255, 99, 132, 0.6)', 'rgba(255, 99, 132, 1)'],
+    ['rgba(54, 162, 235, 0.6)', 'rgba(54, 162, 235, 1)'],
+    ['rgba(255, 206, 86, 0.6)', 'rgba(255, 206, 86, 1)'],
+    ['rgba(75, 192, 192, 0.6)', 'rgba(75, 192, 192, 1)'],
+    ['rgba(153, 102, 255, 0.6)', 'rgba(153, 102, 255, 1)'],
+    ['rgba(255, 159, 64, 0.6)', 'rgba(255, 159, 64, 1)']
+  ]
+  
+  timeData.forEach((_, index) => {
+    const colorPair = baseColors[index % baseColors.length]
+    bgColors.push(colorPair[0])
+    borderColors.push(colorPair[1])
+  })
+
   return {
-    labels: ALL_SUBJECTS,
+    labels: labels,
     datasets: [{
       label: 'Ср. время (сек)',
       data: timeData,
-      backgroundColor: ['rgba(255, 99, 132, 0.6)', 'rgba(54, 162, 235, 0.6)', 'rgba(255, 206, 86, 0.6)', 'rgba(75, 192, 192, 0.6)'],
-      borderColor: ['rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)', 'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)'],
-      borderWidth: 1, borderRadius: 6
+      backgroundColor: bgColors,
+      borderColor: borderColors,
+      borderWidth: 1, 
+      borderRadius: 6
     }]
   }
 })
@@ -183,6 +216,11 @@ const lineChartOptions = {
 
 onMounted(() => {
   fetchStats()
+  // Если константы еще не загружены (например, прямой заход на страницу),
+  // стоит их подгрузить.
+  if (constants.subjects.length === 0) {
+    constants.fetchConstants()
+  }
 })
 </script>
 
@@ -207,6 +245,7 @@ onMounted(() => {
             <h3 class="chart-title">Карта навыков</h3>
             <div class="chart-wrapper">
               <Radar v-if="radarChartData" :data="radarChartData" :options="radarChartOptions" />
+              <div v-else class="no-data-label">Загрузка предметов...</div>
             </div>
           </div>
 

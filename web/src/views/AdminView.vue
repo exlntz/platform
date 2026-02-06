@@ -1,7 +1,9 @@
-[file name]: AdminView.vue
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import axios from 'axios'
+import { useConstantsStore } from '@/pinia/ConstantsStore.js' // 1. Импорт стора
+
+const constants = useConstantsStore() // 2. Инициализация
 
 // --- СОСТОЯНИЕ ИНТЕРФЕЙСА ---
 const currentTab = ref('dashboard')
@@ -9,22 +11,21 @@ const accessDenied = ref(false)
 const loading = ref(false)
 const showTaskModal = ref(false)
 const fileInput = ref(null)
-const isSidebarCollapsed = ref(false) // Новое: состояние боковой панели для мобильных
+const isSidebarCollapsed = ref(false)
 
-// --- НОВОЕ: УПРАВЛЕНИЕ ПОЛЬЗОВАТЕЛЯМИ ---
-const activeMenuId = ref(null) // ID пользователя, у которого открыто меню действий
-const showUserEditModal = ref(false) // Флаг показа модалки редактирования профиля
+// --- УПРАВЛЕНИЕ ПОЛЬЗОВАТЕЛЯМИ ---
+const activeMenuId = ref(null)
+const showUserEditModal = ref(false)
 const userEditForm = ref({ id: null, username: '', email: '', rating: 0 })
 
 // --- РЕДАКТИРОВАНИЕ ЗАДАЧ ---
 const isEditMode = ref(false)
 const currentEditId = ref(null)
-// Временное хранилище для ввода тегов строкой "тег1, тег2"
 const tagsInput = ref('')
 
 // --- СОРТИРОВКА ЗАДАЧ ---
-const sortKey = ref('id') // По умолчанию сортируем по ID
-const sortOrder = ref('asc') // По возрастанию (1, 2, 3...)
+const sortKey = ref('id')
+const sortOrder = ref('asc')
 
 // --- ДАННЫЕ ---
 const stats = ref({
@@ -38,28 +39,23 @@ const users = ref([])
 const tasks = ref([])
 const logs = ref([])
 
-// Определяем цвет бейджа на основе действия
 const getBadgeClass = (action) => {
   const act = action.toLowerCase()
-  if (act.includes('delete') || act.includes('ban')) return 'hard'   // Красный
-  if (act.includes('update') || act.includes('edit')) return 'medium' // Желтый
-  if (act.includes('create') || act.includes('add')) return 'easy'    // Зеленый
-  return '' // Серый по умолчанию
+  if (act.includes('delete') || act.includes('ban')) return 'hard'
+  if (act.includes('update') || act.includes('edit')) return 'medium'
+  if (act.includes('create') || act.includes('add')) return 'easy'
+  return ''
 }
 
-// Форма задачи (Обновлена структура под новые требования)
 const taskForm = ref({
   title: '',
   description: '',
   subject: '',
-  tags: [], // Массив строк вместо theme
-  difficulty: 'Easy',
+  tags: [],
+  difficulty: '',
   correct_answer: '',
-  hint: '' // Новое поле
+  hint: ''
 })
-
-const difficultyOptions = ['Easy', 'Medium', 'Hard']
-const subjectOptions = ['Математика', 'Информатика', 'Физика', 'Алгоритмы']
 
 // --- ВЫЧИСЛЯЕМЫЕ СВОЙСТВА (СОРТИРОВКА) ---
 const sortedTasks = computed(() => {
@@ -69,19 +65,17 @@ const sortedTasks = computed(() => {
     let valA = a[sortKey.value]
     let valB = b[sortKey.value]
 
-    // Веса для сложности
+    // Веса для сложности (используем ключи UPPERCASE)
     if (sortKey.value === 'difficulty') {
-      const weights = { 'Easy': 1, 'Medium': 2, 'Hard': 3 }
+      const weights = { 'EASY': 1, 'MEDIUM': 2, 'HARD': 3 }
       valA = weights[valA] || 0
       valB = weights[valB] || 0
     }
 
-    // Числа
     if (typeof valA === 'number' && typeof valB === 'number') {
       return (valA - valB) * modifier
     }
 
-    // Строки
     if (typeof valA === 'string' && typeof valB === 'string') {
       return valA.localeCompare(valB) * modifier
     }
@@ -109,22 +103,16 @@ const handleApiError = (err) => {
     accessDenied.value = true
   } else {
     console.error('API Error:', err)
-    // Показываем сообщение об ошибке (например, "Имя пользователя занято")
     alert('Ошибка: ' + (err.response?.data?.detail || err.message))
   }
 }
-// Специальный форматтер для логов (UTC -> Local)
+
 const formatLogDate = (dateString) => {
   if (!dateString) return '-'
-  // Если бэкенд отдает "2023-10-10T12:00:00" без Z, считаем это UTC
   const dateValue = dateString.endsWith('Z') ? dateString : dateString + 'Z'
   return new Date(dateValue).toLocaleString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit'
   })
 }
 
@@ -161,43 +149,33 @@ const fetchLogs = async () => {
   if (accessDenied.value) return
   loading.value = true
   try {
-    // Загружаем последние 50 логов (можно увеличить limit)
     const response = await axios.get('/admin/logs?limit=50', getAuthHeader())
     logs.value = response.data
   } catch (err) { handleApiError(err) }
   finally { loading.value = false }
 }
-// --- УПРАВЛЕНИЕ ПОЛЬЗОВАТЕЛЯМИ (НОВОЕ) ---
 
-// Переключение меню действий
+// --- УПРАВЛЕНИЕ ПОЛЬЗОВАТЕЛЯМИ ---
 const toggleMenu = (event, id) => {
   event.stopPropagation()
   activeMenuId.value = activeMenuId.value === id ? null : id
 }
 
-// Открытие модалки редактирования
 const openEditUser = (user) => {
   userEditForm.value = { ...user }
   showUserEditModal.value = true
-  activeMenuId.value = null // Закрыть меню
+  activeMenuId.value = null
 }
 
-// Универсальное обновление пользователя (Бан, Роль, Данные)
 const updateUserAction = async (userId, data, successMessage = null) => {
   try {
     await axios.patch(`/admin/users/${userId}`, data, getAuthHeader())
-
     if (successMessage) alert(successMessage)
-
-    fetchUsers() // Обновляем таблицу
-    showUserEditModal.value = false // Закрываем модалку при успехе
-  } catch (err) {
-    // Здесь ловится 400 Bad Request, если имя занято
-    handleApiError(err)
-  }
+    fetchUsers()
+    showUserEditModal.value = false
+  } catch (err) { handleApiError(err) }
 }
 
-// Удаление пользователя
 const deleteUser = async (user) => {
   if (!confirm(`Вы уверены, что хотите безвозвратно удалить пользователя ${user.username}?`)) return
   try {
@@ -212,15 +190,15 @@ const deleteUser = async (user) => {
 const openCreateModal = () => {
   isEditMode.value = false
   currentEditId.value = null
-  tagsInput.value = '' // Очищаем поле тегов
+  tagsInput.value = ''
 
-  // Инициализируем форму с пустыми значениями и пустым hint
+  // Инициализация дефолтными значениями из стора (берем первый доступный элемент или запасной вариант)
   taskForm.value = {
     title: '',
     description: '',
-    subject: 'Математика',
+    subject: constants.subjects[0]?.key || '', 
     tags: [],
-    difficulty: 'Easy',
+    difficulty: constants.difficulty[0]?.key || 'EASY',
     correct_answer: '',
     hint: ''
   }
@@ -231,22 +209,17 @@ const openEditModal = async (task) => {
   isEditMode.value = true
   currentEditId.value = task.id
   taskForm.value = { ...task }
-
-  // Превращаем массив тегов в строку для отображения в input
   tagsInput.value = (task.tags && Array.isArray(task.tags)) ? task.tags.join(', ') : ''
-
   showTaskModal.value = true
   try {
     const { data } = await axios.get(`/admin/tasks/${task.id}`, getAuthHeader())
     taskForm.value = { ...data }
-    // Обновляем теги и hint из полных данных задачи
     tagsInput.value = (data.tags && Array.isArray(data.tags)) ? data.tags.join(', ') : ''
   } catch (e) { handleApiError(e) }
 }
 
 const saveTask = async () => {
   try {
-    // Превращаем строку тегов обратно в массив перед отправкой
     taskForm.value.tags = tagsInput.value
       .split(',')
       .map(tag => tag.trim())
@@ -304,46 +277,35 @@ const handleImport = async (event) => {
   finally { loading.value = false; event.target.value = '' }
 }
 
-const formatDate = (dateString) => {
-  if (!dateString) return '-'
-  return new Date(dateString).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-}
+const toggleSidebar = () => { isSidebarCollapsed.value = !isSidebarCollapsed.value }
 
-// Переключение боковой панели
-const toggleSidebar = () => {
-  isSidebarCollapsed.value = !isSidebarCollapsed.value
-}
-
-// Жизненный цикл
 onMounted(() => {
-  window.addEventListener('click', () => { activeMenuId.value = null }) // Закрываем меню при клике вне
+  window.addEventListener('click', () => { activeMenuId.value = null })
   fetchStats()
   fetchUsers()
+  // Если константы еще не загружены (например, прямой заход), подгружаем
+  if (constants.subjects.length === 0) {
+    constants.fetchConstants()
+  }
 })
 </script>
 
 <template>
   <div v-if="accessDenied" class="access-denied-container">
     <div class="access-denied-content">
-      <div class="access-denied-icon">
-        <span>🔒</span>
-      </div>
+      <div class="access-denied-icon"><span>🔒</span></div>
       <div class="access-denied-text">
         <h1>Доступ запрещен</h1>
-        <p>У вас недостаточно прав для просмотра этой страницы. <br>
-           Эта зона только для администраторов.</p>
+        <p>У вас недостаточно прав для просмотра этой страницы.<br>Эта зона только для администраторов.</p>
       </div>
       <div class="access-denied-actions">
-        <router-link to="/" class="home-btn">
-          На главную
-        </router-link>
+        <router-link to="/" class="home-btn">На главную</router-link>
       </div>
       <p class="error-code">ERROR CODE: 403 FORBIDDEN</p>
     </div>
   </div>
 
   <div v-else class="admin-container">
-    <!-- Мобильное меню -->
     <div class="mobile-menu-btn" @click="toggleSidebar">
       <span class="burger-line"></span>
       <span class="burger-line"></span>
@@ -360,192 +322,105 @@ onMounted(() => {
       </div>
 
       <nav class="sidebar-nav">
-        <button
-          @click="currentTab = 'dashboard'; isSidebarCollapsed = false"
-          class="nav-btn"
-          :class="{ active: currentTab === 'dashboard' }"
-        >
+        <button @click="currentTab = 'dashboard'; isSidebarCollapsed = false" class="nav-btn" :class="{ active: currentTab === 'dashboard' }">
           <span class="nav-icon">📊</span> <span class="nav-text">Дашборд</span>
         </button>
-        <button
-          @click="currentTab = 'users'; isSidebarCollapsed = false"
-          class="nav-btn"
-          :class="{ active: currentTab === 'users' }"
-        >
+        <button @click="currentTab = 'users'; isSidebarCollapsed = false" class="nav-btn" :class="{ active: currentTab === 'users' }">
           <span class="nav-icon">👥</span> <span class="nav-text">Пользователи</span>
         </button>
-        <button
-          @click="currentTab = 'tasks'; fetchTasks(); isSidebarCollapsed = false"
-          class="nav-btn"
-          :class="{ active: currentTab === 'tasks' }"
-        >
+        <button @click="currentTab = 'tasks'; fetchTasks(); isSidebarCollapsed = false" class="nav-btn" :class="{ active: currentTab === 'tasks' }">
           <span class="nav-icon">📝</span> <span class="nav-text">Задачи</span>
         </button>
-        <button
-          @click="currentTab = 'logs'; fetchLogs(); isSidebarCollapsed = false"
-          class="nav-btn"
-          :class="{ active: currentTab === 'logs' }"
-        >
+        <button @click="currentTab = 'logs'; fetchLogs(); isSidebarCollapsed = false" class="nav-btn" :class="{ active: currentTab === 'logs' }">
           <span class="nav-icon">🛡️</span> <span class="nav-text">Логи</span>
         </button>
       </nav>
 
       <div class="sidebar-footer">
-        <router-link to="/" class="back-to-site" @click="isSidebarCollapsed = false">
-          ← Вернуться на сайт
-        </router-link>
+        <router-link to="/" class="back-to-site" @click="isSidebarCollapsed = false">← Вернуться на сайт</router-link>
       </div>
     </aside>
 
     <main class="admin-main">
-      <!-- Dashboard Tab -->
       <div v-if="currentTab === 'dashboard'" class="dashboard-tab">
         <div class="dashboard-header">
           <h1>Обзор системы</h1>
           <span class="live-badge">Live Updates</span>
         </div>
-
         <div class="stats-container">
           <div class="stat-card">
-            <div class="stat-header">
-              <div class="stat-icon users-icon">👥</div>
-              <span class="stat-label">Всего</span>
-            </div>
-            <p class="stat-value">{{ stats.total_users }}</p>
-            <p class="stat-description">пользователей</p>
+            <div class="stat-header"><div class="stat-icon users-icon">👥</div><span class="stat-label">Всего</span></div>
+            <p class="stat-value">{{ stats.total_users }}</p><p class="stat-description">пользователей</p>
           </div>
-
           <div class="stat-card">
-            <div class="stat-header">
-              <div class="stat-icon growth-icon">🔥</div>
-              <span class="stat-label">Динамика</span>
-            </div>
-            <p class="stat-value">+{{ stats.new_users_24h }}</p>
-            <p class="stat-description">за 24 часа</p>
+            <div class="stat-header"><div class="stat-icon growth-icon">🔥</div><span class="stat-label">Динамика</span></div>
+            <p class="stat-value">+{{ stats.new_users_24h }}</p><p class="stat-description">за 24 часа</p>
           </div>
-
           <div class="stat-card">
-            <div class="stat-header">
-              <div class="stat-icon skill-icon">⭐</div>
-              <span class="stat-label">Скилл</span>
-            </div>
-            <p class="stat-value">{{ stats.average_rating }}</p>
-            <p class="stat-description">средний ELO</p>
+            <div class="stat-header"><div class="stat-icon skill-icon">⭐</div><span class="stat-label">Скилл</span></div>
+            <p class="stat-value">{{ stats.average_rating }}</p><p class="stat-description">средний ELO</p>
           </div>
-
           <div class="stat-card">
-            <div class="stat-header">
-              <div class="stat-icon trends-icon">📚</div>
-              <span class="stat-label">Тренды</span>
-            </div>
-            <p class="stat-value">{{ stats.most_popular_subject }}</p>
-            <p class="stat-description">выбор игроков</p>
+            <div class="stat-header"><div class="stat-icon trends-icon">📚</div><span class="stat-label">Тренды</span></div>
+            <p class="stat-value">{{ stats.most_popular_subject }}</p><p class="stat-description">выбор игроков</p>
           </div>
         </div>
       </div>
 
-      <!-- Users Tab -->
       <div v-if="currentTab === 'users'" class="users-tab">
         <div class="tab-header">
           <h1>Управление пользователями</h1>
-          <button @click="fetchUsers" class="refresh-btn">
-            🔄 Обновить
-          </button>
+          <button @click="fetchUsers" class="refresh-btn">🔄 Обновить</button>
         </div>
-
         <div class="table-wrapper">
           <div class="responsive-table">
             <table class="users-table">
               <thead>
                 <tr class="table-head">
-                  <th>ID</th>
-                  <th class="user-column">Пользователь</th>
-                  <th>Рейтинг</th>
-                  <th class="date-column">Дата регистрации</th>
-                  <th class="status-column">Роль / Статус</th>
-                  <th class="actions-header">Действия</th>
+                  <th>ID</th><th class="user-column">Пользователь</th><th>Рейтинг</th><th class="date-column">Дата регистрации</th><th class="status-column">Роль / Статус</th><th class="actions-header">Действия</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="user in users" :key="user.id" class="table-row">
                   <td class="user-id">#{{ user.id }}</td>
                   <td class="user-cell">
-                    <div class="user-avatar">
-                      {{ user.username.charAt(0).toUpperCase() }}
-                    </div>
-                    <div class="user-details">
-                      <p class="user-name">{{ user.username }}</p>
-                      <p class="user-email">{{ user.email }}</p>
-                    </div>
+                    <div class="user-avatar">{{ user.username.charAt(0).toUpperCase() }}</div>
+                    <div class="user-details"><p class="user-name">{{ user.username }}</p><p class="user-email">{{ user.email }}</p></div>
                   </td>
-                  <td class="rating-cell">
-                    <span class="rating-badge">{{ user.rating }}</span>
-                  </td>
-                  <td class="register-date">
-                    {{ formatDate(user.created_at) }}
-                  </td>
+                  <td class="rating-cell"><span class="rating-badge">{{ user.rating }}</span></td>
+                  <td class="register-date">{{ formatDate(user.created_at) }}</td>
                   <td class="status-cell">
                     <div class="status-container">
-                      <span class="status-badge" :class="{ banned: user.is_banned }">
-                        {{ user.is_banned ? 'Banned' : 'Active' }}
-                      </span>
-                      <span v-if="user.is_admin" class="admin-badge">
-                        Admin
-                      </span>
+                      <span class="status-badge" :class="{ banned: user.is_banned }">{{ user.is_banned ? 'Banned' : 'Active' }}</span>
+                      <span v-if="user.is_admin" class="admin-badge">Admin</span>
                     </div>
                   </td>
                   <td class="actions-cell">
-                    <button
-                      @click="toggleMenu($event, user.id)"
-                      class="actions-btn"
-                    >
-                      Действия ▾
-                    </button>
-
+                    <button @click="toggleMenu($event, user.id)" class="actions-btn">Действия ▾</button>
                     <div v-if="activeMenuId === user.id" class="actions-dropdown">
-                      <button @click="openEditUser(user)" class="dropdown-item">
-                        <span class="item-icon">✏️</span> <span>Изменить данные</span>
-                      </button>
-                      <button @click="updateUserAction(user.id, { is_admin: !user.is_admin })" class="dropdown-item">
-                        <span class="item-icon">{{ user.is_admin ? '⭐' : '👑' }}</span> <span>{{ user.is_admin ? 'Снять админа' : 'Сделать админом' }}</span>
-                      </button>
-                      <button @click="updateUserAction(user.id, { is_banned: !user.is_banned })" class="dropdown-item">
-                        <span class="item-icon">{{ user.is_banned ? '🔓' : '🚫' }}</span> <span>{{ user.is_banned ? 'Разблокировать' : 'Заблокировать' }}</span>
-                      </button>
+                      <button @click="openEditUser(user)" class="dropdown-item"><span class="item-icon">✏️</span> <span>Изменить данные</span></button>
+                      <button @click="updateUserAction(user.id, { is_admin: !user.is_admin })" class="dropdown-item"><span class="item-icon">{{ user.is_admin ? '⭐' : '👑' }}</span> <span>{{ user.is_admin ? 'Снять админа' : 'Сделать админом' }}</span></button>
+                      <button @click="updateUserAction(user.id, { is_banned: !user.is_banned })" class="dropdown-item"><span class="item-icon">{{ user.is_banned ? '🔓' : '🚫' }}</span> <span>{{ user.is_banned ? 'Разблокировать' : 'Заблокировать' }}</span></button>
                       <div class="dropdown-divider"></div>
-                      <button @click="deleteUser(user)" class="dropdown-item delete-item">
-                        <span class="item-icon">🗑️</span> <span>Удалить</span>
-                      </button>
+                      <button @click="deleteUser(user)" class="dropdown-item delete-item"><span class="item-icon">🗑️</span> <span>Удалить</span></button>
                     </div>
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
-
-          <div v-if="!loading && users.length === 0" class="empty-table">
-            <div class="empty-icon">🔍</div>
-            <p class="empty-title">Пользователи не найдены</p>
-            <p class="empty-subtitle">Список пуст или произошла ошибка загрузки</p>
-          </div>
+          <div v-if="!loading && users.length === 0" class="empty-table"><div class="empty-icon">🔍</div><p class="empty-title">Пользователи не найдены</p></div>
         </div>
       </div>
 
-      <!-- Tasks Tab -->
       <div v-if="currentTab === 'tasks'" class="tasks-tab">
         <div class="tab-header tasks-tab-header">
           <h1>Управление задачами</h1>
           <div class="tasks-actions">
             <input type="file" ref="fileInput" class="file-upload" accept=".json" @change="handleImport">
-            <button @click="triggerImport" class="import-btn" title="Импорт задач">
-              📥
-            </button>
-            <button @click="exportTasks" class="export-btn" title="Экспорт задач">
-              📤
-            </button>
-            <button @click="openCreateModal" class="create-btn">
-              <span class="plus-icon">+</span> Создать
-            </button>
+            <button @click="triggerImport" class="import-btn" title="Импорт задач">📥</button>
+            <button @click="exportTasks" class="export-btn" title="Экспорт задач">📤</button>
+            <button @click="openCreateModal" class="create-btn"><span class="plus-icon">+</span> Создать</button>
           </div>
         </div>
 
@@ -554,18 +429,10 @@ onMounted(() => {
             <table class="tasks-table">
               <thead>
                 <tr class="table-head">
-                  <th @click="sortBy('id')" class="sortable-column">
-                    ID <span v-if="sortKey === 'id'" class="sort-indicator">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
-                  </th>
-                  <th @click="sortBy('title')" class="sortable-column task-column">
-                    Задача <span v-if="sortKey === 'title'" class="sort-indicator">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
-                  </th>
-                  <th @click="sortBy('subject')" class="sortable-column">
-                    Предмет <span v-if="sortKey === 'subject'" class="sort-indicator">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
-                  </th>
-                  <th @click="sortBy('difficulty')" class="sortable-column">
-                    Сложность <span v-if="sortKey === 'difficulty'" class="sort-indicator">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
-                  </th>
+                  <th @click="sortBy('id')" class="sortable-column">ID <span v-if="sortKey === 'id'" class="sort-indicator">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span></th>
+                  <th @click="sortBy('title')" class="sortable-column task-column">Задача <span v-if="sortKey === 'title'" class="sort-indicator">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span></th>
+                  <th @click="sortBy('subject')" class="sortable-column">Предмет <span v-if="sortKey === 'subject'" class="sort-indicator">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span></th>
+                  <th @click="sortBy('difficulty')" class="sortable-column">Сложность <span v-if="sortKey === 'difficulty'" class="sort-indicator">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span></th>
                   <th class="answer-column">Ответ</th>
                   <th class="actions-header">Действие</th>
                 </tr>
@@ -573,51 +440,29 @@ onMounted(() => {
               <tbody>
                 <tr v-for="task in sortedTasks" :key="task.id" class="table-row task-row">
                   <td class="task-id">#{{ task.id }}</td>
-                  <td class="task-cell">
-                    <p class="task-title">{{ task.title }}</p>
-                    <p class="task-description">{{ task.description.substring(0, 60) }}...</p>
-                  </td>
+                  <td class="task-cell"><p class="task-title">{{ task.title }}</p><p class="task-description">{{ task.description.substring(0, 60) }}...</p></td>
                   <td>
-                    <span class="subject-badge">{{ task.subject }}</span>
+                    <span class="subject-badge">{{ constants.getSubjectLabel(task.subject) }}</span>
                   </td>
                   <td>
                     <span class="difficulty-badge" :class="task.difficulty.toLowerCase()">
-                      {{ task.difficulty }}
+                      {{ constants.getDifficultyLabel(task.difficulty) }}
                     </span>
                   </td>
-                  <td class="answer-cell">
-                    <code class="answer-code">{{ task.correct_answer || '***' }}</code>
-                    <span class="answer-placeholder">***</span>
-                  </td>
+                  <td class="answer-cell"><code class="answer-code">{{ task.correct_answer || '***' }}</code><span class="answer-placeholder">***</span></td>
                   <td class="task-actions-cell">
-                    <button
-                      @click="openEditModal(task)"
-                      class="action-icon edit-icon"
-                      title="Редактировать"
-                    >
-                      <span>✏️</span>
-                    </button>
-                    <button
-                      @click="deleteTask(task.id)"
-                      class="action-icon delete-icon"
-                      title="Удалить задачу"
-                    >
-                      <span>🗑️</span>
-                    </button>
+                    <button @click="openEditModal(task)" class="action-icon edit-icon" title="Редактировать"><span>✏️</span></button>
+                    <button @click="deleteTask(task.id)" class="action-icon delete-icon" title="Удалить задачу"><span>🗑️</span></button>
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
-
-          <div v-if="!loading && tasks.length === 0" class="empty-tasks">
-            Задач пока нет. Создайте первую!
-          </div>
+          <div v-if="!loading && tasks.length === 0" class="empty-tasks">Задач пока нет. Создайте первую!</div>
         </div>
       </div>
     </main>
 
-    <!-- Task Modal -->
     <div v-if="showTaskModal" class="modal-overlay">
       <div class="task-modal">
         <div class="modal-header">
@@ -630,13 +475,17 @@ onMounted(() => {
             <div class="form-group">
               <label class="form-label">Предмет</label>
               <select v-model="taskForm.subject" required class="form-select">
-                <option v-for="s in subjectOptions" :key="s" :value="s">{{ s }}</option>
+                <option v-for="s in constants.subjects" :key="s.key" :value="s.key">
+                  {{ s.label }}
+                </option>
               </select>
             </div>
             <div class="form-group">
               <label class="form-label">Сложность</label>
               <select v-model="taskForm.difficulty" required class="form-select">
-                <option v-for="d in difficultyOptions" :key="d" :value="d">{{ d }}</option>
+                <option v-for="d in constants.difficulty" :key="d.key" :value="d.key">
+                  {{ d.label }}
+                </option>
               </select>
             </div>
           </div>
@@ -653,7 +502,7 @@ onMounted(() => {
 
           <div class="form-group">
             <label class="form-label">Подсказка</label>
-            <textarea v-model="taskForm.hint" rows="2" placeholder="Необязательная подсказка для режима тренировки..." class="form-textarea"></textarea>
+            <textarea v-model="taskForm.hint" rows="2" placeholder="Необязательная подсказка..." class="form-textarea"></textarea>
           </div>
 
           <div class="form-group">
@@ -667,115 +516,50 @@ onMounted(() => {
           </div>
 
           <div class="form-submit">
-            <button type="submit" class="submit-btn">
-              {{ isEditMode ? 'Сохранить изменения' : 'Создать задачу' }}
-            </button>
+            <button type="submit" class="submit-btn">{{ isEditMode ? 'Сохранить изменения' : 'Создать задачу' }}</button>
           </div>
         </form>
       </div>
     </div>
 
-    <!-- User Edit Modal -->
     <div v-if="showUserEditModal" class="modal-overlay">
       <div class="user-modal">
-        <div class="modal-header">
-          <h2>Редактировать профиль</h2>
-          <button @click="showUserEditModal = false" class="close-modal">✕</button>
-        </div>
+        <div class="modal-header"><h2>Редактировать профиль</h2><button @click="showUserEditModal = false" class="close-modal">✕</button></div>
         <form @submit.prevent="updateUserAction(userEditForm.id, userEditForm, 'Данные сохранены')" class="modal-form">
-          <div class="form-group">
-            <label class="form-label">Имя пользователя</label>
-            <input v-model="userEditForm.username" class="form-input">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Email</label>
-            <input v-model="userEditForm.email" class="form-input">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Рейтинг ELO</label>
-            <input v-model.number="userEditForm.rating" type="number" class="form-input">
-          </div>
-          <div class="form-actions">
-            <button type="submit" class="save-btn">Сохранить</button>
-            <button @click="showUserEditModal = false" type="button" class="cancel-btn">Отмена</button>
-          </div>
+          <div class="form-group"><label class="form-label">Имя пользователя</label><input v-model="userEditForm.username" class="form-input"></div>
+          <div class="form-group"><label class="form-label">Email</label><input v-model="userEditForm.email" class="form-input"></div>
+          <div class="form-group"><label class="form-label">Рейтинг ELO</label><input v-model.number="userEditForm.rating" type="number" class="form-input"></div>
+          <div class="form-actions"><button type="submit" class="save-btn">Сохранить</button><button @click="showUserEditModal = false" type="button" class="cancel-btn">Отмена</button></div>
         </form>
       </div>
     </div>
 
-    <!-- Logs Tab -->
     <div v-if="currentTab === 'logs'" class="logs-tab">
-      <div class="tab-header">
-        <h1>Аудит действий</h1>
-        <button @click="fetchLogs" class="refresh-btn">
-          🔄 Обновить
-        </button>
-      </div>
-
+      <div class="tab-header"><h1>Аудит действий</h1><button @click="fetchLogs" class="refresh-btn">🔄 Обновить</button></div>
       <div class="table-wrapper">
         <div class="responsive-table">
           <table class="users-table">
-            <thead>
-            <tr class="table-head">
-              <th>ID</th>
-              <th>Время</th>
-              <th>Администратор</th>
-              <th>Действие</th>
-              <th>Цель</th>
-              <th style="width: 40%">Детали</th>
-            </tr>
-            </thead>
+            <thead><tr class="table-head"><th>ID</th><th>Время</th><th>Администратор</th><th>Действие</th><th>Цель</th><th style="width: 40%">Детали</th></tr></thead>
             <tbody>
             <tr v-for="log in logs" :key="log.id" class="table-row">
               <td class="user-id">#{{ log.id }}</td>
-
-              <td class="register-date">
-                {{ formatLogDate(log.created_at) }}
-              </td>
-
+              <td class="register-date">{{ formatLogDate(log.created_at) }}</td>
               <td class="user-cell">
-                <div class="user-avatar" :class="{'admin-badge-bg': true}">
-                  {{ log.admin_username ? log.admin_username.charAt(0).toUpperCase() : '?' }}
-                </div>
-                <div class="user-details">
-                  <p class="user-name">{{ log.admin_username || 'Неизвестно' }}</p>
-                  <p class="user-email">Admin ID: {{ log.admin_id }}</p>
-                </div>
+                <div class="user-avatar" :class="{'admin-badge-bg': true}">{{ log.admin_username ? log.admin_username.charAt(0).toUpperCase() : '?' }}</div>
+                <div class="user-details"><p class="user-name">{{ log.admin_username || 'Неизвестно' }}</p><p class="user-email">Admin ID: {{ log.admin_id }}</p></div>
               </td>
-
-              <td>
-                    <span
-                      class="difficulty-badge"
-                      :class="getBadgeClass(log.action)"
-                    >
-                      {{ log.action }}
-                    </span>
-              </td>
-
-              <td class="user-id">
-                {{ log.target_id ? '#' + log.target_id : '-' }}
-              </td>
-
-              <td class="task-cell" style="max-width: 300px;">
-                <p class="task-description" :title="log.details">
-                  {{ log.details }}
-                </p>
-              </td>
+              <td><span class="difficulty-badge" :class="getBadgeClass(log.action)">{{ log.action }}</span></td>
+              <td class="user-id">{{ log.target_id ? '#' + log.target_id : '-' }}</td>
+              <td class="task-cell" style="max-width: 300px;"><p class="task-description" :title="log.details">{{ log.details }}</p></td>
             </tr>
             </tbody>
           </table>
         </div>
-
-        <div v-if="!loading && logs.length === 0" class="empty-table">
-          <div class="empty-icon">📝</div>
-          <p class="empty-title">Логов пока нет</p>
-          <p class="empty-subtitle">Действия администраторов будут появляться здесь</p>
-        </div>
+        <div v-if="!loading && logs.length === 0" class="empty-table"><div class="empty-icon">📝</div><p class="empty-title">Логов пока нет</p></div>
       </div>
     </div>
   </div>
 </template>
-
 <style scoped>
 /* ==================== БАЗОВЫЕ СТИЛИ ==================== */
 
