@@ -1,6 +1,7 @@
 import { fileURLToPath, URL } from 'node:url'
 import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig(({ mode }) => {
   // 1. Указываем путь к папке, где лежит .env (если он в корне проекта, это '../')
@@ -27,7 +28,7 @@ export default defineConfig(({ mode }) => {
     // Говорим Vite искать .env файлы в корневой папке
     envDir: envDir,
 
-    plugins: [vue()],
+    plugins: [vue(),tailwindcss()],
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url))

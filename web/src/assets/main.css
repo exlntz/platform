@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+/* 1. Вместо исходников берем готовый CSS файл из dist */
+@import "flowbite/dist/flowbite.css";
+
+/* 2. Подключаем плагин (Vite сам найдет его в node_modules) */
+@plugin "flowbite/plugin";
+
+/* 3. Указываем путь для сканирования JS-файлов Flowbite */
+/* Путь relative: поднимаемся из assets (..) -> src (..) -> web -> node_modules */
+@source "../../node_modules/flowbite";

@@ -1,7 +1,7 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import axios from 'axios'
-
+import './assets/main.css'
 import App from './App.vue'
 import router from './router'
 
@@ -77,19 +77,19 @@ const darkThemeStyles = `
     background-color: #0f172a;
     color: #f1f5f9;
   }
-  
+
   .dark a {
     color: #60a5fa;
   }
-  
+
   .dark a:hover {
     color: #93c5fd;
   }
-  
+
   .dark button {
     transition: background-color 0.2s ease, color 0.2s ease;
   }
-  
+
   /* Плавный переход для всей страницы */
   * {
     transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
