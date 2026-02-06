@@ -20,7 +20,7 @@ export const useConstantsStore = defineStore('constants', () => {
     try {
       // Предполагаем, что эндпоинт на бэке называется /constants
       // Если у тебя /api/constants, axios сам подставит baseURL если он настроен
-      const response = await axios.get('/constants') 
+      const response = await axios.get('/constants/') 
       
       subjects.value = response.data.subjects
       tags.value = response.data.tags
