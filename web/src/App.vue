@@ -133,6 +133,9 @@ const closeMenu = () => {
         <RouterLink to="/leaderboard" class="nav-link">
           Рейтинг
         </RouterLink>
+        <RouterLink to="/statistics" class="nav-link">
+          Статистика
+        </RouterLink>
         
         <!-- Кнопка переключения темы (только для десктопа) -->
         <button 
@@ -247,6 +250,10 @@ const closeMenu = () => {
             <RouterLink to="/leaderboard" class="mobile-nav-link" @click="closeMenu">
               <span class="mobile-nav-icon">🏆</span>
               <span class="mobile-nav-text">Рейтинг</span>
+            </RouterLink>
+            <RouterLink to="/leaderboard" class="mobile-nav-link" @click="closeMenu">
+              <span class="mobile-nav-icon">📊</span>
+              <span class="mobile-nav-text">Статистика</span>
             </RouterLink>
           </div>
 
