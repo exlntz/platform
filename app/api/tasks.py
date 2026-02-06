@@ -9,6 +9,7 @@ from app.utils.levels import rewards
 from app.utils.formatters import format_answer
 from app.utils.achievments import check_and_award_achievement
 from datetime import datetime, timedelta, timezone
+from app.services.ai_service import generate_task
 router=APIRouter(prefix='/tasks',tags=['Задачи'])
 
 @router.get('/',summary='Получить все задачи',description='Возвращает задачи в соответствии с фильтрами')
@@ -132,7 +133,24 @@ async def check_task_answer(
 
 
 
+@router.get('/generate',summary='Генерирует задачу по заданным параметрам')
+async def generate_task_for_user(
+        subject: Subject,
+        difficulty: DifficultyLevel
+):
+    max_attempts = 3
+    error = None
+    for attempt in range(max_attempts):
+        try:
+            return await generate_task(subject, difficulty)
+        except Exception as e:
+            error = e
+            continue
 
+    raise HTTPException(
+        status_code=500,
+        detail=f"Не удалось сгенерировать сложную задачу. Ошибка: {str(error)}"
+    )
 
 
 @router.get('/{task_id}',summary='Получение задачи по ее id без ответа')

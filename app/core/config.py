@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     DB_PASS: str
     DB_NAME: str
     VITE_IS_PROD: str
+    GROQ_API_KEY: str | None = None
 
     @property
     def DATABASE_URL(self):
