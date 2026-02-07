@@ -32,15 +32,6 @@ const rankStyle = computed(() => {
   }
 })
 
-const progressToNextRank = computed(() => {
-  if (!profile.value) return 0
-  const currentElo = profile.value.user.rating
-  const { next } = getRankInfo(currentElo)
-  // Защита от деления на 0 или странных значений
-  if (!next) return 100
-  const percent = Math.min((currentElo / next) * 100, 100)
-  return percent
-})
 
 // --- ЛОГИКА АВАТАРКИ ---
 const triggerAvatarUpload = () => {
@@ -178,15 +169,18 @@ onMounted(() => {
                 {{ profile.user.email }}
               </span>
               <span class="meta-item"> В клубе с {{ formatDate(profile.user.created_at) }} </span>
+              
             </div>
+            <div class="profile-meta"> <span class="meta-item"> Уровень: {{ profile.user.level }} </span> </div>
+            
 
             <div class="progress-section">
               <div class="progress-header">
-                <span class="progress-label">Рейтинг: {{ profile.user.rating }}</span>
-                <span class="progress-next">Следующий ранг: {{ rank.next }}</span>
+                <span class="progress-label">Очков опыта: {{ profile.user.xp_current }}</span>
+                <span class="progress-next">До следующего уровня: {{ profile.user.xp_next }}</span>
               </div>
               <div class="progress-bar">
-                <div class="progress-fill" :style="{ width: `${progressToNextRank}%` }"></div>
+                <div class="progress-fill" :style="{ width: `${profile.user.progress}%` }"></div>
               </div>
             </div>
           </div>
