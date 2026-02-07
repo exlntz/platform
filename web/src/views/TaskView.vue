@@ -1,15 +1,14 @@
 <script setup>
-import { ref, onMounted, computed, onUnmounted  } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import api from '@/api/axios' // Наш настроенный инстанс
-
 import { useTimerStore } from '@/pinia/TimerStore.js'
 
 const timer = useTimerStore()
+const router = useRouter()
+const route = useRoute()
 
 const showHint = ref(false)
-
-const route = useRoute()
 const task = ref(null)
 const loading = ref(true)
 const answer = ref('')
@@ -68,7 +67,6 @@ const submitAnswer = async () => {
       isSolved.value = true
       timer.stopTimer()
     }
-    // Если ответ неверный, isSolved остается false, можно пробовать дальше
   } catch (err) {
     checkResult.value = {
       is_correct: false,
@@ -77,6 +75,17 @@ const submitAnswer = async () => {
   } finally {
     checkLoading.value = false
   }
+}
+
+// Возврат к списку задач с сохранением фильтров
+const backToTasks = () => {
+  // Сохраняем текущие фильтры из URL
+  const query = { ...route.query }
+  delete query.id // Убираем id текущей задачи
+  router.push({ 
+    path: '/tasks',
+    query // Передаем сохраненные фильтры
+  })
 }
 
 // Класс для сообщения о результате
@@ -89,7 +98,6 @@ onMounted(() => {
   updateScreenSize()
   window.addEventListener('resize', updateScreenSize)
   fetchTask()
-
   timer.startTask()
 })
 
@@ -99,6 +107,22 @@ onUnmounted(() => {
     timer.pauseTimer()
   }
 })
+
+// Следим за изменением параметров задачи
+watch(
+  () => route.params.id,
+  () => {
+    loading.value = true
+    task.value = null
+    answer.value = ''
+    checkResult.value = null
+    isSolved.value = false
+    showHint.value = false
+    fetchTask()
+    timer.resetTimer()
+    timer.startTask()
+  }
+)
 </script>
 
 <template>
@@ -109,10 +133,10 @@ onUnmounted(() => {
     </div>
 
     <div v-else-if="task" class="task-content">
-      <router-link to="/tasks" class="back-link">
+      <button @click="backToTasks" class="back-link">
         <span class="back-icon">←</span>
         <span class="back-text">Вернуться к списку</span>
-      </router-link>
+      </button>
 
       <div class="task-card">
         <div class="task-header">
@@ -146,12 +170,10 @@ onUnmounted(() => {
               </span>
             </button>
 
-
-              <div v-if="showHint" class="hint-content">
-                <div class="hint-badge">Подсказка</div>
-                <p class="hint-text">{{ task.hint }}</p>
-              </div>
-
+            <div v-if="showHint" class="hint-content">
+              <div class="hint-badge">Подсказка</div>
+              <p class="hint-text">{{ task.hint }}</p>
+            </div>
           </div>
 
           <hr class="divider" :class="{ 'mobile': screenSize === 'mobile' }">
@@ -188,14 +210,14 @@ onUnmounted(() => {
                 ⏱️ Время: {{ timer.elapsedSeconds }} сек
               </div>
 
-              <router-link
+              <button
                 v-if="isSolved"
-                to="/tasks"
+                @click="backToTasks"
                 class="back-to-tasks-btn"
                 :class="{ 'mobile': screenSize === 'mobile' }"
               >
                 <span class="btn-text">← Вернуться ко всем задачам</span>
-              </router-link>
+              </button>
 
               <button
                 v-else
@@ -239,6 +261,7 @@ onUnmounted(() => {
   background-color: #f8fafc;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   line-height: 1.5;
+  padding: 16px;
 }
 
 .task-content {
@@ -292,6 +315,10 @@ onUnmounted(() => {
   text-decoration: none;
   padding: 16px 0;
   transition: color 0.2s ease;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
 }
 
 .back-link:hover {
@@ -590,6 +617,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 12px;
   text-decoration: none;
+  font-family: inherit;
 }
 
 .back-to-tasks-btn.mobile,
@@ -723,6 +751,7 @@ onUnmounted(() => {
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.1);
+  font-family: inherit;
 }
 
 .afk-confirm-btn:hover {
@@ -736,7 +765,6 @@ onUnmounted(() => {
 }
 
 /* ==================== АНИМАЦИИ ==================== */
-
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -758,8 +786,77 @@ onUnmounted(() => {
   50% { opacity: 0.5; }
 }
 
-/* ==================== ТЁМНАЯ ТЕМА ==================== */
+/* ==================== ПОДСКАЗКИ ==================== */
+.hint-section {
+  margin-bottom: 24px;
+}
 
+.hint-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: 1px solid #e2e8f0;
+  padding: 8px 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 13px;
+  transition: all 0.2s ease;
+  width: 100%;
+  font-family: inherit;
+}
+
+@media (min-width: 640px) {
+  .hint-btn {
+    width: auto;
+    display: inline-flex;
+  }
+}
+
+.hint-btn:hover {
+  background-color: #f8fafc;
+  color: #4f46e5;
+  border-color: #c7d2fe;
+}
+
+.hint-btn.active {
+  background-color: #eef2ff;
+  color: #4f46e5;
+  border-color: #a5b4fc;
+}
+
+.hint-content {
+  margin-top: 12px;
+  background-color: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 12px;
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.hint-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #b45309;
+  background-color: #fef3c7;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.hint-text {
+  font-size: 14px;
+  color: #92400e;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+/* ==================== ТЁМНАЯ ТЕМА ==================== */
 :root.dark .task-container {
   background-color: #0f172a;
   color: #f1f5f9;
@@ -776,6 +873,7 @@ onUnmounted(() => {
 :root.dark .task-card {
   background-color: #1e293b;
   border-color: #334155;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
 }
 
 :root.dark .task-header {
@@ -783,7 +881,7 @@ onUnmounted(() => {
 }
 
 :root.dark .task-header-overlay {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.1) 100%);
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.15) 100%);
 }
 
 :root.dark .subject-tag {
@@ -795,6 +893,7 @@ onUnmounted(() => {
 :root.dark .difficulty-tag {
   background-color: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.2);
+  color: #cbd5e1;
 }
 
 :root.dark .task-title {
@@ -822,6 +921,7 @@ onUnmounted(() => {
 :root.dark .answer-textarea:focus {
   background-color: #334155;
   border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
 :root.dark .answer-textarea::placeholder {
@@ -836,12 +936,12 @@ onUnmounted(() => {
 
 :root.dark .answer-textarea.correct-answer {
   border-color: #10b981;
-  background-color: rgba(16, 185, 129, 0.1);
+  background-color: rgba(16, 185, 129, 0.15);
 }
 
 :root.dark .answer-textarea.wrong-answer {
   border-color: #f87171;
-  background-color: rgba(248, 113, 113, 0.1);
+  background-color: rgba(248, 113, 113, 0.15);
 }
 
 :root.dark .timer-display {
@@ -887,13 +987,13 @@ onUnmounted(() => {
   background-color: #2563eb;
 }
 
-/* Loading skeleton */
+/* Темные скелетоны */
 :root.dark .loading-title,
 :root.dark .loading-subtitle {
   background-color: #334155;
 }
 
-/* Hint section */
+/* Подсказки в темной теме */
 :root.dark .hint-btn {
   border-color: #475569;
   color: #94a3b8;
@@ -925,7 +1025,7 @@ onUnmounted(() => {
   color: #fde68a;
 }
 
-/* Result messages */
+/* Сообщения о результате в темной теме */
 :root.dark .result-message.success {
   background-color: #065f46;
   color: #a7f3d0;
@@ -939,58 +1039,46 @@ onUnmounted(() => {
 }
 
 /* ==================== АДАПТИВНЫЕ СТИЛИ ==================== */
-
 @media (max-width: 320px) {
   .task-container {
     padding: 12px;
   }
-
   .task-header-content {
     padding: 20px 16px;
   }
-
   .task-body {
     padding: 20px 16px;
   }
-
   .task-title {
     font-size: 18px;
   }
-
   .task-description {
     font-size: 14px;
   }
-
   .back-to-tasks-btn,
   .submit-btn {
     padding: 12px;
     font-size: 14px;
   }
-
   .afk-modal {
     padding: 20px;
   }
-
   .afk-title {
     font-size: 18px;
   }
-
   .afk-message {
     font-size: 13px;
   }
 }
 
-
 @media (min-width: 321px) and (max-width: 375px) {
   .task-container {
     padding: 14px;
   }
-
   .task-title {
     font-size: 19px;
   }
 }
-
 
 @media (min-width: 376px) {
   .task-container {
@@ -998,226 +1086,115 @@ onUnmounted(() => {
   }
 }
 
-
 @media (min-width: 640px) {
   .task-container {
     padding: 24px;
   }
-
   .task-header-content {
     padding: 32px;
   }
-
   .task-body {
     padding: 32px;
   }
-
   .task-title {
     font-size: 28px;
   }
-
   .task-description {
     font-size: 17px;
     line-height: 1.7;
   }
-
   .answer-textarea {
     font-size: 16px;
   }
-
   .afk-modal {
     max-width: 450px;
   }
 }
 
-
 @media (min-width: 768px) {
   .task-container {
     padding: 32px;
   }
-
   .task-content {
     max-width: 768px;
   }
-
   .task-card {
     border-radius: 32px;
   }
-
   .task-header-content {
     padding: 40px;
   }
-
   .task-body {
     padding: 40px;
   }
-
   .task-title {
     font-size: 32px;
   }
-
   .section-title {
     font-size: 13px;
   }
-
   .task-description {
     font-size: 18px;
   }
-
   .answer-textarea {
     font-size: 17px;
   }
-
   .back-to-tasks-btn,
   .submit-btn {
     font-size: 17px;
   }
 }
 
-
 @media (min-width: 1024px) {
   .task-container {
     padding: 40px 24px;
   }
-
   .task-content {
     max-width: 800px;
   }
-
   .task-card {
     border-radius: 40px;
     box-shadow: 0 25px 50px -12px rgba(148, 163, 184, 0.5);
   }
-
-  .task-header::before {
-    content: '📝';
-    position: absolute;
-    top: 0;
-    right: 0;
-    font-size: 144px;
-    opacity: 0.1;
-    transform: translate(20%, -20%);
-  }
-
   .task-title {
     font-size: 36px;
   }
-
   .task-description {
     font-size: 19px;
     line-height: 1.75;
   }
 }
 
-
 @media (min-width: 1280px) {
   .task-container {
     padding: 48px 32px;
   }
-
   .task-content {
     max-width: 850px;
   }
-
   .task-card {
     border-radius: 48px;
   }
-
   .task-title {
     font-size: 40px;
   }
-
   .task-description {
     font-size: 20px;
   }
 }
 
-
 @media (min-width: 1536px) {
   .task-container {
     padding: 56px;
   }
-
   .task-content {
     max-width: 900px;
   }
-
   .task-title {
     font-size: 44px;
   }
-
   .task-description {
     font-size: 21px;
   }
 }
-/* ==================== ПОДСКАЗКИ ==================== */
-.hint-section {
-  margin-bottom: 24px;
-}
-
-.hint-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: none;
-  border: 1px solid #e2e8f0;
-  padding: 8px 16px;
-  border-radius: 12px;
-  cursor: pointer;
-  color: #64748b;
-  font-weight: 600;
-  font-size: 13px;
-  transition: all 0.2s ease;
-  width: 100%; /* На мобильных удобно, если кнопка широкая */
-}
-
-@media (min-width: 640px) {
-  .hint-btn {
-    width: auto;
-    display: inline-flex;
-  }
-}
-
-.hint-btn:hover {
-  background-color: #f8fafc;
-  color: #4f46e5;
-  border-color: #c7d2fe;
-}
-
-.hint-btn.active {
-  background-color: #eef2ff;
-  color: #4f46e5;
-  border-color: #a5b4fc;
-}
-
-.hint-content {
-  margin-top: 12px;
-  background-color: #fffbeb; /* Желтоватый фон для подсказки */
-  border: 1px solid #fcd34d;
-  border-radius: 12px;
-  padding: 16px;
-  position: relative;
-  overflow: hidden;
-}
-
-.hint-badge {
-  display: inline-block;
-  font-size: 10px;
-  font-weight: 800;
-  text-transform: uppercase;
-  color: #b45309;
-  background-color: #fef3c7;
-  padding: 2px 6px;
-  border-radius: 4px;
-  margin-bottom: 8px;
-}
-
-.hint-text {
-  font-size: 14px;
-  color: #92400e;
-  line-height: 1.5;
-  font-weight: 500;
-}
-
-
 </style>
