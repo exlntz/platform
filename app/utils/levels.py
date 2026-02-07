@@ -24,4 +24,3 @@ def calculate_level_info(total_xp: int):
 rewards = {DifficultyLevel.EASY: 10, DifficultyLevel.MEDIUM: 20, DifficultyLevel.HARD: 30}
 
 
-
