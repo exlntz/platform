@@ -319,17 +319,17 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
 
         async with new_session() as db_session:
 
-            actual_winner_id = None
+            result = 'draw'
             if winner == 1:
-                actual_winner_id = player1.user_id
+                result = 'win_p1'
             elif winner == 2:
-                actual_winner_id = player2.user_id
+                result = 'win_p2'
 
 
             new_match = PvPMatchModel(
                 player1_id=player1.user_id,
                 player2_id=player2.user_id,
-                winner_id=actual_winner_id,
+                result=result,
                 p1_elo_change=float(elochange),
                 p2_elo_change=float(-elochange)
             )
