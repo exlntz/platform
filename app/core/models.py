@@ -87,6 +87,7 @@ class PvPMatchModel(Model):
     winner_id: Mapped[int | None] = mapped_column(ForeignKey('users.id'))
     p1_elo_change: Mapped[float] = mapped_column()
     p2_elo_change: Mapped[float] = mapped_column()
+    result: Mapped[str] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),insert_default=lambda: datetime.now(timezone.utc),init=False)
 
 
