@@ -169,15 +169,16 @@ onMounted(() => {
                 {{ profile.user.email }}
               </span>
               <span class="meta-item"> В клубе с {{ formatDate(profile.user.created_at) }} </span>
+              <span class="meta-item"> Уровень: {{ profile.user.level }} </span>
             </div>
 
             <div class="progress-section">
               <div class="progress-header">
-                <span class="progress-label">Уровень: {{ profile.user.level }}</span>
-                <span class="progress-next">Следующий ранг: {{ rank.next }}</span>
+                <span class="progress-label">Очков опыта: {{ profile.user.xp_current }}</span>
+                <span class="progress-next">До следующего уровня: {{ profile.user.xp_next }}</span>
               </div>
               <div class="progress-bar">
-                <div class="progress-fill" :style="{ width: `${profile.user.xp_next}%` }"></div>
+                <div class="progress-fill" :style="{ width: `${profile.user.progress}%` }"></div>
               </div>
             </div>
           </div>
