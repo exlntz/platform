@@ -4,12 +4,6 @@ import api from '@/api/axios' // Наш настроенный инстанс
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
-// === НОВЫЕ ПЕРЕМЕННЫЕ ДЛЯ ПАУЗЫ ===
-const isTransitioning = ref(false) // Флаг, что мы между раундами
-// ... другие ref
-let transitionTimeout = null // <--- Добавляем переменную для хранения таймаута
-let transitionInterval = null      // Для очистки интервала
-
 
 // --- СОСТОЯНИЕ ---
 const socket = ref(null)
@@ -137,11 +131,7 @@ const connectPvp = () => {
       disconnect()
     }
     else if (!isNaN(parseInt(msg)) && msg.length < 10) {
-      if (!activeTask.value) {
-        await loadTask(msg)
-      } else {
-        // Если задача уже была, делаем паузу перед следующей
-        handleNextTaskWithDelay(msg)}
+      await loadTask(msg)
     }
     else if (msg.includes('time is up')) {
       addLog('error', 'Время вышло. Следующая задача...')
@@ -163,7 +153,7 @@ const connectPvp = () => {
     }
     else if (msg.includes('win')) finishGame('win')
     else if (msg.includes('loss')) finishGame('loss')
-    else if (msg.includes('opponent disconnected')) finishGame('disconnect')
+    else if (msg === 'opponent disconnected') finishGame('disconnect')
     else if (msg.includes('draw')) finishGame('draw')
     else if (msg.includes('already in a match')) finishGame('already_in_match')
   }
@@ -224,68 +214,10 @@ const addLog = (type, text) => {
     }
   })
 }
-// === ОБНОВЛЕННАЯ ФУНКЦИЯ (Вставь вместо старой handleNextTaskWithDelay) ===
-const handleNextTaskWithDelay = (taskId) => {
-  isTransitioning.value = true
-  transitionTimer.value = 3
-  
-  // 1. Чистим старые таймеры (защита от багов)
-  if (transitionInterval) clearInterval(transitionInterval)
-  if (transitionTimeout) clearTimeout(transitionTimeout)
 
-  // 2. Запускаем визуальный отсчет
-  transitionInterval = setInterval(() => {
-    transitionTimer.value--
-    if (transitionTimer.value <= 0) clearInterval(transitionInterval)
-  }, 1000)
-
-  // 3. Создаем промис таймера (минимум 3 секунды)
-  const timerPromise = new Promise(resolve => {
-    transitionTimeout = setTimeout(resolve, 3000)
-  })
-
-  // 4. Создаем промис загрузки задачи (сразу же!)
-  // Мы не используем loadTask здесь, чтобы не обновить activeTask раньше времени
-  const token = localStorage.getItem('user-token')
-  const fetchPromise = api.get(`/tasks/${taskId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-  }).catch(error => {
-      console.error("Ошибка фоновой загрузки:", error)
-      return null // Возвращаем null, чтобы Promise.all не сломался
-  })
-
-  // 5. Ждем, когда пройдут 3 секунды И загрузится задача
-  Promise.all([timerPromise, fetchPromise])
-    .then(([_, response]) => {
-      // Если игра всё еще идет (не было дисконнекта) и данные пришли
-      if (gameState.value === 'playing' && response && response.data) {
-          activeTask.value = response.data
-          userAnswer.value = '' 
-          addLog('system', 'Задача получена!')
-      } else if (!response) {
-          addLog('error', 'Не удалось загрузить задачу')
-      }
-    })
-    .catch(err => {
-      console.error("Критическая ошибка перехода:", err)
-    })
-    .finally(() => {
-      // 6. ГАРАНТИРОВАННО убираем шторку
-      isTransitioning.value = false
-      
-      // Возвращаем фокус
-      nextTick(() => {
-        const input = document.querySelector('.answer-input')
-        if (input) input.focus()
-      })
-    })
-}
 onUnmounted(() => {
   if (socket.value) socket.value.close()
-  if (transitionInterval) clearInterval(transitionInterval)
-  if (transitionTimeout) clearTimeout(transitionTimeout) // <--- Убираем хвосты
 })
-
 </script>
 
 <template>
@@ -309,7 +241,7 @@ onUnmounted(() => {
             <p>Подбираем равного по силе соперника</p>
           </div>
           <button @click="disconnect" class="cancel-btn">Отмена</button>
-        </div>  
+        </div>
 
         <div v-else-if="gameState === 'playing'" class="playing-state">
           <div class="match-header">
@@ -321,16 +253,7 @@ onUnmounted(() => {
           </div>
 
           <div class="task-container">
-            
-            <div v-if="isTransitioning" class="transition-overlay">
-              <div class="transition-content">
-                <div class="transition-icon">⏳</div>
-                <h3>Следующий раунд</h3>
-                <div class="countdown">{{ transitionTimer }}</div>
-              </div>
-            </div>
-
-            <div v-if="activeTask" class="task-content" :class="{ 'blurred': isTransitioning }">
+            <div v-if="activeTask" class="task-content">
               <div class="task-tags">
                 <span class="subject-tag">{{ activeTask.subject }}</span>
                 <span class="difficulty-tag">{{ activeTask.difficulty }}</span>
@@ -407,58 +330,6 @@ onUnmounted(() => {
 
 <style scoped>
 /* ==================== БАЗОВЫЕ СТИЛИ ==================== */
-
-
-.transition-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(4px);
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 16px; /* Подстраиваем под радиус контейнера */
-  animation: fadeIn 0.3s ease;
-}
-
-.transition-content {
-  text-align: center;
-  animation: scaleIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-.transition-icon {
-  font-size: 48px;
-  margin-bottom: 8px;
-  animation: spin 3s linear infinite; /* Используем твою существующую анимацию spin */
-}
-
-.transition-content h3 {
-  font-size: 24px;
-  font-weight: 800;
-  color: #0f172a;
-  margin-bottom: 8px;
-}
-
-.countdown {
-  font-size: 64px;
-  font-weight: 900;
-  color: #4f46e5;
-  line-height: 1;
-}
-
-/* Эффект для скрытия старого контента */
-.task-content {
-  transition: filter 0.3s ease, opacity 0.3s ease;
-}
-
-.task-content.blurred {
-  filter: blur(8px);
-  opacity: 0.5;
-}
 
 .pvp-container {
   min-height: 100vh;
@@ -685,7 +556,6 @@ onUnmounted(() => {
   overflow-y: auto;
   padding: 20px;
   background-color: #f8fafc;
-  position: relative;
 }
 
 .task-content {
@@ -1052,26 +922,6 @@ onUnmounted(() => {
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
-}
-
-/* Анимации */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes scaleIn {
-  from { transform: scale(0.8); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
-}
-
-/* Темная тема для оверлея */
-:root.dark .transition-overlay {
-  background-color: rgba(15, 23, 42, 0.8);
-}
-
-:root.dark .transition-content h3 {
-  color: #f8fafc;
 }
 
 /* ==================== ТЁМНАЯ ТЕМА ==================== */
