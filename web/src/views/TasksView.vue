@@ -1,7 +1,7 @@
 <script setup>
 import { ref, reactive, watch, onMounted, onUnmounted, shallowRef } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-
+import api from '@/api/axios' // Наш настроенный инстанс
 import { useConstantsStore } from '@/pinia/ConstantsStore'
 
 // --- Config & Store ---
