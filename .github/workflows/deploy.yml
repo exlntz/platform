@@ -23,11 +23,14 @@ jobs:
           script: |
             cd /var/www/olymp-platform
             
-            # Скачиваем обновления
+            # 1. Скачиваем обновления кода и файлы миграций
             git pull origin main
             
-            # Пересобираем контейнеры (Docker увидит изменения и пересоберет только нужное)
+            # 2. Пересобираем и запускаем контейнеры
             docker-compose up -d --build
             
-            # Чистим старые образы, чтобы не забивать память
+            # 3. ПРИМЕНЯЕМ МИГРАЦИИ (Важно: флаг -T)
+            docker-compose exec -T app alembic upgrade head
+            
+            # 4. Чистим мусор
             docker image prune -f
