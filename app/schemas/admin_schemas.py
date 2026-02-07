@@ -74,3 +74,12 @@ class AdminUserFullResponse(BaseModel):
     profile: UserProfileRead
     stats: UserStatsResponse
     elo_history: list[EloPoint]
+
+class AdminPvpMatchesHistoryPlayer(BaseModel):
+    id: int
+    player1_username: str
+    player2_username: str
+    p1_elo_change: float
+    p2_elo_change: float
+    result: str
+    created_at: datetime
