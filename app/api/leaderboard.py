@@ -19,7 +19,7 @@ async def get_leaderboard(
            .limit(limit)
     )
     result = await session.execute(query)
-    users=result.scalars().all()
+    users = result.scalars().all()
 
     response_list =[]
 
@@ -29,6 +29,7 @@ async def get_leaderboard(
         data=LeaderboardPlayer(
             username=user.username,
             rating=round(float(user.rating),1),
+            rank=user.user_rank,
             level=level,
             avatar_url=user.avatar_url,
         )

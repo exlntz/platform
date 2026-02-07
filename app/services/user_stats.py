@@ -1,5 +1,6 @@
 from fastapi import HTTPException,status
 from sqlalchemy import select, func, or_, distinct
+from app.core.constants import Achievement
 from app.core.models import AttemptModel, TaskModel, EloHistoryModel, UserModel
 from app.schemas.user import SubjectStats, UserStatsResponse, UserProfileRead
 from app.utils.levels import calculate_level_info
@@ -88,12 +89,18 @@ async def calculate_profile_info(
         session,
         user_id: int
 ):
-    current_user = await session.get(UserModel,user_id)
+    current_user : UserModel = await session.get(UserModel,user_id)
 
     if not current_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail='Пользователь не найден')
 
     level_data = calculate_level_info(current_user.xp)
+
+
+    if current_user.achievements:
+        formatted_achievements = [Achievement[ach].label for ach in current_user.achievements]
+    else:
+        formatted_achievements = []
 
     first_success_subquery = (
         select(
@@ -137,7 +144,7 @@ async def calculate_profile_info(
         email=current_user.email,
         rating=round(current_user.rating, 1),
         avatar_url=current_user.avatar_url,
-        achievements=current_user.achievements,
+        achievements=formatted_achievements,
         rank=current_user.user_rank,
         total_attempts=total,
         correct_solutions=unique_solved,

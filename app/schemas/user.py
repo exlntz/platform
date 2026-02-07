@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field, EmailStr, model_validator, ConfigDict, field_validator,SecretStr
 from typing import Self
 from datetime import datetime
-from app.core.constants import RankName, Achievement
+from app.core.constants import RankName
 
 
 class UserRegister(BaseModel):
@@ -42,7 +42,7 @@ class UserProfileRead(BaseModel):
     email: str
     rating: float
     avatar_url: str | None = None
-    achievements: list[Achievement]
+    achievements: list[str]
     rank: RankName
     total_attempts: int
     correct_solutions: int
@@ -76,6 +76,7 @@ class UserStatsResponse(BaseModel):
 class LeaderboardPlayer(BaseModel):
     username: str
     rating: float
+    rank: RankName
     level: int
     avatar_url: str | None
 
