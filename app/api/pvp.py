@@ -4,7 +4,7 @@ import jwt
 from sqlalchemy import select, func
 from app.schemas.matchmaking import QueueEntry, MessageEvent
 from app.core.database import SessionDep
-from app.core.security import SECRET_KEY
+from app.core.config import settings
 from app.core.models import UserModel, TaskModel, PvPMatchModel, EloHistoryModel
 from app.utils.elo import calculate_elo_change, change_elo, WIN, LOSS, DRAW
 from app.utils.formatters import format_answer
@@ -13,6 +13,9 @@ import bisect
 from app.core.database import new_session
 from fastapi.responses import HTMLResponse
 from collections import defaultdict, deque
+
+ALGORITHM = settings.ALGORITHM
+SECRET_KEY = settings.SECRET_KEY
 
 pending_reconnects = {}  # user_id -> asyncio.Future
 is_connected = defaultdict(bool) # для отслеживания подключенных пользователей т.к. в fastapi'ной имплементации вебсокетов нельзя проверить отключился ли пользователь
@@ -59,7 +62,7 @@ async def join_match(session: SessionDep, websocket: WebSocket):
     try:
         token = await websocket.receive_text()
         try:
-            tokenData = jwt.decode(token,SECRET_KEY,algorithms=['HS256'])
+            tokenData = jwt.decode(token,SECRET_KEY,algorithms=[ALGORITHM])
             await websocket.send_text("token accepted")
         except Exception as e:
             print(e)
@@ -67,7 +70,7 @@ async def join_match(session: SessionDep, websocket: WebSocket):
             await websocket.close()
             return
 
-        query=select(UserModel).where(UserModel.username == str(tokenData['sub']))
+        query=select(UserModel).where(UserModel.id == int(tokenData['sub']))
         result=await session.execute(query)
         user=result.scalar_one_or_none()
 

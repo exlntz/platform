@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field, model_validator, ConfigDict
-from app.core.constants import DifficultyLevel,Tag,Subject,SUBJECT_TO_TAGS
+from app.core.constants import DifficultyLevel, Tag, Subject, SUBJECT_TO_TAGS, Achievement
+
 
 class TaskBase(BaseModel):
     title: str
@@ -19,10 +20,10 @@ class TaskBase(BaseModel):
         return self
 
 
-class TaskRead(TaskBase): # 1. Наследуем (оставляем старые поля)
-    id: int               # 2. Приписываем новое поле (id)
+class TaskRead(TaskBase):
+    id: int
+    tags: list[str] = Field(default_factory=list)
 
-    # 3. Настраиваем "мостик" с базой данных
     model_config = ConfigDict(from_attributes=True)
 class TaskCreate(TaskBase):
     correct_answer: str
@@ -35,7 +36,7 @@ class AnswerCheckResponse(BaseModel):
     is_correct: bool
     correct_answer: str | None = None
     message: str
-    achievements: list[str]
+    achievements: list[Achievement]
 
 class TaskAdminRead(TaskRead):
     correct_answer: str
@@ -47,6 +48,6 @@ class GeneratedTask(BaseModel):
     correct_answer: str = Field(description="Четкий краткий ответ (число или слово)")
     subject: Subject = Field(description='Предмет')
     difficulty: DifficultyLevel = Field(description='Уровень сложности')
-    tags: list[str] = Field(description="Список тегов из предоставленного перечня")
+    tags: list[Tag] = Field(description="Список тегов из предоставленного перечня")
     hint: str = Field(description="Подсказка, направляющая ход мыслей")
 
