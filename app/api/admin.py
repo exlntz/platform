@@ -1,10 +1,11 @@
 from fastapi import APIRouter, HTTPException, status, Response, File, UploadFile, Query
 from sqlalchemy import select, func, desc, distinct
-
+from sqlalchemy.orm import aliased
 from app.core.constants import SUBJECT_TO_TAGS
 from app.core.database import SessionDep
-from app.core.models import UserModel, TaskModel, AttemptModel, AuditLogModel
-from app.schemas.admin_schemas import UserAdminRead, AdminDashboardStats, UserAdminUpdate, TaskAdminUpdate, AuditLogRead,AdminUserFullResponse
+from app.core.models import UserModel, TaskModel, AttemptModel, AuditLogModel, PvPMatchModel
+from app.schemas.admin_schemas import UserAdminRead, AdminDashboardStats, UserAdminUpdate, TaskAdminUpdate, \
+    AuditLogRead, AdminUserFullResponse, AdminPvpMatchesHistoryPlayer
 from datetime import datetime, timedelta, timezone
 from app.schemas.task import TaskAdminRead, TaskRead, TaskCreate
 import json
@@ -446,4 +447,37 @@ async def get_logs(
 
     result = await session.execute(query)
 
+    return result.mappings().all()
+
+
+
+@router.get('/pvp_matches_history', summary='История матчей всех пользователей (для админов)')
+async def get_pvp_matches_history(
+        session: SessionDep,
+        admin: AdminDep,
+        limit: int = 20,
+        offset: int = 0
+) -> list[AdminPvpMatchesHistoryPlayer]:
+
+    Player1 = aliased(UserModel)
+    Player2 = aliased(UserModel)
+
+    query = (
+        select(
+            PvPMatchModel.id,
+            Player1.username.label("player1_username"),
+            Player2.username.label("player2_username"),
+            PvPMatchModel.p1_elo_change,
+            PvPMatchModel.p2_elo_change,
+            PvPMatchModel.result,
+            PvPMatchModel.created_at
+        )
+        .join(Player1, PvPMatchModel.player1_id == Player1.id)
+        .join(Player2, PvPMatchModel.player2_id == Player2.id)
+        .order_by(PvPMatchModel.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+    )
+
+    result = await session.execute(query)
     return result.mappings().all()

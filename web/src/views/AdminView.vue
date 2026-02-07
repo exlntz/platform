@@ -1,9 +1,9 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, reactive } from 'vue'
 import api from '@/api/axios' // Наш настроенный инстанс
-import { useConstantsStore } from '@/pinia/ConstantsStore.js' // 1. Импорт стора
+import { useConstantsStore } from '@/pinia/ConstantsStore.js'
 
-const constants = useConstantsStore() // 2. Инициализация
+const constants = useConstantsStore()
 
 // --- СОСТОЯНИЕ ИНТЕРФЕЙСА ---
 const currentTab = ref('dashboard')
@@ -18,10 +18,17 @@ const activeMenuId = ref(null)
 const showUserEditModal = ref(false)
 const userEditForm = ref({ id: null, username: '', email: '', rating: 0 })
 
+// Новое: Просмотр полной статистики пользователя
+const showUserDetailsModal = ref(false)
+const selectedUser = ref(null)
+const selectedUserStats = ref(null)
+const selectedUserEloHistory = ref([])
+const userDetailsLoading = ref(false)
+
 // --- РЕДАКТИРОВАНИЕ ЗАДАЧ ---
 const isEditMode = ref(false)
 const currentEditId = ref(null)
-const tagsInput = ref('')
+// tagsInput больше не нужен как строка, работаем с массивом напрямую
 
 // --- СОРТИРОВКА ЗАДАЧ ---
 const sortKey = ref('id')
@@ -51,7 +58,7 @@ const taskForm = ref({
   title: '',
   description: '',
   subject: '',
-  tags: [],
+  tags: [], // Массив строк
   difficulty: '',
   correct_answer: '',
   hint: ''
@@ -65,7 +72,7 @@ const sortedTasks = computed(() => {
     let valA = a[sortKey.value]
     let valB = b[sortKey.value]
 
-    // Веса для сложности (используем ключи UPPERCASE)
+    // Веса для сложности
     if (sortKey.value === 'difficulty') {
       const weights = { 'EASY': 1, 'MEDIUM': 2, 'HARD': 3 }
       valA = weights[valA] || 0
@@ -94,31 +101,37 @@ const sortBy = (key) => {
 }
 
 // --- API ХЕЛПЕРЫ ---
-const getAuthHeader = () => {
-  return { headers: { Authorization: `Bearer ${localStorage.getItem('user-token')}` } }
-}
+// Больше не нужно вручную добавлять headers, так как api (axios instance) делает это сам.
+// Но для методов, где мы не используем api (если такие остались), оставим.
+// В данном фиксе мы везде заменим axios на api.
 
 const handleApiError = (err) => {
   if (err.response && err.response.status === 403) {
     accessDenied.value = true
   } else {
     console.error('API Error:', err)
+    // Можно добавить всплывающее уведомление об ошибке
   }
 }
 
-const formatLogDate = (dateString) => {
+// Исправленная функция форматирования даты для шаблона
+const formatDate = (dateString) => {
   if (!dateString) return '-'
   const dateValue = dateString.endsWith('Z') ? dateString : dateString + 'Z'
-  return new Date(dateValue).toLocaleString('ru-RU', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit', second: '2-digit'
-  })
+  try {
+    return new Date(dateValue).toLocaleString('ru-RU', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    })
+  } catch (e) {
+    return dateString
+  }
 }
 
 // --- ЗАГРУЗКА ДАННЫХ ---
 const fetchStats = async () => {
   try {
-    const response = await api.get('/admin/stats', getAuthHeader())
+    const response = await api.get('/admin/stats')
     stats.value = response.data
     accessDenied.value = false
   } catch (err) { handleApiError(err) }
@@ -128,7 +141,7 @@ const fetchUsers = async () => {
   if (accessDenied.value) return
   loading.value = true
   try {
-    const response = await api.get('/admin/users?limit=50', getAuthHeader())
+    const response = await api.get('/admin/users?limit=100')
     users.value = response.data
   } catch (err) { handleApiError(err) }
   finally { loading.value = false }
@@ -138,7 +151,7 @@ const fetchTasks = async () => {
   if (accessDenied.value) return
   loading.value = true
   try {
-    const response = await api.get('/tasks/', getAuthHeader())
+    const response = await api.get('/tasks/')
     tasks.value = response.data
   } catch (err) { handleApiError(err) }
   finally { loading.value = false }
@@ -148,7 +161,7 @@ const fetchLogs = async () => {
   if (accessDenied.value) return
   loading.value = true
   try {
-    const response = await api.get('/admin/logs?limit=50', getAuthHeader())
+    const response = await api.get('/admin/logs?limit=50')
     logs.value = response.data
   } catch (err) { handleApiError(err) }
   finally { loading.value = false }
@@ -160,17 +173,49 @@ const toggleMenu = (event, id) => {
   activeMenuId.value = activeMenuId.value === id ? null : id
 }
 
+// Открыть модалку редактирования (простая)
 const openEditUser = (user) => {
   userEditForm.value = { ...user }
   showUserEditModal.value = true
   activeMenuId.value = null
 }
 
+// Открыть модалку полного досье
+const openUserDetails = async (user) => {
+  activeMenuId.value = null
+  selectedUser.value = user
+  showUserDetailsModal.value = true
+  userDetailsLoading.value = true
+  selectedUserStats.value = null
+  selectedUserEloHistory.value = []
+
+  try {
+    const response = await api.get(`/admin/users/${user.id}/full_details`)
+    const data = response.data
+    // Обновляем данные пользователя из полного ответа, если они новее
+    if (data.profile) selectedUser.value = { ...selectedUser.value, ...data.profile }
+    selectedUserStats.value = data.stats
+    selectedUserEloHistory.value = data.elo_history
+  } catch (err) {
+    handleApiError(err)
+  } finally {
+    userDetailsLoading.value = false
+  }
+}
+
 const updateUserAction = async (userId, data, successMessage = null) => {
   try {
-    await api.patch(`/admin/users/${userId}`, data, getAuthHeader())
+    await api.patch(`/admin/users/${userId}`, data)
     if (successMessage) alert(successMessage)
-    fetchUsers()
+
+    // Обновляем список пользователей
+    await fetchUsers()
+
+    // Если открыто досье, обновляем и его локально
+    if (selectedUser.value && selectedUser.value.id === userId) {
+       selectedUser.value = { ...selectedUser.value, ...data }
+    }
+
     showUserEditModal.value = false
   } catch (err) { handleApiError(err) }
 }
@@ -178,9 +223,10 @@ const updateUserAction = async (userId, data, successMessage = null) => {
 const deleteUser = async (user) => {
   if (!confirm(`Вы уверены, что хотите безвозвратно удалить пользователя ${user.username}?`)) return
   try {
-    await api.delete(`/admin/users/${user.id}`, getAuthHeader())
+    await api.delete(`/admin/users/${user.id}`)
     users.value = users.value.filter(u => u.id !== user.id)
     fetchStats()
+    showUserDetailsModal.value = false // Закрыть досье если открыто
   } catch (err) { handleApiError(err) }
 }
 
@@ -189,13 +235,12 @@ const deleteUser = async (user) => {
 const openCreateModal = () => {
   isEditMode.value = false
   currentEditId.value = null
-  tagsInput.value = ''
 
-  // Инициализация дефолтными значениями из стора (берем первый доступный элемент или запасной вариант)
+  // Инициализация дефолтными значениями
   taskForm.value = {
     title: '',
     description: '',
-    subject: constants.subjects[0]?.key || '', 
+    subject: constants.subjects[0]?.key || '',
     tags: [],
     difficulty: constants.difficulty[0]?.key || 'EASY',
     correct_answer: '',
@@ -207,22 +252,28 @@ const openCreateModal = () => {
 const openEditModal = async (task) => {
   isEditMode.value = true
   currentEditId.value = task.id
-  taskForm.value = { ...task }
-  tagsInput.value = (task.tags && Array.isArray(task.tags)) ? task.tags.join(', ') : ''
+  taskForm.value = { ...task, tags: task.tags || [] } // Гарантируем массив
   showTaskModal.value = true
   try {
-    const { data } = await axios.get(`/admin/tasks/${task.id}`, getAuthHeader())
-    taskForm.value = { ...data }
-    tagsInput.value = (data.tags && Array.isArray(data.tags)) ? data.tags.join(', ') : ''
+    // Используем api вместо axios
+    const { data } = await api.get(`/admin/tasks/${task.id}`)
+    taskForm.value = { ...data, tags: data.tags || [] }
   } catch (e) { handleApiError(e) }
+}
+
+// Логика тегов: Добавить/Удалить по клику
+const toggleTag = (tagKey) => {
+  const index = taskForm.value.tags.indexOf(tagKey)
+  if (index === -1) {
+    taskForm.value.tags.push(tagKey)
+  } else {
+    taskForm.value.tags.splice(index, 1)
+  }
 }
 
 const saveTask = async () => {
   try {
-    taskForm.value.tags = tagsInput.value
-      .split(',')
-      .map(tag => tag.trim())
-      .filter(tag => tag.length > 0)
+    // Теги уже в массиве taskForm.value.tags, преобразование не нужно
 
     const finalUrl = isEditMode.value
        ? `/admin/tasks/${currentEditId.value}`
@@ -230,7 +281,8 @@ const saveTask = async () => {
 
     const method = isEditMode.value ? 'patch' : 'post'
 
-    await axios[method](finalUrl, taskForm.value, getAuthHeader())
+    // Используем api вместо axios
+    await api[method](finalUrl, taskForm.value)
 
     alert(isEditMode.value ? 'Задача обновлена!' : 'Задача создана!')
     showTaskModal.value = false
@@ -242,7 +294,7 @@ const saveTask = async () => {
 const deleteTask = async (taskId) => {
   if (!confirm(`Вы уверены, что хотите удалить задачу #${taskId}?`)) return
   try {
-    await axios.delete(`/admin/tasks/${taskId}`, getAuthHeader())
+    await api.delete(`/admin/tasks/${taskId}`)
     tasks.value = tasks.value.filter(t => t.id !== taskId)
     fetchStats()
   } catch (err) { handleApiError(err) }
@@ -250,7 +302,8 @@ const deleteTask = async (taskId) => {
 
 const exportTasks = async () => {
   try {
-    const response = await axios.get('/admin/tasks/export', { ...getAuthHeader(), responseType: 'blob' })
+    // Используем api и указываем responseType: 'blob'
+    const response = await api.get('/admin/tasks/export', { responseType: 'blob' })
     const url = window.URL.createObjectURL(new Blob([response.data]))
     const link = document.createElement('a')
     link.href = url
@@ -267,8 +320,10 @@ const handleImport = async (event) => {
   const formData = new FormData(); formData.append('file', file)
   try {
     loading.value = true
-    const response = await axios.post('/admin/tasks/import', formData, {
-      headers: { ...getAuthHeader().headers, 'Content-Type': 'multipart/form-data' }
+    // api автоматически добавит токен, но Content-Type для файла нужно указать явно или дать браузеру решить (обычно api instance сам справляется, но добавим для надежности)
+    // Важно: api instance обычно имеет interceptor.
+    const response = await api.post('/admin/tasks/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
     })
     alert(`Импорт завершен!\nСоздано: ${response.data.created}\nОбновлено: ${response.data.updated}`)
     fetchTasks(); fetchStats()
@@ -282,7 +337,8 @@ onMounted(() => {
   window.addEventListener('click', () => { activeMenuId.value = null })
   fetchStats()
   fetchUsers()
-  // Если константы еще не загружены (например, прямой заход), подгружаем
+
+  // Если константы еще не загружены
   if (constants.subjects.length === 0) {
     constants.fetchConstants()
   }
@@ -397,7 +453,9 @@ onMounted(() => {
                   <td class="actions-cell">
                     <button @click="toggleMenu($event, user.id)" class="actions-btn">Действия ▾</button>
                     <div v-if="activeMenuId === user.id" class="actions-dropdown">
+                      <button @click="openUserDetails(user)" class="dropdown-item"><span class="item-icon">ℹ️</span> <span>Подробнее</span></button>
                       <button @click="openEditUser(user)" class="dropdown-item"><span class="item-icon">✏️</span> <span>Изменить данные</span></button>
+                      <div class="dropdown-divider"></div>
                       <button @click="updateUserAction(user.id, { is_admin: !user.is_admin })" class="dropdown-item"><span class="item-icon">{{ user.is_admin ? '⭐' : '👑' }}</span> <span>{{ user.is_admin ? 'Снять админа' : 'Сделать админом' }}</span></button>
                       <button @click="updateUserAction(user.id, { is_banned: !user.is_banned })" class="dropdown-item"><span class="item-icon">{{ user.is_banned ? '🔓' : '🚫' }}</span> <span>{{ user.is_banned ? 'Разблокировать' : 'Заблокировать' }}</span></button>
                       <div class="dropdown-divider"></div>
@@ -460,6 +518,31 @@ onMounted(() => {
           <div v-if="!loading && tasks.length === 0" class="empty-tasks">Задач пока нет. Создайте первую!</div>
         </div>
       </div>
+
+      <div v-if="currentTab === 'logs'" class="logs-tab">
+        <div class="tab-header"><h1>Аудит действий</h1><button @click="fetchLogs" class="refresh-btn">🔄 Обновить</button></div>
+        <div class="table-wrapper">
+          <div class="responsive-table">
+            <table class="users-table">
+              <thead><tr class="table-head"><th>ID</th><th>Время</th><th>Администратор</th><th>Действие</th><th>Цель</th><th style="width: 40%">Детали</th></tr></thead>
+              <tbody>
+              <tr v-for="log in logs" :key="log.id" class="table-row">
+                <td class="user-id">#{{ log.id }}</td>
+                <td class="register-date">{{ formatDate(log.created_at) }}</td>
+                <td class="user-cell">
+                  <div class="user-avatar" :class="{'admin-badge-bg': true}">{{ log.admin_username ? log.admin_username.charAt(0).toUpperCase() : '?' }}</div>
+                  <div class="user-details"><p class="user-name">{{ log.admin_username || 'Неизвестно' }}</p><p class="user-email">Admin ID: {{ log.admin_id }}</p></div>
+                </td>
+                <td><span class="difficulty-badge" :class="getBadgeClass(log.action)">{{ log.action }}</span></td>
+                <td class="user-id">{{ log.target_id ? '#' + log.target_id : '-' }}</td>
+                <td class="task-cell" style="max-width: 300px;"><p class="task-description" :title="log.details">{{ log.details }}</p></td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+          <div v-if="!loading && logs.length === 0" class="empty-table"><div class="empty-icon">📝</div><p class="empty-title">Логов пока нет</p></div>
+        </div>
+      </div>
     </main>
 
     <div v-if="showTaskModal" class="modal-overlay">
@@ -495,8 +578,21 @@ onMounted(() => {
           </div>
 
           <div class="form-group">
-            <label class="form-label">Теги (через запятую)</label>
-            <input v-model="tagsInput" placeholder="Например: Арифметика, 5 класс" class="form-input" />
+            <label class="form-label">Теги</label>
+            <div class="tags-selector">
+              <button
+                type="button"
+                v-for="tag in constants.tags"
+                :key="tag.key"
+                @click="toggleTag(tag.key)"
+                class="tag-choice-btn"
+                :class="{ active: taskForm.tags.includes(tag.key) }"
+              >
+                {{ tag.label }}
+                <span v-if="taskForm.tags.includes(tag.key)" class="tag-check">✓</span>
+              </button>
+            </div>
+            <p class="form-hint">Выбрано: {{ taskForm.tags.length }}</p>
           </div>
 
           <div class="form-group">
@@ -533,32 +629,83 @@ onMounted(() => {
       </div>
     </div>
 
-    <div v-if="currentTab === 'logs'" class="logs-tab">
-      <div class="tab-header"><h1>Аудит действий</h1><button @click="fetchLogs" class="refresh-btn">🔄 Обновить</button></div>
-      <div class="table-wrapper">
-        <div class="responsive-table">
-          <table class="users-table">
-            <thead><tr class="table-head"><th>ID</th><th>Время</th><th>Администратор</th><th>Действие</th><th>Цель</th><th style="width: 40%">Детали</th></tr></thead>
-            <tbody>
-            <tr v-for="log in logs" :key="log.id" class="table-row">
-              <td class="user-id">#{{ log.id }}</td>
-              <td class="register-date">{{ formatLogDate(log.created_at) }}</td>
-              <td class="user-cell">
-                <div class="user-avatar" :class="{'admin-badge-bg': true}">{{ log.admin_username ? log.admin_username.charAt(0).toUpperCase() : '?' }}</div>
-                <div class="user-details"><p class="user-name">{{ log.admin_username || 'Неизвестно' }}</p><p class="user-email">Admin ID: {{ log.admin_id }}</p></div>
-              </td>
-              <td><span class="difficulty-badge" :class="getBadgeClass(log.action)">{{ log.action }}</span></td>
-              <td class="user-id">{{ log.target_id ? '#' + log.target_id : '-' }}</td>
-              <td class="task-cell" style="max-width: 300px;"><p class="task-description" :title="log.details">{{ log.details }}</p></td>
-            </tr>
-            </tbody>
-          </table>
+    <div v-if="showUserDetailsModal" class="modal-overlay">
+      <div class="task-modal user-details-modal">
+        <div class="modal-header">
+          <h2>Досье пользователя</h2>
+          <button @click="showUserDetailsModal = false" class="close-modal">✕</button>
         </div>
-        <div v-if="!loading && logs.length === 0" class="empty-table"><div class="empty-icon">📝</div><p class="empty-title">Логов пока нет</p></div>
+
+        <div v-if="userDetailsLoading" class="loading-state">
+          <div class="spinner"></div> Загрузка данных...
+        </div>
+
+        <div v-else-if="selectedUser" class="user-dossier">
+          <div class="dossier-header">
+            <div class="dossier-avatar">
+              {{ selectedUser.username.charAt(0).toUpperCase() }}
+            </div>
+            <div class="dossier-main-info">
+              <h3>{{ selectedUser.username }}</h3>
+              <p class="dossier-email">{{ selectedUser.email }}</p>
+              <div class="dossier-badges">
+                <span class="rating-badge">ELO: {{ selectedUser.rating }}</span>
+                <span class="status-badge" :class="{ banned: selectedUser.is_banned }">
+                  {{ selectedUser.is_banned ? 'Заблокирован' : 'Активен' }}
+                </span>
+                <span v-if="selectedUser.is_admin" class="admin-badge">Администратор</span>
+              </div>
+            </div>
+            <div class="dossier-actions">
+              <button @click="updateUserAction(selectedUser.id, { is_banned: !selectedUser.is_banned })" class="action-btn" :class="selectedUser.is_banned ? 'success' : 'danger'">
+                {{ selectedUser.is_banned ? 'Разблокировать' : 'Заблокировать' }}
+              </button>
+              <button @click="openEditUser(selectedUser)" class="action-btn secondary">Редактировать</button>
+            </div>
+          </div>
+
+          <div class="dossier-section" v-if="selectedUserStats">
+            <h4>Статистика по предметам</h4>
+            <div class="stats-grid-mini">
+              <div v-for="(stat, subject) in selectedUserStats.subjects" :key="subject" class="mini-stat-card">
+                <div class="mini-stat-title">{{ constants.getSubjectLabel(subject) }}</div>
+                <div class="mini-stat-row">
+                  <span>Решено: {{ stat.solved }}/{{ stat.total_attempts }}</span>
+                  <span class="winrate" :class="{'high': (stat.solved/stat.total_attempts) > 0.7}">
+                    {{ stat.total_attempts ? Math.round((stat.solved / stat.total_attempts) * 100) : 0 }}%
+                  </span>
+                </div>
+                <div class="progress-bar-bg">
+                  <div class="progress-bar-fill" :style="{ width: (stat.total_attempts ? (stat.solved / stat.total_attempts) * 100 : 0) + '%' }"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="dossier-section" v-if="selectedUserEloHistory && selectedUserEloHistory.length">
+            <h4>История рейтинга (Последние 10)</h4>
+            <table class="mini-table">
+              <thead><tr><th>Дата</th><th>Изменение</th><th>Рейтинг</th></tr></thead>
+              <tbody>
+                <tr v-for="item in selectedUserEloHistory.slice(0, 10)" :key="item.id">
+                  <td>{{ formatDate(item.date) }}</td>
+                  <td :class="item.change >= 0 ? 'text-green' : 'text-red'">
+                    {{ item.change > 0 ? '+' : '' }}{{ item.change }}
+                  </td>
+                  <td>{{ item.rating }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div v-else class="empty-section">Нет истории игр</div>
+
+        </div>
       </div>
     </div>
+
   </div>
 </template>
+
 <style scoped>
 /* ==================== БАЗОВЫЕ СТИЛИ ==================== */
 
@@ -1553,6 +1700,205 @@ onMounted(() => {
   background-color: #e2e8f0;
 }
 
+/* --- TAGS SELECTOR --- */
+.tags-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+.tag-choice-btn {
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1px solid #e2e8f0;
+  background-color: white;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.tag-choice-btn:hover {
+  background-color: #f8fafc;
+  border-color: #cbd5e1;
+}
+.tag-choice-btn.active {
+  background-color: #e0e7ff;
+  color: #4f46e5;
+  border-color: #4f46e5;
+}
+.tag-check {
+  font-weight: 900;
+}
+.form-hint {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 6px;
+}
+
+/* --- USER DOSSIER --- */
+.user-dossier {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.dossier-header {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.dossier-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 20px;
+  background-color: #4f46e5;
+  color: white;
+  font-size: 32px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
+}
+.dossier-main-info {
+  flex: 1;
+}
+.dossier-main-info h3 {
+  font-size: 24px;
+  font-weight: 900;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+.dossier-email {
+  color: #64748b;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+.dossier-badges {
+  display: flex;
+  gap: 8px;
+}
+.dossier-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.action-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+}
+.action-btn.success {
+  background-color: #dcfce7;
+  color: #16a34a;
+}
+.action-btn.danger {
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+.action-btn.secondary {
+  background-color: #f1f5f9;
+  color: #475569;
+}
+.dossier-section h4 {
+  font-size: 16px;
+  font-weight: 800;
+  color: #334155;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.stats-grid-mini {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.mini-stat-card {
+  background-color: #f8fafc;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+.mini-stat-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+.mini-stat-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 6px;
+}
+.winrate {
+  color: #f59e0b;
+}
+.winrate.high {
+  color: #10b981;
+}
+.progress-bar-bg {
+  height: 4px;
+  background-color: #e2e8f0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  background-color: #4f46e5;
+  border-radius: 2px;
+}
+.mini-table {
+  width: 100%;
+  font-size: 13px;
+  border-collapse: collapse;
+}
+.mini-table th {
+  text-align: left;
+  color: #94a3b8;
+  font-size: 11px;
+  text-transform: uppercase;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.mini-table td {
+  padding: 8px 0;
+  border-bottom: 1px solid #f8fafc;
+  color: #334155;
+  font-weight: 500;
+}
+.text-green { color: #10b981; font-weight: 700; }
+.text-red { color: #ef4444; font-weight: 700; }
+.loading-state {
+  padding: 40px;
+  text-align: center;
+  color: #64748b;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #4f46e5;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
 /* Animations */
 @keyframes fadeIn {
   from { opacity: 0; }
@@ -1823,6 +2169,53 @@ onMounted(() => {
 }
 
 :root.dark .action-icon:hover {
+  background-color: #475569;
+}
+
+/* Tags in Dark Mode */
+:root.dark .tag-choice-btn {
+  background-color: #334155;
+  border-color: #475569;
+  color: #cbd5e1;
+}
+:root.dark .tag-choice-btn:hover {
+  background-color: #475569;
+}
+:root.dark .tag-choice-btn.active {
+  background-color: #1e3a8a;
+  border-color: #3b82f6;
+  color: #93c5fd;
+}
+
+/* User Dossier Dark Mode */
+:root.dark .dossier-header {
+  border-bottom-color: #334155;
+}
+:root.dark .dossier-main-info h3 {
+  color: #f1f5f9;
+}
+:root.dark .dossier-section h4 {
+  color: #cbd5e1;
+}
+:root.dark .mini-stat-card {
+  background-color: #334155;
+  border-color: #475569;
+}
+:root.dark .mini-stat-title {
+  color: #94a3b8;
+}
+:root.dark .mini-stat-row {
+  color: #e2e8f0;
+}
+:root.dark .mini-table th {
+  color: #94a3b8;
+  border-bottom-color: #475569;
+}
+:root.dark .mini-table td {
+  color: #e2e8f0;
+  border-bottom-color: #334155;
+}
+:root.dark .progress-bar-bg {
   background-color: #475569;
 }
 
