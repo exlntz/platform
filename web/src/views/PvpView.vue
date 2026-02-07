@@ -308,7 +308,7 @@ onUnmounted(() => {
           </div>
 
           <div class="input-area">
-            <button @click="showEmojiPicker = !showEmojiPicker" class="emoji-btn">😀</button>
+            <button @click="showEmojiPicker = !showEmojiPicker" class="emoji-btn py-2" >😀</button>
             
             <div v-if="showEmojiPicker" class="emoji-picker">
               <button 
