@@ -1,18 +1,27 @@
-from pydantic import BaseModel, Field, EmailStr, model_validator, ConfigDict
+from pydantic import BaseModel, Field, EmailStr, model_validator, ConfigDict, field_validator,SecretStr
 from typing import Self
 from datetime import datetime
-from app.core.constants import RankName
+from app.core.constants import RankName, Achievement
 
 
 class UserRegister(BaseModel):
     username: str = Field(...,min_length=3,max_length=40,description='Имя пользователя')
     email: EmailStr = Field(..., description='Почта')
-    password: str = Field(...,min_length=8,description='Пароль')
-    password_repeat: str = Field(...,min_length=8,description='Повтор пароля')
+    password: SecretStr = Field(...,min_length=8,description='Пароль')
+    password_repeat: SecretStr = Field(...,min_length=8,description='Повтор пароля')
+
+    @field_validator('password')
+    @classmethod
+    def validate_password_complexity(cls, v: SecretStr) -> SecretStr:
+        password = v.get_secret_value()
+        if not any(char.isdigit() for char in password):
+            raise ValueError('Пароль должен содержать хотя бы одну цифру')
+
+        return v
 
     @model_validator(mode='after')
     def check_passwords_match(self) -> Self:
-        if self.password != self.password_repeat:
+        if self.password.get_secret_value() != self.password_repeat.get_secret_value():
             raise ValueError('Пароли не совпадают!')
         return self
 
@@ -30,7 +39,7 @@ class UserProfileRead(BaseModel):
     email: str
     rating: float
     avatar_url: str | None = None
-    achievements: list[str]
+    achievements: list[Achievement]
     rank: RankName
     total_attempts: int
     correct_solutions: int

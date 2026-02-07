@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     DB_PASS: str
     DB_NAME: str
     VITE_IS_PROD: str
+    SECRET_KEY: str
+    ALGORITHM: str
     GROQ_API_KEY: str | None = None
 
     @property

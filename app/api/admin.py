@@ -1,5 +1,7 @@
 from fastapi import APIRouter, HTTPException, status, Response, File, UploadFile, Query
 from sqlalchemy import select, func, desc, distinct
+
+from app.core.constants import SUBJECT_TO_TAGS
 from app.core.database import SessionDep
 from app.core.models import UserModel, TaskModel, AttemptModel, AuditLogModel
 from app.schemas.admin_schemas import UserAdminRead, AdminDashboardStats, UserAdminUpdate, TaskAdminUpdate, AuditLogRead,AdminUserFullResponse
@@ -368,6 +370,17 @@ async def update_task(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Задача не найдена")
 
     data = update_data.model_dump(exclude_unset=True)
+
+    target_subject = data.get('subject', task.subject)
+    target_tags = data.get('tags', task.tags)
+    if target_subject and target_tags:
+        allowed_tags = SUBJECT_TO_TAGS.get(target_subject, [])
+        for tag in target_tags:
+            if tag not in allowed_tags:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Тег '{tag}' нельзя добавить к предмету '{target_subject}'"
+                )
 
     changes_log = calculate_changes(task, data)
 

@@ -12,20 +12,15 @@ from app.schemas.user import UserRegister,Token
 router=APIRouter(prefix='/auth',tags=['Авторизация'])
 
 
-@router.post('/register',summary='Регистрация')
+@router.post('/register',summary='Регистрация',status_code=status.HTTP_201_CREATED)
 async def register_user(new_user: UserRegister,session: SessionDep):
 
-    if not any(char.isdigit() for char in new_user.password):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail='Пароль должен содержать хотя бы одну цифру')
-
-    hashed_pass=get_password_hash(new_user.password)
+    hashed_pass=get_password_hash(new_user.password.get_secret_value())
 
     user_db=UserModel(
-        #id сам создается
         username=new_user.username,
         email=str(new_user.email),
         hashed_password=hashed_pass,
-        # рейтинг = 1000, сам создается в models.py
     )
     try:
         session.add(user_db)
@@ -34,7 +29,7 @@ async def register_user(new_user: UserRegister,session: SessionDep):
     except IntegrityError:
         await session.rollback()
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_409_CONFLICT,
             detail='Пользователем с таким логином или Email уже существует'
         )
     return {"status": "ok", "message": "Регистрация прошла успешно!"}
@@ -51,9 +46,15 @@ async def login_user(
     if not user or not is_password_correct(form_data.password,user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail='Неверное имя пользователя или пароль!'
+            detail='Неверное имя пользователя или пароль!',
+            headers={"WWW-Authenticate": "Bearer"}
         )
-    token=create_access_token(data={'sub': user.username})
+
+    token_payload={
+        "sub": str(user.id),
+        "username": user.username,
+    }
+    token=create_access_token(token_payload)
 
     return Token(access_token=token,token_type='bearer')
 

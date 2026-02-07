@@ -3,8 +3,12 @@ from fastapi import Depends,HTTPException,status
 import jwt
 from app.core.database import SessionDep
 from app.core.models import UserModel
-from app.core.security import SECRET_KEY,ALGORITHM,oauth2_scheme
+from app.core.security import oauth2_scheme
 from sqlalchemy import select
+from app.core.config import settings
+
+SECRET_KEY = settings.SECRET_KEY
+ALGORITHM = settings.ALGORITHM
 
 
 async def get_current_user(
@@ -20,14 +24,14 @@ async def get_current_user(
     try:
         payload = jwt.decode(token,SECRET_KEY,algorithms=[ALGORITHM])
 
-        username: str | None = payload.get('sub')
+        id: int | None = int(payload.get('sub'))
 
-        if username is None:
+        if id is None:
             raise unauthorized_error
     except:
         raise unauthorized_error
 
-    query=select(UserModel).where(UserModel.username == username)
+    query=select(UserModel).where(UserModel.id == id)
     result = await session.execute(query)
     user = result.scalar_one_or_none()
 
