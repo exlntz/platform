@@ -1,4 +1,4 @@
-from fastapi import APIRouter,HTTPException,status,Depends
+from fastapi import APIRouter,HTTPException,status,Depends, Body
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select
@@ -6,7 +6,8 @@ from typing import Annotated
 
 from app.core.database import SessionDep
 from app.core.models import UserModel
-from app.core.security import get_password_hash,is_password_correct,create_access_token
+from app.core.security import get_password_hash, is_password_correct, create_access_token, create_refresh_token, \
+    verify_refresh_token
 from app.schemas.user import UserRegister,Token
 
 router=APIRouter(prefix='/auth',tags=['Авторизация'])
@@ -54,8 +55,34 @@ async def login_user(
         "sub": str(user.id),
         "username": user.username,
     }
-    token=create_access_token(token_payload)
+    access_token = create_access_token(token_payload)
+    refresh_token = create_refresh_token(token_payload)
 
-    return Token(access_token=token,token_type='bearer')
+    return Token(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type='Bearer'
+    )
 
 
+@router.post('/refresh', summary='Обновление токена')
+async def refresh_token_endpoint(
+        session: SessionDep,
+        refresh_token: str = Body(..., embed=True)
+) -> Token:
+
+    user_id = verify_refresh_token(refresh_token)
+    user = await session.get(UserModel, user_id)
+
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
+
+    payload = {"sub": str(user.id), "username": user.username}
+    new_access_token = create_access_token(payload)
+    new_refresh_token = create_refresh_token(payload)
+
+    return Token(
+        access_token=new_access_token,
+        refresh_token=new_refresh_token,
+        token_type='bearer'
+    )
