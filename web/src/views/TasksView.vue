@@ -72,13 +72,13 @@ const getDifficultyColorClass = (diffKey) => {
   const key = diffKey ? diffKey.toUpperCase() : ''
 
   const map = {
-    EASY: 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800',
+    EASY: 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-800',
     MEDIUM:
-      'text-amber-700 bg-amber-50 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800',
-    HARD: 'text-rose-700 bg-rose-50 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800',
+      'text-amber-700 bg-amber-50 border-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800',
+    HARD: 'text-rose-700 bg-rose-50 border-rose-200 dark:bg-rose-900/40 dark:text-rose-300 dark:border-rose-800',
   }
   return (
-    map[key] || 'text-slate-600 bg-slate-100 border-slate-200 dark:bg-slate-800 dark:text-slate-400'
+    map[key] || 'text-slate-600 bg-slate-100 border-slate-200 dark:bg-slate-800 dark:text-slate-300'
   )
 }
 
@@ -91,7 +91,13 @@ const getSubjectLabel = (subjKey) => {
 }
 
 const navigateToTask = (id) => {
-  router.push(`/tasks/${id}`)
+  // Сохраняем текущие фильтры в URL при переходе
+  const query = { ...route.query }
+  delete query.id // Убираем id текущей задачи, если есть
+  router.push({ 
+    path: `/tasks/${id}`,
+    query // Передаем текущие фильтры
+  })
 }
 
 // --- Dynamic Tags Logic ---
@@ -132,13 +138,11 @@ const fetchTasks = async () => {
   error.value = null
 
   try {
-    // ВАЖНО: Мы запрашиваем limit=32. Если бэкенд это игнорирует, мы обрежем на фронте.
-    // Если бэкенд научится понимать offset/limit, используем offset.
     const offset = (pagination.page - 1) * pagination.limit
 
     const params = {
-      offset: offset, // Стандартное название для пагинации
-      skip: offset, // На всякий случай дублируем skip
+      offset: offset,
+      skip: offset,
       limit: pagination.limit,
       ...(filters.search ? { search: filters.search } : {}),
       ...(filters.subject ? { subject: filters.subject } : {}),
@@ -158,7 +162,6 @@ const fetchTasks = async () => {
 
     if (Array.isArray(data)) {
       tasks.value = data
-      // Если API возвращает весь список, то total - это длина списка
       totalTasks.value = data.length
     } else {
       tasks.value = data.items || data.data || []
@@ -168,7 +171,7 @@ const fetchTasks = async () => {
     updateUrl()
   } catch (err) {
     if (err.name !== 'CanceledError') {
-      // error.value = 'Ошибка загрузки данных'
+      error.value = 'Ошибка загрузки данных. Проверьте соединение.'
     }
   } finally {
     setTimeout(() => {
@@ -184,7 +187,11 @@ const updateUrl = () => {
   if (filters.difficulty) query.difficulty = filters.difficulty
   if (filters.tags) query.tags = filters.tags
   if (pagination.page > 1) query.page = pagination.page
-  router.replace({ query })
+  
+  router.replace({ 
+    query,
+    hash: route.hash // Сохраняем якорь если есть
+  })
 }
 
 const handlePageChange = (newPage) => {
@@ -208,26 +215,29 @@ const resetFilters = () => {
 }
 
 // --- FIX: Client-Side Pagination Logic ---
-// Это решает проблему, когда бэкенд возвращает все 33 задачи разом.
-// Мы сами нарезаем массив для текущей страницы, если он слишком большой.
 const paginatedTasks = computed(() => {
-  // Если задач в ответе больше, чем лимит, значит бэкенд вернул "всё кучей".
-  // Нам нужно вырезать только кусочек для ТЕКУЩЕЙ страницы.
   if (tasks.value.length > pagination.limit) {
     const start = (pagination.page - 1) * pagination.limit
     const end = start + pagination.limit
-    // Важно: если мы на 2 странице, а бэкенд вернул массив [0..33],
-    // нам нужно показать [32..33].
-    // Но если бэкенд не поддерживает оффсет, он всегда возвращает [0..33].
-    // В этом случае слайс (32, 64) вернет правильные элементы конца списка.
     return tasks.value.slice(start, end)
   }
-
-  // Если бэкенд вернул <= лимита (например, 1 задачу на 2 странице), показываем как есть.
   return tasks.value
 })
 
 // --- Watchers ---
+
+watch(
+  () => route.query,
+  (newQuery) => {
+    // Синхронизируем фильтры с URL при изменении роута (например, при возврате назад)
+    filters.search = newQuery.search || ''
+    filters.subject = newQuery.subject || ''
+    filters.difficulty = newQuery.difficulty || ''
+    filters.tags = newQuery.tags || ''
+    pagination.page = Number(newQuery.page) || 1
+  },
+  { immediate: true }
+)
 
 watch(
   () => filters.subject,
@@ -269,7 +279,13 @@ onMounted(async () => {
   }
 
   await updateAvailableTags()
-  await fetchTasks()
+  // Не загружаем задачи если уже загружаются из URL при монтировании
+  if (!route.query.search && !route.query.subject && !route.query.difficulty && !route.query.tags) {
+    await fetchTasks()
+  } else {
+    // Фильтры уже установлены из URL через watch выше
+    loading.value = false
+  }
 })
 
 onUnmounted(() => {
@@ -489,10 +505,14 @@ onUnmounted(() => {
   --bg-card: #ffffff;
   --bg-input: #f8fafc;
   --bg-tag: #f1f5f9;
+  --bg-subject-tag: #f1f5f9; /* Фон тега предмета */
+  --bg-counter: #ffffff; /* Фон счетчика */
 
   --text-primary: #0f172a;
   --text-secondary: #64748b;
   --text-tertiary: #94a3b8;
+  --text-subject: #64748b; /* Цвет текста тега предмета */
+  --text-counter: #64748b; /* Цвет текста счетчика */
 
   --border-light: #e2e8f0;
   --border-medium: #cbd5e1;
@@ -520,10 +540,14 @@ onUnmounted(() => {
   --bg-card: #1e293b;
   --bg-input: #334155;
   --bg-tag: #334155;
+  --bg-subject-tag: #334155; /* Темный фон для тега предмета */
+  --bg-counter: #1e293b; /* Темный фон для счетчика */
 
   --text-primary: #f8fafc;
   --text-secondary: #cbd5e1;
   --text-tertiary: #94a3b8;
+  --text-subject: #cbd5e1; /* Светлый текст для тега предмета в темной теме */
+  --text-counter: #cbd5e1; /* Светлый текст для счетчика в темной теме */
 
   --border-light: #334155;
   --border-medium: #475569;
@@ -540,7 +564,7 @@ onUnmounted(() => {
   --btn-border: #334155;
   --btn-hover-bg: #334155;
 
-  /* ТЕМНЫЕ скелетоны (чтобы не били по глазам) */
+  /* ТЕМНЫЕ скелетоны */
   --skeleton-base: #1e293b;
   --skeleton-highlight: #334155;
 }
@@ -561,6 +585,26 @@ onUnmounted(() => {
   max-width: 1280px;
   margin: 0 auto;
   padding: 16px;
+}
+
+/* Убрать синюю рамку фокуса для всех элементов */
+.tasks-container *:focus {
+  outline: none;
+}
+
+.tasks-container button:focus,
+.tasks-container input:focus,
+.tasks-container select:focus,
+.tasks-container textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+:global(.dark) .tasks-container button:focus,
+:global(.dark) .tasks-container input:focus,
+:global(.dark) .tasks-container select:focus,
+:global(.dark) .tasks-container textarea:focus {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
 /* ==================== HEADER ==================== */
@@ -600,9 +644,9 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   padding: 8px 16px;
-  background-color: var(--bg-card);
+  background-color: var(--bg-counter);
   border: 1px solid var(--border-light);
-  color: var(--text-secondary);
+  color: var(--text-counter);
   font-weight: 700;
   border-radius: 9999px;
   font-size: 14px;
@@ -626,7 +670,6 @@ onUnmounted(() => {
 .search-group {
   flex: 1;
   position: relative;
-  /* Минимальная ширина для поиска, чтобы его не сжимали селекты */
   min-width: 220px;
 }
 
@@ -677,12 +720,10 @@ onUnmounted(() => {
 .select-wrapper {
   position: relative;
   flex: 1;
-  /* Исправление прыжков: запрещаем сжатие меньше 140px */
   min-width: 140px;
   flex-shrink: 0;
 }
 
-/* Для десктопа можно задать более жесткие ограничения, чтобы не прыгало */
 @media (min-width: 1024px) {
   .subject-wrapper {
     flex-basis: 200px;
@@ -1105,8 +1146,8 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   padding: 6px 12px;
-  background-color: var(--bg-tag);
-  color: var(--text-secondary);
+  background-color: var(--bg-subject-tag);
+  color: var(--text-subject);
   border-radius: 8px;
   font-size: 12px;
   font-weight: 700;
@@ -1226,7 +1267,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   padding: 10px 20px;
-  background-color: #0f172a; /* Кнопка всегда темная по умолчанию в светлой теме */
+  background-color: #0f172a;
   color: white;
   font-size: 14px;
   font-weight: 700;
@@ -1239,9 +1280,9 @@ onUnmounted(() => {
 }
 
 :global(.dark) .solve-btn {
-  background-color: var(--bg-tag);
+  background-color: #334155;
   color: var(--text-primary);
-  border: 1px solid var(--border-light);
+  border: 1px solid #475569;
 }
 
 .solve-btn.mobile {
@@ -1255,6 +1296,11 @@ onUnmounted(() => {
   background-color: var(--accent-color);
   color: white;
   box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.2);
+  border-color: transparent;
+}
+
+:global(.dark) .task-card:hover .solve-btn {
+  background-color: #3b82f6;
   border-color: transparent;
 }
 
@@ -1433,7 +1479,6 @@ onUnmounted(() => {
   .filter-group {
     flex-wrap: nowrap;
   }
-  /* Увеличиваем минимальную ширину для десктопа, чтобы не прыгало */
   .select-wrapper {
     min-width: 160px;
   }
@@ -1491,9 +1536,6 @@ onUnmounted(() => {
 }
 
 /* ==================== EXPLICIT DARK THEME OVERRIDES ==================== */
-/* Дублируем стили через :root.dark для гарантированного применения,
-   так как :global(.dark) иногда может иметь меньший приоритет или задержку
-*/
 :root.dark .tasks-container {
   background-color: #0f172a;
   color: #f1f5f9;
@@ -1516,8 +1558,18 @@ onUnmounted(() => {
   border-color: #334155;
 }
 
+:root.dark .task-card:hover {
+  background-color: #1e293b;
+  border-color: #3b82f6;
+  box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.2);
+}
+
 :root.dark .task-title {
   color: #f1f5f9;
+}
+
+:root.dark .task-title:hover {
+  color: #60a5fa;
 }
 
 :root.dark .task-description {
@@ -1528,5 +1580,45 @@ onUnmounted(() => {
   background-color: #1e293b;
   border-color: #334155;
   color: #cbd5e1;
+}
+
+:root.dark .reset-btn:hover {
+  background-color: #334155;
+  border-color: #475569;
+  color: #f87171;
+}
+
+/* Темные скелетоны */
+:root.dark .task-card-skeleton {
+  background-color: #1e293b;
+  border-color: #334155;
+}
+
+:root.dark .skeleton-tag,
+:root.dark .skeleton-difficulty,
+:root.dark .skeleton-title,
+:root.dark .skeleton-line,
+:root.dark .skeleton-tags,
+:root.dark .skeleton-button {
+  background-color: #334155;
+}
+
+:root.dark .loading-title,
+:root.dark .loading-subtitle {
+  background-color: #334155;
+}
+
+/* Темный счетчик задач */
+:root.dark .counter-badge {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #cbd5e1;
+}
+
+/* Темный тег предмета */
+:root.dark .subject-tag {
+  background-color: #334155;
+  color: #cbd5e1;
+  border-color: #475569;
 }
 </style>
