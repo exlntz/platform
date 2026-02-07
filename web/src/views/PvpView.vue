@@ -224,40 +224,61 @@ const addLog = (type, text) => {
     }
   })
 }
-
+// === ОБНОВЛЕННАЯ ФУНКЦИЯ (Вставь вместо старой handleNextTaskWithDelay) ===
 const handleNextTaskWithDelay = (taskId) => {
   isTransitioning.value = true
-  transitionTimer.value = 3 
+  transitionTimer.value = 3
   
-  // Чистим старые таймеры, если они вдруг есть
+  // 1. Чистим старые таймеры (защита от багов)
   if (transitionInterval) clearInterval(transitionInterval)
-  if (transitionTimeout) clearTimeout(transitionTimeout) // <--- Чистим таймаут
+  if (transitionTimeout) clearTimeout(transitionTimeout)
 
+  // 2. Запускаем визуальный отсчет
   transitionInterval = setInterval(() => {
     transitionTimer.value--
-    if (transitionTimer.value <= 0) {
-      clearInterval(transitionInterval)
-    }
+    if (transitionTimer.value <= 0) clearInterval(transitionInterval)
   }, 1000)
 
-  // Сохраняем таймаут в переменную
-  transitionTimeout = setTimeout(async () => {
-    // ВАЖНАЯ ПРОВЕРКА: Если игра уже не идет (дисконнект или результат), стопаем всё
-    if (gameState.value !== 'playing') {
-        isTransitioning.value = false
-        return 
-    }
+  // 3. Создаем промис таймера (минимум 3 секунды)
+  const timerPromise = new Promise(resolve => {
+    transitionTimeout = setTimeout(resolve, 3000)
+  })
 
-    await loadTask(taskId)
-    isTransitioning.value = false
-    userAnswer.value = '' 
-    
-    // Возвращаем фокус в поле ввода
-    nextTick(() => {
+  // 4. Создаем промис загрузки задачи (сразу же!)
+  // Мы не используем loadTask здесь, чтобы не обновить activeTask раньше времени
+  const token = localStorage.getItem('user-token')
+  const fetchPromise = api.get(`/tasks/${taskId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+  }).catch(error => {
+      console.error("Ошибка фоновой загрузки:", error)
+      return null // Возвращаем null, чтобы Promise.all не сломался
+  })
+
+  // 5. Ждем, когда пройдут 3 секунды И загрузится задача
+  Promise.all([timerPromise, fetchPromise])
+    .then(([_, response]) => {
+      // Если игра всё еще идет (не было дисконнекта) и данные пришли
+      if (gameState.value === 'playing' && response && response.data) {
+          activeTask.value = response.data
+          userAnswer.value = '' 
+          addLog('system', 'Задача получена!')
+      } else if (!response) {
+          addLog('error', 'Не удалось загрузить задачу')
+      }
+    })
+    .catch(err => {
+      console.error("Критическая ошибка перехода:", err)
+    })
+    .finally(() => {
+      // 6. ГАРАНТИРОВАННО убираем шторку
+      isTransitioning.value = false
+      
+      // Возвращаем фокус
+      nextTick(() => {
         const input = document.querySelector('.answer-input')
         if (input) input.focus()
+      })
     })
-  }, 3000)
 }
 onUnmounted(() => {
   if (socket.value) socket.value.close()
