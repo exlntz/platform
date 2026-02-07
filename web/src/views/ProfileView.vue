@@ -236,33 +236,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.chart-container {
-  /* Графики часто занимают больше места, дадим им растянуться на 2 колонки на больших экранах, если нужно */
-  grid-column: span 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.chart-wrapper {
-  position: relative;
-  height: 250px; /* Важно: фиксированная высота для контейнера графика */
-  width: 100%;
-}
-
-.chart-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: #64748b;
-  margin-bottom: 16px;
-  text-transform: uppercase;
-}
-
-@media (min-width: 1024px) {
-  /* На широких экранах график рейтинга можно сделать широким */
-  .chart-container:last-child {
-    grid-column: span 2;
-  }
-}
 
 .profile-container {
   min-height: 100vh;

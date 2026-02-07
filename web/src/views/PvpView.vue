@@ -14,6 +14,31 @@ const userAnswer = ref('')
 const logs = ref([])
 const logContainer = ref(null)
 
+const availableEmojis = ['😎', '🔥', '😱', '🤔', '😭', '😂']
+const showEmojiPicker = ref(false)
+const floatingEmojis = ref([]) // Массив для анимаций
+const sendEmoji = (emojiChar) => {
+  if (!socket.value) return
+  
+  // 1. Отправляем на сервер
+  socket.value.send(`SendEmoji ${emojiChar}`)
+  
+  // 2. Сразу показываем у себя (справа)
+  triggerFloatingEmoji(emojiChar, 'me')
+  
+  showEmojiPicker.value = false // Закрываем пикер после выбора (опционально)
+}
+
+const triggerFloatingEmoji = (char, source) => {
+  const id = Date.now() + Math.random()
+  floatingEmojis.value.push({ id, char, source })
+  
+  // Удаляем из DOM через 2 секунды (время анимации)
+  setTimeout(() => {
+    floatingEmojis.value = floatingEmojis.value.filter(e => e.id !== id)
+  }, 2000)
+}
+
 const stats = ref({ rank: "Gold IV", points: 1250, winStreak: 3 })
 const leaderboard = ref([
   { id: 1, name: "Alex_Pro", points: 2840, avatar: "⚔️" },
@@ -156,6 +181,10 @@ const connectPvp = () => {
     else if (msg === 'opponent disconnected') finishGame('disconnect')
     else if (msg.includes('draw')) finishGame('draw')
     else if (msg.includes('already in a match')) finishGame('already_in_match')
+    else if (msg.includes('emoji ')) {
+        const emojiChar = msg.split(' ')[1]
+        triggerFloatingEmoji(emojiChar, 'opponent')
+      }
   }
 
   // ВАЖНО: onclose и onerror тоже внутри функции!
@@ -267,6 +296,31 @@ onUnmounted(() => {
           </div>
 
           <div class="game-controls">
+            <div class="emoji-layer">
+            <div 
+              v-for="e in floatingEmojis" 
+              :key="e.id"
+              class="floating-emoji"
+              :class="{ 'from-me': e.source === 'me', 'from-opponent': e.source === 'opponent' }"
+            >
+              {{ e.char }}
+            </div>
+          </div>
+
+          <div class="input-area">
+            <button @click="showEmojiPicker = !showEmojiPicker" class="emoji-btn">😀</button>
+            
+            <div v-if="showEmojiPicker" class="emoji-picker">
+              <button 
+                v-for="emoji in ['😎', '🔥', '😱', '🤔', '😭', '😂']" 
+                :key="emoji" 
+                @click="sendEmoji(emoji)"
+                class="emoji-option"
+              >
+                {{ emoji }}
+              </button>
+            </div>
+          </div>
             <div ref="logContainer" class="game-logs">
               <div v-for="log in logs" :key="log.id" class="log-message">
                 <span v-if="log.type === 'system'" class="log-system">🤖 {{ log.text }}</span>
@@ -330,6 +384,108 @@ onUnmounted(() => {
 
 <style scoped>
 /* ==================== БАЗОВЫЕ СТИЛИ ==================== */
+
+/* Позиционирование контейнера ввода */
+.input-area {
+  display: flex;
+  gap: 8px;
+  position: relative; /* Для позиционирования пикера */
+  align-items: center;
+}
+
+.emoji-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  transition: transform 0.2s;
+  padding: 0 8px;
+}
+
+.emoji-btn:hover {
+  transform: scale(1.1);
+}
+
+/* Выпадающее меню эмодзи */
+.emoji-picker {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  margin-bottom: 8px;
+  z-index: 20;
+}
+
+.emoji-option {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+}
+
+.emoji-option:hover {
+  background-color: #f1f5f9;
+}
+
+/* === АНИМАЦИЯ ЛЕТАЮЩИХ ЭМОДЗИ === */
+.emoji-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none; /* Чтобы клики проходили сквозь них */
+  overflow: hidden;
+  z-index: 50;
+}
+
+.floating-emoji {
+  position: absolute;
+  font-size: 48px;
+  bottom: 80px; /* Старт над полем ввода */
+  animation: floatUp 2s ease-out forwards;
+}
+
+.from-me {
+  right: 20px; /* Мои летят справа */
+}
+
+.from-opponent {
+  left: 20px; /* Соперника летят слева */
+}
+
+@keyframes floatUp {
+  0% {
+    transform: translateY(0) scale(0.5);
+    opacity: 0;
+  }
+  10% {
+    transform: translateY(-20px) scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-200px) scale(1);
+    opacity: 0;
+  }
+}
+
+/* Dark mode fixes */
+:root.dark .emoji-picker {
+  background-color: #1e293b;
+  border-color: #334155;
+}
+:root.dark .emoji-option:hover {
+  background-color: #334155;
+}
 
 .pvp-container {
   min-height: 100vh;

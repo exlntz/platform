@@ -266,7 +266,16 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
                     else: # игрок не переподключился
                         #print("player did not reconnect") # DEBUG
                         raise Exception # завершаем матч
-                
+                if msg.text.startswith('SendEmoji '):
+                    emoji_content = msg.text[10:] # Отрезаем "SendEmoji "
+                    
+                    # Пересылаем сопернику
+                    if msg.user_id == player1.user_id:
+                        await ws2.send_text(f"emoji {emoji_content}")
+                    else:
+                        await ws1.send_text(f"emoji {emoji_content}")
+                    continue
+                # ==========================
                 if msg.text[:14] == 'MessageToChat ':
                     if msg.user_id == player1.user_id: await ws2.send_text(f"chat message {msg.text[14:]}")
                     else: await ws1.send_text(f"chat message {msg.text[14:]}")
