@@ -505,10 +505,14 @@ onUnmounted(() => {
   --bg-card: #ffffff;
   --bg-input: #f8fafc;
   --bg-tag: #f1f5f9;
+  --bg-subject-tag: #f1f5f9; /* Фон тега предмета */
+  --bg-counter: #ffffff; /* Фон счетчика */
 
   --text-primary: #0f172a;
   --text-secondary: #64748b;
   --text-tertiary: #94a3b8;
+  --text-subject: #64748b; /* Цвет текста тега предмета */
+  --text-counter: #64748b; /* Цвет текста счетчика */
 
   --border-light: #e2e8f0;
   --border-medium: #cbd5e1;
@@ -536,10 +540,14 @@ onUnmounted(() => {
   --bg-card: #1e293b;
   --bg-input: #334155;
   --bg-tag: #334155;
+  --bg-subject-tag: #334155; /* Темный фон для тега предмета */
+  --bg-counter: #1e293b; /* Темный фон для счетчика */
 
   --text-primary: #f8fafc;
   --text-secondary: #cbd5e1;
   --text-tertiary: #94a3b8;
+  --text-subject: #cbd5e1; /* Светлый текст для тега предмета в темной теме */
+  --text-counter: #cbd5e1; /* Светлый текст для счетчика в темной теме */
 
   --border-light: #334155;
   --border-medium: #475569;
@@ -556,7 +564,7 @@ onUnmounted(() => {
   --btn-border: #334155;
   --btn-hover-bg: #334155;
 
-  /* ТЕМНЫЕ скелетоны (чтобы не били по глазам) */
+  /* ТЕМНЫЕ скелетоны */
   --skeleton-base: #1e293b;
   --skeleton-highlight: #334155;
 }
@@ -577,6 +585,26 @@ onUnmounted(() => {
   max-width: 1280px;
   margin: 0 auto;
   padding: 16px;
+}
+
+/* Убрать синюю рамку фокуса для всех элементов */
+.tasks-container *:focus {
+  outline: none;
+}
+
+.tasks-container button:focus,
+.tasks-container input:focus,
+.tasks-container select:focus,
+.tasks-container textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+:global(.dark) .tasks-container button:focus,
+:global(.dark) .tasks-container input:focus,
+:global(.dark) .tasks-container select:focus,
+:global(.dark) .tasks-container textarea:focus {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
 /* ==================== HEADER ==================== */
@@ -616,9 +644,9 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   padding: 8px 16px;
-  background-color: var(--bg-card);
+  background-color: var(--bg-counter);
   border: 1px solid var(--border-light);
-  color: var(--text-secondary);
+  color: var(--text-counter);
   font-weight: 700;
   border-radius: 9999px;
   font-size: 14px;
@@ -1118,8 +1146,8 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   padding: 6px 12px;
-  background-color: var(--bg-tag);
-  color: var(--text-secondary);
+  background-color: var(--bg-subject-tag);
+  color: var(--text-subject);
   border-radius: 8px;
   font-size: 12px;
   font-weight: 700;
@@ -1578,5 +1606,19 @@ onUnmounted(() => {
 :root.dark .loading-title,
 :root.dark .loading-subtitle {
   background-color: #334155;
+}
+
+/* Темный счетчик задач */
+:root.dark .counter-badge {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #cbd5e1;
+}
+
+/* Темный тег предмета */
+:root.dark .subject-tag {
+  background-color: #334155;
+  color: #cbd5e1;
+  border-color: #475569;
 }
 </style>
