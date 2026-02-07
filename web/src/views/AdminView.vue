@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import axios from 'axios'
+import api from '@/api/axios' // Наш настроенный инстанс
 import { useConstantsStore } from '@/pinia/ConstantsStore.js' // 1. Импорт стора
 
 const constants = useConstantsStore() // 2. Инициализация
@@ -103,7 +103,6 @@ const handleApiError = (err) => {
     accessDenied.value = true
   } else {
     console.error('API Error:', err)
-    alert('Ошибка: ' + (err.response?.data?.detail || err.message))
   }
 }
 
@@ -119,7 +118,7 @@ const formatLogDate = (dateString) => {
 // --- ЗАГРУЗКА ДАННЫХ ---
 const fetchStats = async () => {
   try {
-    const response = await axios.get('/admin/stats', getAuthHeader())
+    const response = await api.get('/admin/stats', getAuthHeader())
     stats.value = response.data
     accessDenied.value = false
   } catch (err) { handleApiError(err) }
@@ -129,7 +128,7 @@ const fetchUsers = async () => {
   if (accessDenied.value) return
   loading.value = true
   try {
-    const response = await axios.get('/admin/users?limit=50', getAuthHeader())
+    const response = await api.get('/admin/users?limit=50', getAuthHeader())
     users.value = response.data
   } catch (err) { handleApiError(err) }
   finally { loading.value = false }
@@ -139,7 +138,7 @@ const fetchTasks = async () => {
   if (accessDenied.value) return
   loading.value = true
   try {
-    const response = await axios.get('/tasks/', getAuthHeader())
+    const response = await api.get('/tasks/', getAuthHeader())
     tasks.value = response.data
   } catch (err) { handleApiError(err) }
   finally { loading.value = false }
@@ -149,7 +148,7 @@ const fetchLogs = async () => {
   if (accessDenied.value) return
   loading.value = true
   try {
-    const response = await axios.get('/admin/logs?limit=50', getAuthHeader())
+    const response = await api.get('/admin/logs?limit=50', getAuthHeader())
     logs.value = response.data
   } catch (err) { handleApiError(err) }
   finally { loading.value = false }
@@ -169,7 +168,7 @@ const openEditUser = (user) => {
 
 const updateUserAction = async (userId, data, successMessage = null) => {
   try {
-    await axios.patch(`/admin/users/${userId}`, data, getAuthHeader())
+    await api.patch(`/admin/users/${userId}`, data, getAuthHeader())
     if (successMessage) alert(successMessage)
     fetchUsers()
     showUserEditModal.value = false
@@ -179,7 +178,7 @@ const updateUserAction = async (userId, data, successMessage = null) => {
 const deleteUser = async (user) => {
   if (!confirm(`Вы уверены, что хотите безвозвратно удалить пользователя ${user.username}?`)) return
   try {
-    await axios.delete(`/admin/users/${user.id}`, getAuthHeader())
+    await api.delete(`/admin/users/${user.id}`, getAuthHeader())
     users.value = users.value.filter(u => u.id !== user.id)
     fetchStats()
   } catch (err) { handleApiError(err) }

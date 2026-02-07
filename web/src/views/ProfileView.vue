@@ -1,8 +1,8 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import axios from 'axios'
-import { Line, Radar, Bar } from 'vue-chartjs'
+import api from '@/api/axios' // Наш настроенный инстанс
+
 
 const router = useRouter()
 const loading = ref(true)
@@ -65,7 +65,7 @@ const handleFileChange = async (event) => {
     profile.value.user.avatar_url = response.data.url
   } catch (err) {
     console.error('Ошибка загрузки аватара:', err)
-    alert('Не удалось загрузить изображение')
+
   }
 }
 
@@ -83,7 +83,7 @@ const fetchProfile = async () => {
 
     // Выполняем запросы параллельно для ускорения
     const [profileRes] = await Promise.all([
-      axios.get('/profile/'),
+      api.get('/profile/'),
     ])
 
     profile.value = {

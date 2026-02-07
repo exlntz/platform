@@ -1,5 +1,5 @@
 <script>
-import axios from "axios";
+import api from '@/api/axios' // Наш настроенный инстанс
 
 export default {
   name: "AuthView",
@@ -19,7 +19,7 @@ export default {
         params.append('username', this.loginUsername);
         params.append('password', this.loginPassword);
 
-        const response = await axios.post('/auth/login', params);
+        const response = await api.post('/auth/login', params);
 
         console.log('Log in success', response.data);
         const token = response.data.access_token;
@@ -27,7 +27,7 @@ export default {
 
         this.$router.push('/profile');
       } catch(err) {
-        alert("Ошибка авторизации: " + (err.response?.data?.detail || err.message));
+
       } finally {
         this.loading = false;
       }

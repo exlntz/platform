@@ -1,8 +1,7 @@
 <script setup>
 import { ref, onMounted, computed, onUnmounted  } from 'vue'
 import { useRoute } from 'vue-router'
-import axios from 'axios'
-
+import api from '@/api/axios' // Наш настроенный инстанс
 
 import { useTimerStore } from '@/pinia/TimerStore.js'
 
@@ -37,7 +36,7 @@ const getAuthHeader = () => {
 // Загрузка задачи
 const fetchTask = async () => {
   try {
-    const response = await axios.get(`/tasks/${route.params.id}`, getAuthHeader())
+    const response = await api.get(`/tasks/${route.params.id}`, getAuthHeader())
     task.value = response.data
   } catch (err) {
     console.error('Ошибка:', err)
@@ -54,7 +53,7 @@ const submitAnswer = async () => {
   checkResult.value = null
 
   try {
-    const response = await axios.post(
+    const response = await api.post(
       `/tasks/${task.value.id}/check`,
       {
         answer: answer.value,
