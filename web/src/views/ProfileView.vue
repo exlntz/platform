@@ -169,8 +169,10 @@ onMounted(() => {
                 {{ profile.user.email }}
               </span>
               <span class="meta-item"> В клубе с {{ formatDate(profile.user.created_at) }} </span>
-              <span class="meta-item"> Уровень: {{ profile.user.level }} </span>
+              
             </div>
+            <div class="profile-meta"> <span class="meta-item"> Уровень: {{ profile.user.level }} </span> </div>
+            
 
             <div class="progress-section">
               <div class="progress-header">
