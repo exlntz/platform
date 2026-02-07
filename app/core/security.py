@@ -34,14 +34,14 @@ def create_token(data: dict, expires_delta: timedelta, token_type: str):
 def create_access_token(data: dict):
     return create_token(
         data=data,
-        expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+        expires_delta=timedelta(seconds=15),
         token_type="access"
     )
 
 def create_refresh_token(data: dict):
     return create_token(
         data=data,
-        expires_delta=timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
+        expires_delta=timedelta(minutes=2),
         token_type="refresh"
     )
 
@@ -52,17 +52,17 @@ def verify_refresh_token(token: str) -> str:
         if payload.get("type") != "refresh":
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token type",
+                detail="Неправильный token type",
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
         user_id = payload.get("sub")
         if user_id is None:
-            raise HTTPException(status_code=401, detail="Invalid token payload")
+            raise HTTPException(status_code=401, detail="Ошибка token payload")
 
         return int(user_id)
 
     except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Refresh token expired")
+        raise HTTPException(status_code=401, detail="Refresh token истек")
     except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+        raise HTTPException(status_code=401, detail="Неверный токен")

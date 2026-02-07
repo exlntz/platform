@@ -21,9 +21,10 @@ export default {
 
         const response = await api.post('/auth/login', params);
 
-        console.log('Log in success', response.data);
+        console.log('Успешный вход', response.data);
         const token = response.data.access_token;
         localStorage.setItem('user-token', token);
+        localStorage.setItem('refresh-token', response.data.refresh_token)
 
         this.$router.push('/profile');
       } catch(err) {

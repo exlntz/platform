@@ -16,6 +16,8 @@ class UserRegister(BaseModel):
         password = v.get_secret_value()
         if not any(char.isdigit() for char in password):
             raise ValueError('Пароль должен содержать хотя бы одну цифру')
+        if not any(char.isalpha() and char.upper() == char for char in password):
+            raise ValueError('Пароль должен содержать хотя бы одну заглавную букву')
 
         return v
 

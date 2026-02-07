@@ -54,7 +54,11 @@ const resultTitleClass = computed(() => {
 })
 
 // --- ЛОГИКА WEBSOCKET ---
+// Добавляем флаг, чтобы не зациклить реконнект
+const isReconnecting = ref(false)
+
 const connectPvp = () => {
+  // 1. ПРОВЕРКИ
   const token = localStorage.getItem('user-token')
   if (!token) {
     alert('Сначала войдите в аккаунт!')
@@ -62,20 +66,24 @@ const connectPvp = () => {
     return
   }
 
-  gameState.value = 'searching'
-  gameResult.value = null
-  activeTask.value = null
-  logs.value = []
-  userAnswer.value = ''
+  if (!isReconnecting.value) {
+    gameState.value = 'searching'
+    gameResult.value = null
+    activeTask.value = null
+    logs.value = []
+    userAnswer.value = ''
+  }
 
+  // 2. СОЗДАНИЕ СОКЕТА
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-
-  // ИСПРАВЛЕНИЕ: Добавили /api/ в путь
-  // Nginx увидит /api/..., отрежет его и отправит на бэкенд /pvp/join
   socket.value = new WebSocket(`${protocol}//${window.location.host}/api/pvp/join`);
 
+  // 3. НАЗНАЧЕНИЕ ОБРАБОТЧИКОВ (ВСЕ ОНИ ДОЛЖНЫ БЫТЬ ВНУТРИ ЭТОЙ ФУНКЦИИ)
+
   socket.value.onopen = () => {
-    addLog('system', 'Соединение установлено...')
+    if (!isReconnecting.value) {
+        addLog('system', 'Соединение установлено...')
+    }
   }
 
   socket.value.onmessage = async (event) => {
@@ -83,18 +91,36 @@ const connectPvp = () => {
     console.log('WS Message:', msg)
 
     if (msg === 'Connected') {
-      socket.value.send(token)
+      const currentToken = localStorage.getItem('user-token')
+      socket.value.send(currentToken)
     }
     else if (msg === 'token accepted') {
       addLog('system', 'Авторизация успешна. Ищем противника...')
+      isReconnecting.value = false
     }
     else if (msg === 'invalid token') {
-      alert('Ошибка авторизации. Попробуйте перезайти.')
+      console.warn('WS: Токен истек. Пытаемся обновить через HTTP...')
       socket.value.close()
-      router.push('/auth')
+
+      if (isReconnecting.value) {
+         alert('Сессия истекла. Пожалуйста, войдите снова.')
+         router.push('/auth')
+         return
+      }
+
+      isReconnecting.value = true
+
+      try {
+        await api.get('/profile/')
+        console.log('WS: Токен успешно обновлен. Переподключаемся...')
+        connectPvp()
+      } catch (e) {
+        console.error('WS: Не удалось обновить токен.', e)
+        router.push('/auth')
+      }
     }
     else if (msg === 'Search started') {
-      // ждем
+       // ждем
     }
     else if (msg === 'match started') {
       gameState.value = 'playing'
@@ -132,8 +158,9 @@ const connectPvp = () => {
     else if (msg.includes('already in a match')) finishGame('already_in_match')
   }
 
+  // ВАЖНО: onclose и onerror тоже внутри функции!
   socket.value.onclose = () => {
-    if (gameState.value === 'searching' || gameState.value === 'playing') {
+    if (!isReconnecting.value && (gameState.value === 'searching' || gameState.value === 'playing')) {
       gameState.value = 'idle'
     }
   }
@@ -143,7 +170,8 @@ const connectPvp = () => {
     addLog('error', 'Ошибка соединения')
     gameState.value = 'idle'
   }
-}
+
+} // <--- ВОТ ЗДЕСЬ КОНЕЦ ФУНКЦИИ connectPvp
 
 const sendAnswer = () => {
   if (!userAnswer.value.trim() || !socket.value) return
