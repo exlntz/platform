@@ -13,7 +13,11 @@ async def get_leaderboard(
         limit: int = Query(default=10,gt=0,le=100)
 ) -> list[LeaderboardPlayer]:
 
-    query=select(UserModel).order_by(UserModel.rating.desc()).limit(limit)
+    query=(select(UserModel)
+           .where(UserModel.is_banned==False)
+           .order_by(UserModel.rating.desc())
+           .limit(limit)
+    )
     result = await session.execute(query)
     users=result.scalars().all()
 

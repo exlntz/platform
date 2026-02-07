@@ -50,6 +50,11 @@ async def login_user(
             detail='Неверное имя пользователя или пароль!',
             headers={"WWW-Authenticate": "Bearer"}
         )
+    if user.is_banned:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Ваш аккаунт заблокирован за нарушение правил."
+        )
 
     token_payload={
         "sub": str(user.id),
