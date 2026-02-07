@@ -1,6 +1,8 @@
 <script>
 import api from '@/api/axios' // Наш настроенный инстанс
 import router from '../router/index.js'
+import { useNotificationStore } from '@/pinia/NotificationStore'
+const notify = useNotificationStore()
 
 export default {
   name: "RegisterView",
@@ -39,12 +41,12 @@ export default {
     async register() {
       // Проверка перед отправкой
       if (!this.isFormValid) {
-        alert('Пожалуйста, заполните все поля корректно');
+        notify.show('Пожалуйста, заполните все поля корректно');
         return;
       }
 
       if (this.regPassword !== this.regPasswordRepeat) {
-        alert('Пароли не совпадают');
+        notify.show('Пароли не совпадают');
         return;
       }
 
