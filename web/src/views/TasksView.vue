@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, watch, onMounted, onUnmounted, shallowRef } from 'vue'
+import { ref, reactive, watch, onMounted, onUnmounted, shallowRef, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import api from '@/api/axios' // Наш настроенный инстанс
 import { useConstantsStore } from '@/pinia/ConstantsStore'
@@ -21,12 +21,17 @@ const filters = reactive({
   search: route.query.search || '',
   subject: route.query.subject || '',
   difficulty: route.query.difficulty || '',
+  tags: route.query.tags || '', // Храним выбранный тег
 })
+
+// Состояние для списка доступных тегов (зависит от предмета)
+const availableTags = shallowRef([])
+const tagsLoading = ref(false)
 
 // --- Pagination State ---
 const pagination = reactive({
   page: Number(route.query.page) || 1,
-  limit: 12,
+  limit: 32, // Лимит 32 задачи
 })
 
 // --- Utils ---
@@ -49,34 +54,32 @@ const updateScreenSize = () => {
 const getDisplayTags = (taskData) => {
   let rawTags = []
 
-  // Обработка и массива тегов, и строки (старый/новый формат)
   if (Array.isArray(taskData.tags)) {
     rawTags = taskData.tags
   } else if (typeof taskData.theme === 'string') {
-    rawTags = taskData.theme.split(',').map(t => t.trim())
+    rawTags = taskData.theme.split(',').map((t) => t.trim())
   }
 
-  // Обрезаем количество для мобилок
   const slicedTags = rawTags.slice(0, screenSize.value === 'mobile' ? 2 : 3)
 
-  // Маппим ключи в русские лейблы через Store
-  return slicedTags.map(tagKey => {
-    const foundTag = constantsStore.tags.find(t => t.key === tagKey)
+  return slicedTags.map((tagKey) => {
+    const foundTag = constantsStore.tags.find((t) => t.key === tagKey)
     return foundTag ? foundTag.label : tagKey
   })
 }
 
-// Возвращаем Tailwind классы для цветов сложности,
-// так как бейджи используют комбинацию CSS геометрии и Tailwind цветов
 const getDifficultyColorClass = (diffKey) => {
   const key = diffKey ? diffKey.toUpperCase() : ''
 
   const map = {
-    'EASY': 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800',
-    'MEDIUM': 'text-amber-700 bg-amber-50 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800',
-    'HARD': 'text-rose-700 bg-rose-50 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800',
+    EASY: 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800',
+    MEDIUM:
+      'text-amber-700 bg-amber-50 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800',
+    HARD: 'text-rose-700 bg-rose-50 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800',
   }
-  return map[key] || 'text-slate-600 bg-slate-100 border-slate-200 dark:bg-slate-800 dark:text-slate-400'
+  return (
+    map[key] || 'text-slate-600 bg-slate-100 border-slate-200 dark:bg-slate-800 dark:text-slate-400'
+  )
 }
 
 const getDifficultyLabel = (diffKey) => {
@@ -91,10 +94,37 @@ const navigateToTask = (id) => {
   router.push(`/tasks/${id}`)
 }
 
+// --- Dynamic Tags Logic ---
+
+const updateAvailableTags = async () => {
+  if (!filters.subject) {
+    availableTags.value = constantsStore.tags
+    return
+  }
+
+  tagsLoading.value = true
+  try {
+    const response = await api.get('/constants/tags_for_subject', {
+      params: { subject: filters.subject },
+    })
+
+    const data = response.data
+    if (Array.isArray(data)) {
+      availableTags.value = data
+    } else {
+      availableTags.value = data.items || data.data || []
+    }
+  } catch (err) {
+    console.warn('Не удалось загрузить теги, используем локальный фильтр', err)
+    availableTags.value = constantsStore.tags
+  } finally {
+    tagsLoading.value = false
+  }
+}
+
 // --- Fetch Actions ---
 
 const fetchTasks = async () => {
-  // Отмена предыдущего запроса
   if (abortController) abortController.abort()
   abortController = new AbortController()
 
@@ -102,16 +132,21 @@ const fetchTasks = async () => {
   error.value = null
 
   try {
+    // ВАЖНО: Мы запрашиваем limit=32. Если бэкенд это игнорирует, мы обрежем на фронте.
+    // Если бэкенд научится понимать offset/limit, используем offset.
+    const offset = (pagination.page - 1) * pagination.limit
+
     const params = {
-      skip: (pagination.page - 1) * pagination.limit,
+      offset: offset, // Стандартное название для пагинации
+      skip: offset, // На всякий случай дублируем skip
       limit: pagination.limit,
-      ...(filters.search && { search: filters.search }),
-      ...(filters.subject && { subject: filters.subject }),
-      ...(filters.difficulty && { difficulty: filters.difficulty }),
+      ...(filters.search ? { search: filters.search } : {}),
+      ...(filters.subject ? { subject: filters.subject } : {}),
+      ...(filters.difficulty ? { difficulty: filters.difficulty } : {}),
+      ...(filters.tags ? { tag: filters.tags } : {}),
     }
 
-    const token = localStorage.getItem('user-token') || localStorage.getItem('token')
-    const headers = token ? { Authorization: `Bearer ${token}` } : {}
+    const headers = { Authorization: `Bearer ${localStorage.getItem('user-token')}` }
 
     const response = await api.get(API_URL, {
       params,
@@ -123,6 +158,7 @@ const fetchTasks = async () => {
 
     if (Array.isArray(data)) {
       tasks.value = data
+      // Если API возвращает весь список, то total - это длина списка
       totalTasks.value = data.length
     } else {
       tasks.value = data.items || data.data || []
@@ -130,19 +166,25 @@ const fetchTasks = async () => {
     }
 
     updateUrl()
-
-  } catch (err) {} finally {
-    setTimeout(() => { loading.value = false }, 300)
+  } catch (err) {
+    if (err.name !== 'CanceledError') {
+      // error.value = 'Ошибка загрузки данных'
+    }
+  } finally {
+    setTimeout(() => {
+      loading.value = false
+    }, 300)
   }
 }
 
 const updateUrl = () => {
-  router.replace({
-    query: {
-      ...filters,
-      page: pagination.page > 1 ? pagination.page : undefined,
-    }
-  })
+  const query = {}
+  if (filters.search) query.search = filters.search
+  if (filters.subject) query.subject = filters.subject
+  if (filters.difficulty) query.difficulty = filters.difficulty
+  if (filters.tags) query.tags = filters.tags
+  if (pagination.page > 1) query.page = pagination.page
+  router.replace({ query })
 }
 
 const handlePageChange = (newPage) => {
@@ -159,18 +201,50 @@ const resetFilters = () => {
   filters.search = ''
   filters.subject = ''
   filters.difficulty = ''
+  filters.tags = ''
+  availableTags.value = constantsStore.tags
   pagination.page = 1
   fetchTasks()
 }
 
+// --- FIX: Client-Side Pagination Logic ---
+// Это решает проблему, когда бэкенд возвращает все 33 задачи разом.
+// Мы сами нарезаем массив для текущей страницы, если он слишком большой.
+const paginatedTasks = computed(() => {
+  // Если задач в ответе больше, чем лимит, значит бэкенд вернул "всё кучей".
+  // Нам нужно вырезать только кусочек для ТЕКУЩЕЙ страницы.
+  if (tasks.value.length > pagination.limit) {
+    const start = (pagination.page - 1) * pagination.limit
+    const end = start + pagination.limit
+    // Важно: если мы на 2 странице, а бэкенд вернул массив [0..33],
+    // нам нужно показать [32..33].
+    // Но если бэкенд не поддерживает оффсет, он всегда возвращает [0..33].
+    // В этом случае слайс (32, 64) вернет правильные элементы конца списка.
+    return tasks.value.slice(start, end)
+  }
+
+  // Если бэкенд вернул <= лимита (например, 1 задачу на 2 странице), показываем как есть.
+  return tasks.value
+})
+
 // --- Watchers ---
 
 watch(
-  () => [filters.subject, filters.difficulty],
+  () => filters.subject,
+  async () => {
+    filters.tags = ''
+    pagination.page = 1
+    await updateAvailableTags()
+    fetchTasks()
+  },
+)
+
+watch(
+  () => [filters.difficulty, filters.tags],
   () => {
     pagination.page = 1
     fetchTasks()
-  }
+  },
 )
 
 watch(
@@ -181,7 +255,7 @@ watch(
       pagination.page = 1
       fetchTasks()
     }, 500)
-  }
+  },
 )
 
 // --- Lifecycle ---
@@ -194,6 +268,7 @@ onMounted(async () => {
     await constantsStore.fetchConstants()
   }
 
+  await updateAvailableTags()
   await fetchTasks()
 })
 
@@ -207,66 +282,70 @@ onUnmounted(() => {
 <template>
   <div class="tasks-container">
     <div class="tasks-content">
-
       <div class="tasks-header">
         <div class="header-text">
           <h1 class="title">Тренировочные задачи</h1>
           <p class="description">
-            Улучшайте свои навыки, решая задачи разной сложности.
-            Ваш прогресс сохраняется автоматически.
+            Улучшайте свои навыки, решая задачи разной сложности. Ваш прогресс сохраняется
+            автоматически.
           </p>
         </div>
-        <div v-if="!loading && screenSize !== 'mobile' && screenSize !== 'sm'" class="tasks-counter">
-          <span class="counter-badge">
-            Всего задач: {{ totalTasks }}
-          </span>
+        <div
+          v-if="!loading && screenSize !== 'mobile' && screenSize !== 'sm'"
+          class="tasks-counter"
+        >
+          <span class="counter-badge"> Всего задач: {{ totalTasks }} </span>
         </div>
       </div>
 
       <div class="filters-container">
         <div class="search-group">
           <div class="search-icon">🔍</div>
-          <input
-            v-model="filters.search"
-            type="text"
-            placeholder="Поиск по названию или теме..."
-            class="search-input"
-          />
+          <input v-model="filters.search" type="text" placeholder="Поиск..." class="search-input" />
         </div>
 
         <div class="filter-group">
-          <div class="select-wrapper">
+          <div class="select-wrapper subject-wrapper">
             <select
               v-model="filters.subject"
               class="filter-select"
-              :class="{ 'compact': screenSize === 'mobile' }"
+              :class="{ compact: screenSize === 'mobile' }"
               :disabled="constantsStore.loading"
             >
               <option value="">Все предметы</option>
-              <option
-                v-for="subj in constantsStore.subjects"
-                :key="subj.key"
-                :value="subj.key"
-              >
+              <option v-for="subj in constantsStore.subjects" :key="subj.key" :value="subj.key">
                 {{ subj.label }}
               </option>
             </select>
             <div class="select-arrow">▼</div>
           </div>
 
-          <div class="select-wrapper">
+          <div class="select-wrapper tag-wrapper">
+            <select
+              v-model="filters.tags"
+              class="filter-select"
+              :class="{ compact: screenSize === 'mobile' }"
+              :disabled="tagsLoading || constantsStore.loading"
+            >
+              <option value="">
+                {{ tagsLoading ? 'Загрузка...' : 'Все темы' }}
+              </option>
+              <option v-for="tag in availableTags" :key="tag.key || tag" :value="tag.key || tag">
+                {{ tag.label || tag }}
+              </option>
+            </select>
+            <div class="select-arrow">▼</div>
+          </div>
+
+          <div class="select-wrapper difficulty-wrapper">
             <select
               v-model="filters.difficulty"
               class="filter-select"
-              :class="{ 'compact': screenSize === 'mobile' }"
+              :class="{ compact: screenSize === 'mobile' }"
               :disabled="constantsStore.loading"
             >
               <option value="">Сложность</option>
-              <option
-                v-for="diff in constantsStore.difficulty"
-                :key="diff.key"
-                :value="diff.key"
-              >
+              <option v-for="diff in constantsStore.difficulty" :key="diff.key" :value="diff.key">
                 {{ diff.label }}
               </option>
             </select>
@@ -276,7 +355,7 @@ onUnmounted(() => {
           <button
             @click="resetFilters"
             class="reset-btn"
-            :class="{ 'compact': screenSize === 'mobile' }"
+            :class="{ compact: screenSize === 'mobile' }"
             :title="screenSize === 'mobile' ? '' : 'Сбросить фильтры'"
           >
             {{ screenSize === 'mobile' ? 'Сброс' : '✕' }}
@@ -288,47 +367,42 @@ onUnmounted(() => {
         <div class="error-icon">🔌</div>
         <h3 class="error-title">Ошибка соединения</h3>
         <p class="error-message">{{ error }}</p>
-        <button @click="fetchTasks" class="retry-btn">
-          Попробовать снова
-        </button>
+        <button @click="fetchTasks" class="retry-btn">Попробовать снова</button>
       </div>
 
       <div v-else class="tasks-grid">
-
         <template v-if="loading">
-          <div v-for="i in screenSize === 'mobile' ? 4 : 6" :key="i" class="task-card-skeleton">
+          <div v-for="i in screenSize === 'mobile' ? 4 : 8" :key="i" class="task-card-skeleton">
             <div class="skeleton-header">
-              <div class="skeleton-tag" :class="{ 'mobile': screenSize === 'mobile' }"></div>
-              <div class="skeleton-difficulty" :class="{ 'mobile': screenSize === 'mobile' }"></div>
+              <div class="skeleton-tag" :class="{ mobile: screenSize === 'mobile' }"></div>
+              <div class="skeleton-difficulty" :class="{ mobile: screenSize === 'mobile' }"></div>
             </div>
-            <div class="skeleton-title" :class="{ 'mobile': screenSize === 'mobile' }"></div>
+            <div class="skeleton-title" :class="{ mobile: screenSize === 'mobile' }"></div>
             <div class="skeleton-description">
-              <div class="skeleton-line" :class="{ 'mobile': screenSize === 'mobile' }"></div>
-              <div class="skeleton-line short" :class="{ 'mobile': screenSize === 'mobile' }"></div>
+              <div class="skeleton-line" :class="{ mobile: screenSize === 'mobile' }"></div>
+              <div class="skeleton-line short" :class="{ mobile: screenSize === 'mobile' }"></div>
             </div>
             <div class="skeleton-footer">
-              <div class="skeleton-tags" :class="{ 'mobile': screenSize === 'mobile' }"></div>
-              <div class="skeleton-button" :class="{ 'mobile': screenSize === 'mobile' }"></div>
+              <div class="skeleton-tags" :class="{ mobile: screenSize === 'mobile' }"></div>
+              <div class="skeleton-button" :class="{ mobile: screenSize === 'mobile' }"></div>
             </div>
           </div>
         </template>
 
-        <template v-else-if="tasks.length === 0">
+        <template v-else-if="paginatedTasks.length === 0">
           <div class="empty-state">
             <div class="empty-icon">🔍</div>
             <h3 class="empty-title">Задачи не найдены</h3>
             <p class="empty-description">
               Попробуйте изменить параметры поиска или сбросить фильтры.
             </p>
-            <button @click="resetFilters" class="reset-filters-btn">
-              Сбросить все фильтры
-            </button>
+            <button @click="resetFilters" class="reset-filters-btn">Сбросить все фильтры</button>
           </div>
         </template>
 
         <template v-else>
           <div
-            v-for="task in tasks"
+            v-for="task in paginatedTasks"
             :key="task.id"
             class="task-card"
             @click="navigateToTask(task.id)"
@@ -336,39 +410,46 @@ onUnmounted(() => {
             <div class="task-accent"></div>
 
             <div class="task-header">
-              <span class="subject-tag" :class="{ 'mobile': screenSize === 'mobile' }">
+              <span class="subject-tag" :class="{ mobile: screenSize === 'mobile' }">
                 {{ getSubjectLabel(task.subject) }}
               </span>
 
               <span
                 class="difficulty-badge"
-                :class="[getDifficultyColorClass(task.difficulty), { 'mobile': screenSize === 'mobile' }]"
+                :class="[
+                  getDifficultyColorClass(task.difficulty),
+                  { mobile: screenSize === 'mobile' },
+                ]"
               >
-                {{ screenSize === 'mobile' ? getDifficultyLabel(task.difficulty).charAt(0) : getDifficultyLabel(task.difficulty) }}
+                {{
+                  screenSize === 'mobile'
+                    ? getDifficultyLabel(task.difficulty).charAt(0)
+                    : getDifficultyLabel(task.difficulty)
+                }}
               </span>
             </div>
 
-            <h3 class="task-title" :class="{ 'mobile': screenSize === 'mobile' }">
+            <h3 class="task-title" :class="{ mobile: screenSize === 'mobile' }">
               {{ task.title }}
             </h3>
 
-            <p class="task-description" :class="{ 'mobile': screenSize === 'mobile' }">
+            <p class="task-description" :class="{ mobile: screenSize === 'mobile' }">
               {{ task.description }}
             </p>
 
-            <div class="task-footer" :class="{ 'mobile': screenSize === 'mobile' }">
+            <div class="task-footer" :class="{ mobile: screenSize === 'mobile' }">
               <div class="task-tags">
                 <span
                   v-for="(tagName, idx) in getDisplayTags(task)"
                   :key="idx"
                   class="tag"
-                  :class="{ 'mobile': screenSize === 'mobile' }"
+                  :class="{ mobile: screenSize === 'mobile' }"
                 >
                   #{{ tagName }}
                 </span>
               </div>
 
-              <button class="solve-btn" :class="{ 'mobile': screenSize === 'mobile' }">
+              <button class="solve-btn" :class="{ mobile: screenSize === 'mobile' }">
                 {{ screenSize === 'mobile' ? '→' : 'Решать' }}
                 <span v-if="screenSize !== 'mobile'" class="btn-arrow">→</span>
               </button>
@@ -386,29 +467,22 @@ onUnmounted(() => {
           ← Назад
         </button>
 
-        <span class="page-info">
-          Стр. {{ pagination.page }}
-        </span>
+        <span class="page-info"> Стр. {{ pagination.page }} </span>
 
         <button
-          :disabled="tasks.length < pagination.limit"
+          :disabled="pagination.page * pagination.limit >= totalTasks"
           @click="handlePageChange(pagination.page + 1)"
           class="page-btn"
         >
           Вперед →
         </button>
       </div>
-
     </div>
   </div>
 </template>
 
 <style scoped>
-/* ==================== THEME CONFIGURATION ====================
-   Мы используем CSS Variables для управления темой.
-   Это гарантирует, что стили переключаются мгновенно и корректно,
-   независимо от специфичности селекторов.
-*/
+/* ==================== THEME CONFIGURATION ==================== */
 .tasks-container {
   /* LIGHT THEME (Default) */
   --bg-page: #f8fafc;
@@ -435,12 +509,12 @@ onUnmounted(() => {
   --btn-border: #e2e8f0;
   --btn-hover-bg: #f8fafc;
 
+  /* Светлые цвета скелетонов */
   --skeleton-base: #f1f5f9;
   --skeleton-highlight: #e2e8f0;
 }
 
-/* DARK THEME OVERRIDES */
-/* :global(.dark) позволяет "увидеть" класс .dark, который висит на <html> */
+/* DARK THEME VARIABLES */
 :global(.dark) .tasks-container {
   --bg-page: #0f172a;
   --bg-card: #1e293b;
@@ -466,6 +540,7 @@ onUnmounted(() => {
   --btn-border: #334155;
   --btn-hover-bg: #334155;
 
+  /* ТЕМНЫЕ скелетоны (чтобы не били по глазам) */
   --skeleton-base: #1e293b;
   --skeleton-highlight: #334155;
 }
@@ -474,9 +549,12 @@ onUnmounted(() => {
 .tasks-container {
   min-height: 100vh;
   background-color: var(--bg-page);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--text-primary);
+  font-family: 'Inter', sans-serif;
   line-height: 1.5;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
 }
 
 .tasks-content {
@@ -548,6 +626,8 @@ onUnmounted(() => {
 .search-group {
   flex: 1;
   position: relative;
+  /* Минимальная ширина для поиска, чтобы его не сжимали селекты */
+  min-width: 220px;
 }
 
 .search-icon {
@@ -597,7 +677,25 @@ onUnmounted(() => {
 .select-wrapper {
   position: relative;
   flex: 1;
-  min-width: 120px;
+  /* Исправление прыжков: запрещаем сжатие меньше 140px */
+  min-width: 140px;
+  flex-shrink: 0;
+}
+
+/* Для десктопа можно задать более жесткие ограничения, чтобы не прыгало */
+@media (min-width: 1024px) {
+  .subject-wrapper {
+    flex-basis: 200px;
+    max-width: 220px;
+  }
+  .tag-wrapper {
+    flex-basis: 180px;
+    max-width: 200px;
+  }
+  .difficulty-wrapper {
+    flex-basis: 150px;
+    max-width: 170px;
+  }
 }
 
 .filter-select {
@@ -615,6 +713,9 @@ onUnmounted(() => {
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: var(--shadow-sm);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
 }
 
 .filter-select.compact {
@@ -629,6 +730,12 @@ onUnmounted(() => {
 .filter-select:focus {
   border-color: var(--accent-color);
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.filter-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: var(--bg-tag);
 }
 
 .select-arrow {
@@ -1104,6 +1211,11 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
+/* FIX: ТЕМНАЯ РАМКА ДЛЯ ТЕГОВ В ТЕМНОЙ ТЕМЕ */
+:global(.dark) .tag {
+  border-color: #475569;
+}
+
 .tag.mobile {
   font-size: 9px;
   padding: 3px 6px;
@@ -1161,87 +1273,260 @@ onUnmounted(() => {
 
 /* ==================== ANIMATIONS ==================== */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 /* ==================== RESPONSIVE ==================== */
 
 @media (max-width: 320px) {
-  .tasks-content { padding: 12px; }
-  .title { font-size: 22px; }
-  .description { font-size: 13px; }
-  .filters-container { padding: 12px; gap: 12px; }
-  .search-input { padding: 10px 10px 10px 36px; font-size: 14px; }
-  .search-icon { font-size: 16px; left: 10px; }
-  .filter-select { padding: 10px 32px 10px 12px; font-size: 13px; }
-  .reset-btn.compact { min-width: 56px; padding: 0 8px; font-size: 12px; }
-  .task-card-skeleton, .task-card { padding: 16px; }
-  .empty-icon { width: 64px; height: 64px; font-size: 28px; }
-  .empty-title { font-size: 18px; }
-  .empty-description { font-size: 13px; }
+  .tasks-content {
+    padding: 12px;
+  }
+  .title {
+    font-size: 22px;
+  }
+  .description {
+    font-size: 13px;
+  }
+  .filters-container {
+    padding: 12px;
+    gap: 12px;
+  }
+  .search-input {
+    padding: 10px 10px 10px 36px;
+    font-size: 14px;
+  }
+  .search-icon {
+    font-size: 16px;
+    left: 10px;
+  }
+  .filter-select {
+    padding: 10px 32px 10px 12px;
+    font-size: 13px;
+  }
+  .reset-btn.compact {
+    min-width: 56px;
+    padding: 0 8px;
+    font-size: 12px;
+  }
+  .task-card-skeleton,
+  .task-card {
+    padding: 16px;
+  }
+  .empty-icon {
+    width: 64px;
+    height: 64px;
+    font-size: 28px;
+  }
+  .empty-title {
+    font-size: 18px;
+  }
+  .empty-description {
+    font-size: 13px;
+  }
 }
 
 @media (min-width: 321px) and (max-width: 375px) {
-  .tasks-content { padding: 14px; }
-  .title { font-size: 23px; }
-  .filter-select { min-width: 100px; }
+  .tasks-content {
+    padding: 14px;
+  }
+  .title {
+    font-size: 23px;
+  }
+  .filter-select {
+    min-width: 100px;
+  }
 }
 
 @media (min-width: 376px) {
-  .tasks-content { padding: 16px; }
-  .title { font-size: 24px; }
+  .tasks-content {
+    padding: 16px;
+  }
+  .title {
+    font-size: 24px;
+  }
 }
 
 @media (min-width: 640px) {
-  .tasks-content { padding: 24px; }
-  .title { font-size: 28px; }
-  .description { font-size: 15px; }
-  .filters-container { padding: 20px; border-radius: 20px; }
-  .search-input { padding: 14px 14px 14px 44px; font-size: 16px; }
-  .search-icon { font-size: 20px; left: 14px; }
-  .filter-select { font-size: 15px; }
-  .error-state { padding: 32px; }
-  .empty-icon { width: 96px; height: 96px; font-size: 36px; }
-  .empty-title { font-size: 22px; }
-  .empty-description { font-size: 15px; }
-  .task-card-skeleton, .task-card { padding: 24px; border-radius: 24px; }
+  .tasks-content {
+    padding: 24px;
+  }
+  .title {
+    font-size: 28px;
+  }
+  .description {
+    font-size: 15px;
+  }
+  .filters-container {
+    padding: 20px;
+    border-radius: 20px;
+  }
+  .search-input {
+    padding: 14px 14px 14px 44px;
+    font-size: 16px;
+  }
+  .search-icon {
+    font-size: 20px;
+    left: 14px;
+  }
+  .filter-select {
+    font-size: 15px;
+  }
+  .error-state {
+    padding: 32px;
+  }
+  .empty-icon {
+    width: 96px;
+    height: 96px;
+    font-size: 36px;
+  }
+  .empty-title {
+    font-size: 22px;
+  }
+  .empty-description {
+    font-size: 15px;
+  }
+  .task-card-skeleton,
+  .task-card {
+    padding: 24px;
+    border-radius: 24px;
+  }
 }
 
 @media (min-width: 768px) {
-  .tasks-header { flex-direction: row; align-items: flex-end; justify-content: space-between; gap: 24px; }
-  .tasks-counter { display: block; }
-  .title { font-size: 32px; }
-  .description { font-size: 16px; }
-  .filters-container { flex-direction: row; align-items: center; }
-  .filter-group { flex-wrap: nowrap; }
-  .select-wrapper { min-width: 160px; }
-  .tasks-grid { grid-template-columns: repeat(2, 1fr); gap: 24px; }
+  .tasks-header {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+  }
+  .tasks-counter {
+    display: block;
+  }
+  .title {
+    font-size: 32px;
+  }
+  .description {
+    font-size: 16px;
+  }
+  .filters-container {
+    flex-direction: row;
+    align-items: center;
+  }
+  .filter-group {
+    flex-wrap: nowrap;
+  }
+  /* Увеличиваем минимальную ширину для десктопа, чтобы не прыгало */
+  .select-wrapper {
+    min-width: 160px;
+  }
+  .tasks-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+  }
 }
 
 @media (min-width: 1024px) {
-  .tasks-content { padding: 32px 40px; }
-  .title { font-size: 36px; }
-  .filters-container { padding: 24px; }
-  .tasks-grid { grid-template-columns: repeat(3, 1fr); }
+  .tasks-content {
+    padding: 32px 40px;
+  }
+  .title {
+    font-size: 36px;
+  }
+  .filters-container {
+    padding: 24px;
+  }
+  .tasks-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 @media (min-width: 1280px) {
-  .tasks-content { padding: 40px; max-width: 1280px; }
-  .title { font-size: 40px; }
-  .description { font-size: 17px; }
-  .tasks-grid { gap: 32px; }
+  .tasks-content {
+    padding: 40px;
+    max-width: 1280px;
+  }
+  .title {
+    font-size: 40px;
+  }
+  .description {
+    font-size: 17px;
+  }
+  .tasks-grid {
+    gap: 32px;
+  }
 }
 
 @media (min-width: 1536px) {
-  .tasks-content { max-width: 1440px; padding: 48px; }
-  .title { font-size: 44px; }
-  .description { font-size: 18px; }
-  .tasks-grid { grid-template-columns: repeat(4, 1fr); }
+  .tasks-content {
+    max-width: 1440px;
+    padding: 48px;
+  }
+  .title {
+    font-size: 44px;
+  }
+  .description {
+    font-size: 18px;
+  }
+  .tasks-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* ==================== EXPLICIT DARK THEME OVERRIDES ==================== */
+/* Дублируем стили через :root.dark для гарантированного применения,
+   так как :global(.dark) иногда может иметь меньший приоритет или задержку
+*/
+:root.dark .tasks-container {
+  background-color: #0f172a;
+  color: #f1f5f9;
+}
+
+:root.dark .filters-container {
+  background-color: #1e293b;
+  border-color: #334155;
+}
+
+:root.dark .search-input,
+:root.dark .filter-select {
+  background-color: #334155;
+  border-color: #475569;
+  color: #f1f5f9;
+}
+
+:root.dark .task-card {
+  background-color: #1e293b;
+  border-color: #334155;
+}
+
+:root.dark .task-title {
+  color: #f1f5f9;
+}
+
+:root.dark .task-description {
+  color: #cbd5e1;
+}
+
+:root.dark .reset-btn {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #cbd5e1;
 }
 </style>
