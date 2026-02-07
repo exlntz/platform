@@ -373,6 +373,33 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
             await ws2.close()
         except Exception:
             pass
+        
+        async with new_session() as db_session:
+
+            result = 'cancelled'
+
+
+            new_match = PvPMatchModel(
+                player1_id=player1.user_id,
+                player2_id=player2.user_id,
+                result=result,
+                p1_elo_change=0,
+                p2_elo_change=0
+            )
+            db_session.add(new_match)
+
+            db_session.add(EloHistoryModel(
+                user_id=player1.user_id,
+                rating=round(player1.rating,1),
+                change=0
+            ))
+            db_session.add(EloHistoryModel(
+                user_id=player2.user_id,
+                rating=round(player2.rating,1),
+                change=0
+            ))
+
+            await db_session.commit()
 
     finally:
         async with _queue_lock:
@@ -473,7 +500,7 @@ html = """
         <ul id='messages'>
         </ul>
         <script>
-            var ws = new WebSocket("wss://olymp-platform.ru/api/pvp/join");
+            var ws = new WebSocket("ws://localhost:8000/pvp/join");
             ws.onmessage = function(event) {
                 var messages = document.getElementById('messages')
                 var message = document.createElement('li')
