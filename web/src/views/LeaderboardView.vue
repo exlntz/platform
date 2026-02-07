@@ -23,31 +23,31 @@ const getUsernameTruncationConfig = (width) => {
   if (width < 360) {
     return { maxLength: 4, threshold: 5 }
   } else if (width < 480) {
-    return { maxLength: 5, threshold: 6 } 
+    return { maxLength: 5, threshold: 6 }
   } else if (width < 640) {
     return { maxLength: 12, threshold: 13 } // Большие мобильные/маленькие планшеты
- } else {
-    return { maxLength: 20, threshold: 21 }  // Большие экраны
+  } else {
+    return { maxLength: 20, threshold: 21 } // Большие экраны
   }
 }
 
 // Вычисляемое свойство для обрезанных ников
 const truncatedUsers = computed(() => {
   const config = getUsernameTruncationConfig(screenWidth.value)
-  
-  return topUsers.value.map(user => {
+
+  return topUsers.value.map((user) => {
     const shouldTruncate = user.username.length > config.threshold
-    const truncatedUsername = shouldTruncate 
+    const truncatedUsername = shouldTruncate
       ? user.username.substring(0, config.maxLength) + '...'
-      : user.username;
-    
+      : user.username
+
     return {
       ...user,
       truncatedUsername,
-      originalUsername: user.username // Сохраняем оригинальный ник для тултипа
-    };
-  });
-});
+      originalUsername: user.username, // Сохраняем оригинальный ник для тултипа
+    }
+  })
+})
 
 /**
  * Загрузка данных таблицы лидеров с бэкенда
@@ -58,14 +58,16 @@ const fetchLeaderboard = async () => {
   error.value = null
   try {
     const response = await api.get('/leaderboard/')
-    // Бэкенд возвращает список моделей UserModel
+    // Бэкенд возвращает список моделей LeaderboardPlayer
     topUsers.value = response.data
   } catch (err) {
-    console.error("Ошибка загрузки таблицы лидеров:", err)
-    error.value = "Не удалось загрузить список лучших"
+    console.error('Ошибка загрузки таблицы лидеров:', err)
+    error.value = 'Не удалось загрузить список лучших'
   } finally {
     // Искусственная задержка для плавности анимации
-    setTimeout(() => { loading.value = false }, 500)
+    setTimeout(() => {
+      loading.value = false
+    }, 500)
   }
 }
 
@@ -82,7 +84,6 @@ onUnmounted(() => {
 <template>
   <div class="leaderboard-container">
     <div class="leaderboard-content">
-      <!-- Заголовок -->
       <div class="leaderboard-header">
         <div class="badge-hall">🏆 Топ игроков</div>
         <h1 class="title">Таблица лидеров</h1>
@@ -91,16 +92,13 @@ onUnmounted(() => {
         </p>
       </div>
 
-      <!-- Таблица лидеров -->
       <div class="leaderboard-table">
-        <!-- Шапка таблицы -->
         <div class="table-header">
           <div class="header-rank">Место</div>
           <div class="header-user">Игрок</div>
           <div class="header-rating">Рейтинг</div>
         </div>
 
-        <!-- Загрузка -->
         <div v-if="loading" class="loading-skeleton">
           <div v-for="n in 5" :key="n" class="skeleton-row">
             <div class="skeleton-rank"></div>
@@ -112,14 +110,12 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- Ошибка -->
         <div v-else-if="error" class="error-message">
           <div class="error-icon">⚠️</div>
           <p class="error-text">{{ error }}</p>
           <button @click="fetchLeaderboard" class="error-btn">Попробовать снова</button>
         </div>
 
-        <!-- Данные -->
         <div v-else class="table-rows">
           <div
             v-for="(user, index) in truncatedUsers"
@@ -129,36 +125,56 @@ onUnmounted(() => {
               'first-place': index === 0,
               'second-place': index === 1,
               'third-place': index === 2,
-              'other-place': index > 2
+              'other-place': index > 2,
             }"
             :title="user.originalUsername"
           >
             <div class="rank-cell">
-              <span v-if="index === 0" class="medal">🥇</span>
-              <span v-else-if="index === 1" class="medal">🥈</span>
-              <span v-else-if="index === 2" class="medal">🥉</span>
-              <span v-else class="rank-number">#{{ index + 1 }}</span>
+              <div class="rank-wrapper">
+                <span v-if="index === 0" class="medal">🥇</span>
+                <span v-else-if="index === 1" class="medal">🥈</span>
+                <span v-else-if="index === 2" class="medal">🥉</span>
+                <span v-else class="rank-number">#{{ index + 1 }}</span>
+              </div>
             </div>
 
             <div class="user-cell">
+              <img
+                v-if="user.avatar_url"
+                :src="`/api${user.avatar_url}`"
+                class="user-avatar-img"
+                :class="{
+                  'border-gold': index === 0,
+                  'border-silver': index === 1,
+                  'border-bronze': index === 2,
+                }"
+              />
               <div
+                v-else
                 class="user-avatar"
                 :class="{
                   'avatar-gold': index === 0,
                   'avatar-silver': index === 1,
                   'avatar-bronze': index === 2,
-                  'avatar-other': index > 2
+                  'avatar-other': index > 2,
                 }"
               >
                 {{ user.username.charAt(0).toUpperCase() }}
               </div>
+
               <div class="user-info">
                 <span class="username" :class="{ 'top-three': index < 3 }">
                   {{ user.truncatedUsername }}
                 </span>
-                <span v-if="index === 0" class="user-tag">Лидер</span>
-                <span v-if="index === 1" class="user-tag silver">2-е место</span>
-                <span v-if="index === 2" class="user-tag bronze">3-е место</span>
+
+                <div class="user-badges">
+                  <span v-if="index === 0" class="user-tag">{{ user.rank }}</span>
+                  <span v-else-if="index === 1" class="user-tag silver">{{ user.rank }}</span>
+                  <span v-else-if="index === 2" class="user-tag bronze">{{ user.rank }}</span>
+                  <span v-else class="user-tag generic">{{ user.rank }}</span>
+
+                  <span class="user-level-tag">{{ user.level }} LVL</span>
+                </div>
               </div>
             </div>
 
@@ -168,7 +184,7 @@ onUnmounted(() => {
                 'rating-gold': index === 0,
                 'rating-silver': index === 1,
                 'rating-bronze': index === 2,
-                'rating-other': index > 2
+                'rating-other': index > 2,
               }"
             >
               {{ user.rating }}
@@ -178,7 +194,6 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- Статистика -->
       <div v-if="!loading && !error" class="stats-section">
         <div class="stats-grid">
           <div class="stat-card">
@@ -198,14 +213,19 @@ onUnmounted(() => {
           <div class="stat-card">
             <div class="stat-icon">🎯</div>
             <div class="stat-info">
-              <div class="stat-number">{{ Math.round(topUsers.reduce((sum, user) => sum + user.rating, 0) / topUsers.length) || 0 }}</div>
+              <div class="stat-number">
+                {{
+                  Math.round(
+                    topUsers.reduce((sum, user) => sum + user.rating, 0) / (topUsers.length || 1),
+                  ) || 0
+                }}
+              </div>
               <div class="stat-label">средний рейтинг</div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Призыв к действию -->
       <div v-if="!loading && !error" class="challenge-section">
         <p class="challenge-text">Доберись до вершины рейтинга!</p>
         <router-link to="/pvp" class="challenge-btn">
@@ -225,7 +245,8 @@ onUnmounted(() => {
   min-height: 100vh;
   background: linear-gradient(135deg, #f8fafc 0%, #f0f9ff 100%);
   padding: 16px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   line-height: 1.5;
 }
 
@@ -361,8 +382,12 @@ onUnmounted(() => {
 }
 
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 /* Ошибка */
@@ -442,6 +467,13 @@ onUnmounted(() => {
   text-align: center;
 }
 
+.rank-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
 .medal {
   font-size: 32px;
   display: block;
@@ -474,6 +506,24 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 
+.user-avatar-img {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.border-gold {
+  border: 2px solid #f59e0b;
+}
+.border-silver {
+  border: 2px solid #94a3b8;
+}
+.border-bronze {
+  border: 2px solid #fb923c;
+}
+
 .avatar-gold {
   background: linear-gradient(135deg, #f59e0b, #d97706);
   box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
@@ -497,7 +547,7 @@ onUnmounted(() => {
 .user-info {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   overflow: hidden;
 }
 
@@ -517,6 +567,13 @@ onUnmounted(() => {
   color: #334155;
 }
 
+/* Контейнер для бейджей */
+.user-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .user-tag {
   font-size: 11px;
   font-weight: 700;
@@ -526,7 +583,7 @@ onUnmounted(() => {
   width: fit-content;
 }
 
-.user-tag:not(.silver):not(.bronze) {
+.user-tag:not(.silver):not(.bronze):not(.generic) {
   background-color: #fef3c7;
   color: #d97706;
 }
@@ -539,6 +596,29 @@ onUnmounted(() => {
 .user-tag.bronze {
   background-color: #ffedd5;
   color: #ea580c;
+}
+
+.user-tag.generic {
+  background-color: #f8fafc;
+  color: #94a3b8;
+}
+
+/* НОВАЯ ПЛАШКА УРОВНЯ */
+.user-level-tag {
+  font-size: 9px;
+  font-weight: 900; /* Делаем жирнее для четкости */
+  padding: 2px 6px;
+  border-radius: 6px;
+  display: inline-block;
+  width: fit-content;
+
+  /* ЦВЕТА */
+  color: #166534; /* Глубокий зеленый текст */
+  background-color: #d9f99d; /* Тот самый салатовый (lime-200) */
+  border: 1.5px solid #84cc16; /* Салатовая обводка чуть темнее фона */
+
+  line-height: 1;
+  text-transform: uppercase;
 }
 
 /* Рейтинг */
@@ -682,13 +762,23 @@ onUnmounted(() => {
 
 /* Анимации */
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ==================== ТЁМНАЯ ТЕМА ==================== */
@@ -733,6 +823,13 @@ onUnmounted(() => {
   color: #94a3b8;
 }
 
+/* УРОВЕНЬ В ТЕМНОЙ ТЕМЕ */
+:root.dark .user-level-tag {
+  background-color: #3dd54b; /* Еще более яркий салатовый (lime-300) */
+  color: #064e3b; /* Очень темный зеленый текст для контраста */
+  border-color: #3dd54b;
+  box-shadow: 0 0 12px rgba(72, 225, 31, 0.3); /* Салатовое свечение */
+}
 :root.dark .avatar-other {
   background-color: #334155;
   color: #94a3b8;
@@ -791,19 +888,16 @@ onUnmounted(() => {
     font-size: 14px;
   }
 
-  .table-header {
+  .table-header,
+  .user-row,
+  .skeleton-row {
     grid-template-columns: 60px 1fr 80px;
     padding: 12px 16px;
     font-size: 11px;
   }
 
-  .user-row {
-    grid-template-columns: 60px 1fr 80px;
-    padding: 12px 16px;
-    gap: 8px;
-  }
-
-  .user-avatar {
+  .user-avatar,
+  .user-avatar-img {
     width: 36px;
     height: 36px;
     font-size: 16px;
@@ -827,17 +921,13 @@ onUnmounted(() => {
   }
 }
 
-
 @media (min-width: 321px) and (max-width: 375px) {
-  .table-header {
-    grid-template-columns: 70px 1fr 90px;
-  }
-
-  .user-row {
+  .table-header,
+  .user-row,
+  .skeleton-row {
     grid-template-columns: 70px 1fr 90px;
   }
 }
-
 
 @media (min-width: 376px) and (max-width: 480px) {
   .leaderboard-content {
@@ -848,7 +938,6 @@ onUnmounted(() => {
     font-size: 28px;
   }
 }
-
 
 @media (min-width: 481px) {
   .leaderboard-container {
@@ -863,15 +952,8 @@ onUnmounted(() => {
     font-size: 17px;
   }
 
-  .table-header {
-    padding: 18px 24px;
-  }
-
-  .user-row {
-    padding: 18px 24px;
-  }
-
-  .user-avatar {
+  .user-avatar,
+  .user-avatar-img {
     width: 48px;
     height: 48px;
     font-size: 20px;
@@ -881,7 +963,6 @@ onUnmounted(() => {
     font-size: 17px;
   }
 }
-
 
 @media (min-width: 641px) {
   .title {
@@ -893,7 +974,6 @@ onUnmounted(() => {
     padding: 10px 20px;
   }
 }
-
 
 @media (min-width: 769px) {
   .title {
@@ -926,7 +1006,6 @@ onUnmounted(() => {
   }
 }
 
-
 @media (min-width: 1025px) {
   .leaderboard-container {
     padding: 32px;
@@ -940,17 +1019,15 @@ onUnmounted(() => {
     font-size: 16px;
   }
 
-  .table-header {
+  .table-header,
+  .user-row,
+  .skeleton-row {
     grid-template-columns: 100px 1fr 120px;
     padding: 24px 40px;
   }
 
-  .user-row {
-    grid-template-columns: 100px 1fr 120px;
-    padding: 24px 40px;
-  }
-
-  .user-avatar {
+  .user-avatar,
+  .user-avatar-img {
     width: 52px;
     height: 52px;
   }
@@ -963,7 +1040,6 @@ onUnmounted(() => {
     font-size: 20px;
   }
 }
-
 
 @media (min-width: 1281px) {
   .title {
@@ -996,7 +1072,6 @@ onUnmounted(() => {
     height: 64px;
   }
 }
-
 
 @media (min-width: 1536px) {
   .leaderboard-container {
