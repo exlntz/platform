@@ -603,22 +603,21 @@ onUnmounted(() => {
   color: #94a3b8;
 }
 
-/* НОВАЯ ПЛАШКА УРОВНЯ */
+/* ПЛАШКА УРОВНЯ (САЛАТОВЫЙ ЭФФЕКТ) */
 .user-level-tag {
   font-size: 9px;
-  font-weight: 900; /* Делаем жирнее для четкости */
+  font-weight: 900;
   padding: 2px 6px;
   border-radius: 6px;
   display: inline-block;
   width: fit-content;
-
-  /* ЦВЕТА */
-  color: #166534; /* Глубокий зеленый текст */
-  background-color: #d9f99d; /* Тот самый салатовый (lime-200) */
-  border: 1.5px solid #84cc16; /* Салатовая обводка чуть темнее фона */
-
   line-height: 1;
   text-transform: uppercase;
+
+  /* Светлая тема — сочный салатовый с полупрозрачностью */
+  color: #166534;
+  background-color: rgba(163, 230, 53, 0.15);
+  border: 1.5px solid rgba(132, 204, 22, 0.5);
 }
 
 /* Рейтинг */
@@ -635,19 +634,15 @@ onUnmounted(() => {
 .rating-gold {
   color: #d97706;
 }
-
 .rating-silver {
   color: #64748b;
 }
-
 .rating-bronze {
   color: #ea580c;
 }
-
 .rating-other {
   color: #4f46e5;
 }
-
 .rating-change {
   font-size: 14px;
   color: #22c55e;
@@ -657,7 +652,6 @@ onUnmounted(() => {
 .stats-section {
   margin: 32px 0;
 }
-
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -695,14 +689,12 @@ onUnmounted(() => {
 .stat-info {
   flex: 1;
 }
-
 .stat-number {
   font-size: 24px;
   font-weight: 800;
   color: #0f172a;
   margin-bottom: 4px;
 }
-
 .stat-label {
   font-size: 13px;
   color: #64748b;
@@ -715,7 +707,6 @@ onUnmounted(() => {
   padding: 32px 0;
   animation: fadeInUp 0.6s ease-out;
 }
-
 .challenge-text {
   font-size: 18px;
   color: #64748b;
@@ -746,15 +737,12 @@ onUnmounted(() => {
 .challenge-btn:active {
   transform: translateY(0);
 }
-
 .btn-icon {
   font-size: 20px;
 }
-
 .btn-text {
   font-size: 16px;
 }
-
 .btn-arrow {
   font-size: 18px;
   opacity: 0.8;
@@ -769,7 +757,6 @@ onUnmounted(() => {
     opacity: 1;
   }
 }
-
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -781,7 +768,7 @@ onUnmounted(() => {
   }
 }
 
-/* ==================== ТЁМНАЯ ТЕМА ==================== */
+/* ==================== ТЁМНАЯ ТЕМА (DARK MODE) ==================== */
 
 :root.dark .leaderboard-container {
   background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
@@ -790,77 +777,64 @@ onUnmounted(() => {
 :root.dark .title {
   color: #f8fafc;
 }
-
 :root.dark .description {
   color: #cbd5e1;
 }
-
 :root.dark .badge-hall {
   background-color: #334155;
   color: #fbbf24;
   border-color: #f59e0b;
 }
-
 :root.dark .leaderboard-table {
   background-color: #1e293b;
   border-color: #334155;
 }
-
 :root.dark .table-header {
   background-color: #334155;
   color: #e2e8f0;
 }
-
 :root.dark .user-row {
   border-bottom-color: #334155;
 }
-
 :root.dark .user-row:hover {
   background-color: #334155;
 }
-
 :root.dark .rank-number {
   color: #94a3b8;
 }
 
-/* УРОВЕНЬ В ТЕМНОЙ ТЕМЕ */
+/* УРОВЕНЬ В ТЕМНОЙ ТЕМЕ: ПОЛУПРОЗРАЧНОСТЬ И СОЧНОСТЬ */
 :root.dark .user-level-tag {
-  background-color: #3dd54b; /* Еще более яркий салатовый (lime-300) */
-  color: #064e3b; /* Очень темный зеленый текст для контраста */
-  border-color: #3dd54b;
-  box-shadow: 0 0 12px rgba(72, 225, 31, 0.3); /* Салатовое свечение */
+  background-color: rgba(0, 0, 0, 0.1); /* Прозрачный фон для глубины */
+  color: #bef264; /* Яркий салатовый текст */
+  border-color: rgba(163, 230, 53, 0.3); /* Приглушенная граница */
+  box-shadow: 0 0 10px rgba(163, 230, 53, 0.05); /* Едва заметное свечение */
 }
+
 :root.dark .avatar-other {
   background-color: #334155;
   color: #94a3b8;
 }
-
 :root.dark .username:not(.top-three) {
   color: #e2e8f0;
 }
-
 :root.dark .stat-card {
   background-color: #1e293b;
   border-color: #334155;
   color: #f1f5f9;
 }
-
 :root.dark .stat-card:hover {
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
 }
-
 :root.dark .stat-icon {
   background-color: #334155;
 }
-
 :root.dark .stat-number {
   color: #f8fafc;
 }
-
 :root.dark .stat-label {
   color: #94a3b8;
 }
-
 :root.dark .challenge-text {
   color: #cbd5e1;
 }
@@ -879,15 +853,12 @@ onUnmounted(() => {
   .leaderboard-container {
     padding: 12px;
   }
-
   .title {
     font-size: 26px;
   }
-
   .description {
     font-size: 14px;
   }
-
   .table-header,
   .user-row,
   .skeleton-row {
@@ -895,26 +866,21 @@ onUnmounted(() => {
     padding: 12px 16px;
     font-size: 11px;
   }
-
   .user-avatar,
   .user-avatar-img {
     width: 36px;
     height: 36px;
     font-size: 16px;
   }
-
   .username {
     font-size: 14px;
   }
-
   .rating-cell {
     font-size: 16px;
   }
-
   .stats-grid {
     grid-template-columns: 1fr;
   }
-
   .challenge-btn {
     padding: 14px 24px;
     font-size: 14px;
@@ -933,7 +899,6 @@ onUnmounted(() => {
   .leaderboard-content {
     padding: 0 8px;
   }
-
   .title {
     font-size: 28px;
   }
@@ -943,22 +908,18 @@ onUnmounted(() => {
   .leaderboard-container {
     padding: 24px;
   }
-
   .title {
     font-size: 36px;
   }
-
   .description {
     font-size: 17px;
   }
-
   .user-avatar,
   .user-avatar-img {
     width: 48px;
     height: 48px;
     font-size: 20px;
   }
-
   .username {
     font-size: 17px;
   }
@@ -968,7 +929,6 @@ onUnmounted(() => {
   .title {
     font-size: 40px;
   }
-
   .badge-hall {
     font-size: 15px;
     padding: 10px 20px;
@@ -979,28 +939,22 @@ onUnmounted(() => {
   .title {
     font-size: 44px;
   }
-
   .description {
     font-size: 18px;
   }
-
   .leaderboard-table {
     border-radius: 24px;
   }
-
   .table-header {
     padding: 20px 32px;
     font-size: 13px;
   }
-
   .user-row {
     padding: 20px 32px;
   }
-
   .stats-grid {
     gap: 20px;
   }
-
   .stat-card {
     padding: 24px;
   }
@@ -1010,32 +964,26 @@ onUnmounted(() => {
   .leaderboard-container {
     padding: 32px;
   }
-
   .title {
     font-size: 48px;
   }
-
   .badge-hall {
     font-size: 16px;
   }
-
   .table-header,
   .user-row,
   .skeleton-row {
     grid-template-columns: 100px 1fr 120px;
     padding: 24px 40px;
   }
-
   .user-avatar,
   .user-avatar-img {
     width: 52px;
     height: 52px;
   }
-
   .username {
     font-size: 18px;
   }
-
   .rating-cell {
     font-size: 20px;
   }
@@ -1045,27 +993,21 @@ onUnmounted(() => {
   .title {
     font-size: 52px;
   }
-
   .leaderboard-content {
     max-width: 1100px;
   }
-
   .description {
     font-size: 20px;
   }
-
   .stats-grid {
     gap: 24px;
   }
-
   .stat-card {
     padding: 28px;
   }
-
   .stat-number {
     font-size: 28px;
   }
-
   .stat-icon {
     font-size: 36px;
     width: 64px;
@@ -1077,19 +1019,15 @@ onUnmounted(() => {
   .leaderboard-container {
     padding: 48px;
   }
-
   .leaderboard-content {
     max-width: 1200px;
   }
-
   .title {
     font-size: 56px;
   }
-
   .table-header {
     padding: 28px 48px;
   }
-
   .user-row {
     padding: 28px 48px;
   }
