@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onUnmounted, nextTick, computed } from 'vue'
-import axios from 'axios'
+import api from '@/api/axios' // Наш настроенный инстанс
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -156,7 +156,7 @@ const loadTask = async (taskId) => {
   try {
     const token = localStorage.getItem('user-token')
     // Здесь тоже используем относительный путь, axios.baseURL сам подставит /api если настроен
-    const response = await axios.get(`/tasks/${taskId}`, {
+    const response = await api.get(`/tasks/${taskId}`, {
       headers: { Authorization: `Bearer ${token}` }
     })
     activeTask.value = response.data

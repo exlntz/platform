@@ -1,5 +1,5 @@
 <script>
-import axios from 'axios'
+import api from '@/api/axios' // Наш настроенный инстанс
 import router from '../router/index.js'
 
 export default {
@@ -50,7 +50,7 @@ export default {
 
       this.loading = true;
       try {
-        const response = await axios.post('/auth/register', {
+        const response = await api.post('/auth/register', {
           username: this.regUsername,
           email: this.regEmail,
           password: this.regPassword,
@@ -59,7 +59,7 @@ export default {
         console.log('Register success', response.data);
         router.push('/auth');
       } catch (err) {
-        alert('Ошибка регистрации: ' + (err.response?.data?.detail || err.message));
+        
       } finally {
         this.loading = false;
       }

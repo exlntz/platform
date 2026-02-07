@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed, onUnmounted } from 'vue'
-import axios from 'axios'
+import api from '@/api/axios' // Наш настроенный инстанс
 
 const topUsers = ref([])
 const loading = ref(true)
@@ -57,7 +57,7 @@ const fetchLeaderboard = async () => {
   loading.value = true
   error.value = null
   try {
-    const response = await axios.get('/leaderboard/')
+    const response = await api.get('/leaderboard/')
     // Бэкенд возвращает список моделей UserModel
     topUsers.value = response.data
   } catch (err) {

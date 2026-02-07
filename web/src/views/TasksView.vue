@@ -1,7 +1,7 @@
 <script setup>
 import { ref, reactive, watch, onMounted, onUnmounted, shallowRef } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import axios from 'axios'
+import api from '@/api/axios' // Наш настроенный инстанс
 import { useConstantsStore } from '@/pinia/ConstantsStore'
 
 // --- Config & Store ---
@@ -113,7 +113,7 @@ const fetchTasks = async () => {
     const token = localStorage.getItem('user-token') || localStorage.getItem('token')
     const headers = token ? { Authorization: `Bearer ${token}` } : {}
 
-    const response = await axios.get(API_URL, {
+    const response = await api.get(API_URL, {
       params,
       headers,
       signal: abortController.signal,
@@ -131,11 +131,7 @@ const fetchTasks = async () => {
 
     updateUrl()
 
-  } catch (err) {
-    if (axios.isCancel(err)) return
-    console.error('Ошибка загрузки:', err)
-    error.value = 'Не удалось загрузить задачи.'
-  } finally {
+  } catch (err) {} finally {
     setTimeout(() => { loading.value = false }, 300)
   }
 }

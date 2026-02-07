@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import axios from 'axios'
+import api from '@/api/axios' // Наш настроенный инстанс
 import { Line, Radar, Bar } from 'vue-chartjs'
 
 import { useConstantsStore } from '@/pinia/ConstantsStore.js' // 1. Импорт стора
@@ -31,9 +31,9 @@ const fetchStats = async () => {
     const headers = { Authorization: `Bearer ${token}` }
 
     const [profileRes, statsRes, eloHistoryRes] = await Promise.all([
-      axios.get('/profile/', { headers }),
-      axios.get('/profile/stats', { headers }),
-      axios.get('/profile/elo_history', { headers })
+      api.get('/profile/', { headers }),
+      api.get('/profile/stats', { headers }),
+      api.get('/profile/elo_history', { headers })
     ])
 
     profile.value = profileRes.data
@@ -42,7 +42,7 @@ const fetchStats = async () => {
 
   } catch (err) {
     console.error('Ошибка загрузки статистики:', err)
-    error.value = 'Не удалось загрузить данные статистики'
+
   } finally {
     loading.value = false
   }
