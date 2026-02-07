@@ -8,7 +8,6 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = settings.ALGORITHM
-ACCESS_TOKEN_EXPIRE_MINUTES = 300
 
 pwd_context=CryptContext(schemes=['argon2'],deprecated="auto")
 
@@ -34,14 +33,14 @@ def create_token(data: dict, expires_delta: timedelta, token_type: str):
 def create_access_token(data: dict):
     return create_token(
         data=data,
-        expires_delta=timedelta(seconds=15),
+        expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
         token_type="access"
     )
 
 def create_refresh_token(data: dict):
     return create_token(
         data=data,
-        expires_delta=timedelta(minutes=2),
+        expires_delta=timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
         token_type="refresh"
     )
 

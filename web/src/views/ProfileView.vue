@@ -3,13 +3,11 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api/axios' // Наш настроенный инстанс
 
-
 const router = useRouter()
 const loading = ref(true)
 const profile = ref(null)
 const error = ref(null)
 const fileInput = ref(null)
-
 
 // --- ЛОГИКА РАНГОВ ---
 const getRankInfo = (elo) => {
@@ -26,10 +24,11 @@ const rank = computed(() => {
 })
 
 const rankStyle = computed(() => {
+  if (!rank.value.bg) return {} // Защита от пустого ранга
   return {
     backgroundColor: rank.value.bg,
     color: rank.value.color,
-    borderColor: rank.value.color
+    borderColor: rank.value.color,
   }
 })
 
@@ -37,6 +36,8 @@ const progressToNextRank = computed(() => {
   if (!profile.value) return 0
   const currentElo = profile.value.user.rating
   const { next } = getRankInfo(currentElo)
+  // Защита от деления на 0 или странных значений
+  if (!next) return 100
   const percent = Math.min((currentElo / next) * 100, 100)
   return percent
 })
@@ -51,21 +52,26 @@ const handleFileChange = async (event) => {
   if (!file) return
 
   const formData = new FormData()
+  // Важно: проверь, как бэкенд ждет поле. Обычно это 'file' или 'avatar'.
+  // Оставляю 'file', как было у тебя.
   formData.append('file', file)
 
   try {
-    const token = localStorage.getItem('user-token')
-    const response = await axios.post('/profile/avatar', formData, {
+    // ИСПРАВЛЕНИЕ: Используем api вместо axios
+    // Токен подставится сам через interceptor в axios.js
+    const response = await api.post('/profile/avatar', formData, {
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'multipart/form-data'
-      }
+        'Content-Type': 'multipart/form-data',
+      },
     })
 
-    profile.value.user.avatar_url = response.data.url
+    // Обновляем аватарку в интерфейсе сразу после загрузки
+    if (profile.value && profile.value.user) {
+      profile.value.user.avatar_url = response.data.url
+    }
   } catch (err) {
     console.error('Ошибка загрузки аватара:', err)
-
+    alert('Не удалось загрузить аватар')
   }
 }
 
@@ -79,36 +85,37 @@ const fetchProfile = async () => {
       return
     }
 
-    const headers = { Authorization: `Bearer ${token}` }
-
+    // ИСПРАВЛЕНИЕ: Убрали headers, так как api сам их ставит
     // Выполняем запросы параллельно для ускорения
-    const [profileRes] = await Promise.all([
-      api.get('/profile/'),
-    ])
+    const [profileRes] = await Promise.all([api.get('/profile/')])
 
     profile.value = {
       user: profileRes.data,
-      stats: profileRes.data // Общая статистика из профиля
+      stats: profileRes.data, // Общая статистика из профиля
     }
-
   } catch (err) {
     console.error('Ошибка профиля:', err)
     error.value = 'Не удалось загрузить профиль'
   } finally {
-    setTimeout(() => { loading.value = false }, 400)
+    setTimeout(() => {
+      loading.value = false
+    }, 400)
   }
 }
 
 const logout = () => {
-  if(confirm('Вы уверены, что хотите выйти?')) {
+  if (confirm('Вы уверены, что хотите выйти?')) {
     localStorage.removeItem('user-token')
-    router.push('/')
+    localStorage.removeItem('refresh-token') // Не забываем чистить и рефреш
+    router.push('/auth') // Лучше на /auth, а не на /
   }
 }
 
 const formatDate = (dateString) => {
+  if (!dateString) return ''
   return new Date(dateString).toLocaleDateString('ru-RU', {
-    month: 'long', year: 'numeric'
+    month: 'long',
+    year: 'numeric',
   })
 }
 
@@ -148,7 +155,9 @@ onMounted(() => {
                 class="avatar-image"
                 alt="Avatar"
               />
-              <span v-else class="avatar-fallback">{{ profile.user.username.charAt(0).toUpperCase() }}</span>
+              <span v-else class="avatar-fallback">{{
+                profile.user.username.charAt(0).toUpperCase()
+              }}</span>
               <div class="avatar-overlay">
                 <span class="overlay-icon">📷</span>
               </div>
@@ -168,9 +177,7 @@ onMounted(() => {
               <span class="meta-item">
                 {{ profile.user.email }}
               </span>
-              <span class="meta-item">
-                В клубе с {{ formatDate(profile.user.created_at) }}
-              </span>
+              <span class="meta-item"> В клубе с {{ formatDate(profile.user.created_at) }} </span>
             </div>
 
             <div class="progress-section">
@@ -179,24 +186,14 @@ onMounted(() => {
                 <span class="progress-next">Следующий ранг: {{ rank.next }}</span>
               </div>
               <div class="progress-bar">
-                <div
-                  class="progress-fill"
-                  :style="{ width: `${progressToNextRank}%` }"
-                ></div>
+                <div class="progress-fill" :style="{ width: `${progressToNextRank}%` }"></div>
               </div>
             </div>
           </div>
 
           <div class="profile-actions">
-            <button @click="triggerAvatarUpload" class="action-btn photo-btn">
-              Сменить фото
-            </button>
-            <button
-              @click="logout"
-              class="action-btn logout-btn"
-            >
-              Выйти
-            </button>
+            <button @click="triggerAvatarUpload" class="action-btn photo-btn">Сменить фото</button>
+            <button @click="logout" class="action-btn logout-btn">Выйти</button>
           </div>
         </div>
       </div>
@@ -243,8 +240,8 @@ onMounted(() => {
             <p class="stat-description">сила твоего аккаунта</p>
           </div>
         </div>
-  </div>
-</div>
+      </div>
+    </div>
 
     <div v-else-if="error" class="error-state">
       <div class="error-icon">😕</div>
@@ -255,7 +252,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-
 .chart-container {
   /* Графики часто занимают больше места, дадим им растянуться на 2 колонки на больших экранах, если нужно */
   grid-column: span 1;
@@ -288,7 +284,8 @@ onMounted(() => {
   min-height: 100vh;
   background: linear-gradient(135deg, #f8fafc 0%, #f0f9ff 100%);
   padding: 16px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   line-height: 1.5;
 }
 
@@ -322,8 +319,12 @@ onMounted(() => {
 }
 
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 /* Основной контент */
@@ -822,7 +823,6 @@ onMounted(() => {
   }
 }
 
-
 @media (min-width: 376px) and (max-width: 480px) {
   .profile-container {
     padding: 20px;
@@ -841,7 +841,6 @@ onMounted(() => {
     padding: 24px;
   }
 }
-
 
 @media (min-width: 481px) {
   .profile-container {
@@ -914,7 +913,6 @@ onMounted(() => {
   }
 }
 
-
 @media (min-width: 641px) {
   .profile-info {
     flex-direction: row;
@@ -950,7 +948,6 @@ onMounted(() => {
     grid-template-columns: repeat(3, 1fr);
   }
 }
-
 
 @media (min-width: 769px) {
   .profile-container {
@@ -998,7 +995,6 @@ onMounted(() => {
   }
 }
 
-
 @media (min-width: 1025px) {
   .profile-content {
     max-width: 1100px;
@@ -1035,7 +1031,6 @@ onMounted(() => {
     font-size: 40px;
   }
 }
-
 
 @media (min-width: 1281px) {
   .profile-container {
@@ -1097,7 +1092,6 @@ onMounted(() => {
   }
 }
 
-
 @media (min-width: 1537px) {
   .profile-container {
     padding: 48px;
@@ -1140,13 +1134,23 @@ onMounted(() => {
 
 /* Анимации */
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .profile-card {
@@ -1172,7 +1176,7 @@ onMounted(() => {
   justify-content: center;
   gap: 10px;
   transition: all 0.2s ease;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
   margin-top: 8px;
 }
 
@@ -1180,7 +1184,7 @@ onMounted(() => {
   background-color: #f8fafc;
   color: #0f172a;
   transform: translateY(-1px);
-  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
 }
 
 .toggle-stats-btn.active {

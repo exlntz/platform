@@ -2,41 +2,39 @@
 import api from '@/api/axios' // Наш настроенный инстанс
 
 export default {
-  name: "AuthView",
+  name: 'AuthView',
   data() {
     return {
       loginUsername: '',
       loginPassword: '',
       loading: false,
-      showPassword: false
+      showPassword: false,
     }
   },
   methods: {
     async login() {
-      this.loading = true;
+      this.loading = true
       try {
-        const params = new URLSearchParams();
-        params.append('username', this.loginUsername);
-        params.append('password', this.loginPassword);
+        const params = new URLSearchParams()
+        params.append('username', this.loginUsername)
+        params.append('password', this.loginPassword)
 
-        const response = await api.post('/auth/login', params);
-
-        console.log('Успешный вход', response.data);
-        const token = response.data.access_token;
-        localStorage.setItem('user-token', token);
+        const response = await api.post('/auth/login', params)
+        const token = response.data.access_token
+        localStorage.setItem('user-token', token)
         localStorage.setItem('refresh-token', response.data.refresh_token)
 
-        this.$router.push('/profile');
-      } catch(err) {
-
+        this.$router.push('/profile')
+      } catch (err) {
+        console.error('Ошибка входа:', err);
       } finally {
-        this.loading = false;
+        this.loading = false
       }
     },
     togglePasswordVisibility() {
-      this.showPassword = !this.showPassword;
-    }
-  }
+      this.showPassword = !this.showPassword
+    },
+  },
 }
 </script>
 
@@ -69,7 +67,7 @@ export default {
                 placeholder="Введите логин"
                 class="form-input"
                 :disabled="loading"
-              >
+              />
             </div>
           </div>
 
@@ -83,7 +81,7 @@ export default {
                 placeholder="Введите пароль"
                 class="form-input"
                 :disabled="loading"
-              >
+              />
               <button
                 type="button"
                 class="password-toggle"
@@ -97,11 +95,7 @@ export default {
           </div>
         </div>
 
-        <button
-          type="submit"
-          :disabled="loading"
-          class="submit-btn"
-        >
+        <button type="submit" :disabled="loading" class="submit-btn">
           <span class="btn-text" v-if="!loading">Войти</span>
           <span class="loading-text" v-if="loading">Вход в систему...</span>
         </button>
@@ -112,14 +106,9 @@ export default {
       </div>
 
       <div class="alternative-actions">
-        <p class="alternative-text">
-          Нет аккаунта?
-        </p>
-        <router-link to="/auth/register" class="alternative-btn">
-          Создать аккаунт
-        </router-link>
+        <p class="alternative-text">Нет аккаунта?</p>
+        <router-link to="/auth/register" class="alternative-btn"> Создать аккаунт </router-link>
       </div>
-
     </div>
   </div>
 </template>
@@ -134,7 +123,8 @@ export default {
   justify-content: center;
   background: linear-gradient(135deg, #f8fafc 0%, #f0f9ff 100%);
   padding: 16px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   line-height: 1.5;
 }
 
@@ -335,7 +325,8 @@ export default {
   background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 100%);
 }
 
-.btn-text, .loading-text {
+.btn-text,
+.loading-text {
   display: block;
 }
 
@@ -548,7 +539,6 @@ export default {
   }
 }
 
-
 @media (min-width: 321px) and (max-width: 375px) {
   .auth-card {
     padding: 22px 18px;
@@ -565,13 +555,11 @@ export default {
   }
 }
 
-
 @media (min-width: 376px) {
   .auth-card {
     padding: 24px;
   }
 }
-
 
 @media (min-width: 640px) {
   .auth-container {
@@ -619,7 +607,6 @@ export default {
   }
 }
 
-
 @media (min-width: 768px) {
   .auth-card {
     max-width: 560px;
@@ -643,7 +630,6 @@ export default {
   }
 }
 
-
 @media (min-width: 1024px) {
   .auth-container {
     padding: 32px;
@@ -665,7 +651,6 @@ export default {
   }
 }
 
-
 @media (min-width: 1280px) {
   .auth-card {
     max-width: 640px;
@@ -683,7 +668,6 @@ export default {
     padding: 18px;
   }
 }
-
 
 @media (min-width: 1536px) {
   .auth-card {
