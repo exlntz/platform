@@ -9,28 +9,9 @@ const profile = ref(null)
 const error = ref(null)
 const fileInput = ref(null)
 
-// --- ЛОГИКА РАНГОВ ---
-const getRankInfo = (elo) => {
-  if (elo < 1200) return { name: 'Новичок', color: '#64748b', bg: '#f1f5f9', next: 1200 }
-  if (elo < 1500) return { name: 'Ученик', color: '#10b981', bg: '#d1fae5', next: 1500 }
-  if (elo < 1800) return { name: 'Специалист', color: '#3b82f6', bg: '#dbeafe', next: 1800 }
-  if (elo < 2200) return { name: 'Мастер', color: '#8b5cf6', bg: '#ede9fe', next: 2200 }
-  return { name: 'Легенда', color: '#f59e0b', bg: '#fef3c7', next: 3000 }
-}
 
-const rank = computed(() => {
-  if (!profile.value) return {}
-  return getRankInfo(profile.value.user.rating)
-})
 
-const rankStyle = computed(() => {
-  if (!rank.value.bg) return {} // Защита от пустого ранга
-  return {
-    backgroundColor: rank.value.bg,
-    color: rank.value.color,
-    borderColor: rank.value.color,
-  }
-})
+
 
 
 // --- ЛОГИКА АВАТАРКИ ---
@@ -159,8 +140,8 @@ onMounted(() => {
           <div class="profile-details">
             <div class="name-section">
               <h1 class="username">{{ profile.user.username }}</h1>
-              <span class="rank-badge" :style="rankStyle">
-                {{ rank.name }}
+              <span class="rank-badge" >
+                {{ profile.user.rank }}
               </span>
             </div>
 
@@ -181,6 +162,15 @@ onMounted(() => {
               </div>
               <div class="progress-bar">
                 <div class="progress-fill" :style="{ width: `${profile.user.progress}%` }"></div>
+              </div>
+            </div>
+            <div v-if="profile?.user?.achievements?.length" class="flex items-center gap-2 py-2">
+              <div 
+                v-for="(ach, index) in profile.user.achievements" 
+                :key="index"
+                class="px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider shadow-sm transition hover:scale-105 select-none flex items-center gap-1"
+              >
+                <span>{{ ach }}</span>
               </div>
             </div>
           </div>
