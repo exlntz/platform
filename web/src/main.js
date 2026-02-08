@@ -46,6 +46,7 @@ axios.interceptors.request.use(config => {
 })
 
 axios.interceptors.response.use(
+  response => response, // Если запрос успешен, просто возвращаем ответ
   response => {
     // === ОБРАБОТКА АЧИВОК ЧЕРЕЗ СУЩЕСТВУЮЩИЙ TOAST ===
     const data = response.data
