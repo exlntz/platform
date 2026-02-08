@@ -992,6 +992,38 @@ const closeMenu = () => {
   
   .header-right {
     gap: 12px;
+    padding-left: 16px;
+    text-decoration: none;
+    transition: border-color 0.3s ease;
+  }
+
+  .dark .profile-link {
+    border-left: 1px solid #1e293b;
+  }
+
+  .profile-button {
+    display: block;
+    text-align: right;
+  }
+
+  .small-text {
+    font-size: 12px;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1;
+    transition: color 0.3s ease;
+  }
+
+  .dark .small-text {
+    color: #f1f5f9;
+  }
+
+  .profile-link:hover .small-text {
+    color: #4f46e5;
+  }
+
+  .dark .profile-link:hover .small-text {
+    color: #818cf8;
   }
 }
 
