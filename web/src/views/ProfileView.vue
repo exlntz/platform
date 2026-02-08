@@ -158,7 +158,7 @@ onMounted(() => {
             <div class="progress-section">
               <div class="progress-header">
                 <span class="progress-label">Очков опыта: {{ profile.user.xp_current }}</span>
-                <span class="progress-next">До следующего уровня: {{ profile.user.xp_next }}</span>
+                <span class="progress-next">До следующего уровня: {{ profile.user.xp_next - profile.user.xp_current }}</span>
               </div>
               <div class="progress-bar">
                 <div class="progress-fill" :style="{ width: `${profile.user.progress}%` }"></div>
