@@ -165,10 +165,9 @@ const getDifficultyColorClass = (diffKey) => {
   const key = diffKey ? diffKey.toUpperCase() : ''
 
   const map = {
-    EASY: 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-800',
-    MEDIUM:
-      'text-amber-700 bg-amber-50 border-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800',
-    HARD: 'text-rose-700 bg-rose-50 border-rose-200 dark:bg-rose-900/40 dark:text-rose-300 dark:border-rose-800',
+    EASY: 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:bg-emerald-200/40 dark:text-emerald-300 dark:border-emerald-800',
+    MEDIUM: 'text-amber-700 bg-amber-50 border-amber-200 dark:bg-amber-200/40 dark:text-amber-300 dark:border-amber-800',
+    HARD: 'text-rose-700 bg-rose-50 border-rose-200 dark:bg-rose-200/40 dark:text-rose-300 dark:border-rose-800',
   }
   return (
     map[key] || 'text-slate-600 bg-slate-100 border-slate-200 dark:bg-slate-800 dark:text-slate-300'
@@ -528,67 +527,73 @@ onUnmounted(() => {
       </div>
 
       <div class="filters-container">
-        <div class="search-group">
-          <div class="search-icon">🔍</div>
-          <input v-model="filters.search" type="text" placeholder="Поиск..." class="search-input" />
+        <!-- Поиск - всегда отдельная строка -->
+        <div class="search-row">
+          <div class="search-group">
+            <div class="search-icon">🔍</div>
+            <input v-model="filters.search" type="text" placeholder="Поиск..." class="search-input" />
+          </div>
         </div>
 
-        <div class="filter-group">
-          <div class="select-wrapper subject-wrapper">
-            <select
-              v-model="filters.subject"
-              class="filter-select"
-              :class="{ compact: screenSize === 'mobile' }"
-              :disabled="constantsStore.loading"
-            >
-              <option value="">Все предметы</option>
-              <option v-for="subj in constantsStore.subjects" :key="subj.key" :value="subj.key">
-                {{ subj.label }}
-              </option>
-            </select>
-            <div class="select-arrow">▼</div>
-          </div>
+        <!-- Фильтры - всегда отдельная строка -->
+        <div class="filters-row">
+          <div class="filter-group">
+            <div class="select-wrapper subject-wrapper">
+              <select
+                v-model="filters.subject"
+                class="filter-select"
+                :class="{ compact: screenSize === 'mobile' }"
+                :disabled="constantsStore.loading"
+              >
+                <option value="">Все предметы</option>
+                <option v-for="subj in constantsStore.subjects" :key="subj.key" :value="subj.key">
+                  {{ subj.label }}
+                </option>
+              </select>
+              <div class="select-arrow">▼</div>
+            </div>
 
-          <div class="select-wrapper tag-wrapper">
-            <select
-              v-model="filters.tags"
-              class="filter-select"
-              :class="{ compact: screenSize === 'mobile' }"
-              :disabled="tagsLoading || constantsStore.loading"
-            >
-              <option value="">
-                {{ tagsLoading ? 'Загрузка...' : 'Все темы' }}
-              </option>
-              <option v-for="tag in availableTags" :key="tag.key || tag" :value="tag.key || tag">
-                {{ tag.label || tag }}
-              </option>
-            </select>
-            <div class="select-arrow">▼</div>
-          </div>
+            <div class="select-wrapper tag-wrapper">
+              <select
+                v-model="filters.tags"
+                class="filter-select"
+                :class="{ compact: screenSize === 'mobile' }"
+                :disabled="tagsLoading || constantsStore.loading"
+              >
+                <option value="">
+                  {{ tagsLoading ? 'Загрузка...' : 'Все темы' }}
+                </option>
+                <option v-for="tag in availableTags" :key="tag.key || tag" :value="tag.key || tag">
+                  {{ tag.label || tag }}
+                </option>
+              </select>
+              <div class="select-arrow">▼</div>
+            </div>
 
-          <div class="select-wrapper difficulty-wrapper">
-            <select
-              v-model="filters.difficulty"
-              class="filter-select"
-              :class="{ compact: screenSize === 'mobile' }"
-              :disabled="constantsStore.loading"
-            >
-              <option value="">Сложность</option>
-              <option v-for="diff in constantsStore.difficulty" :key="diff.key" :value="diff.key">
-                {{ diff.label }}
-              </option>
-            </select>
-            <div class="select-arrow">▼</div>
-          </div>
+            <div class="select-wrapper difficulty-wrapper">
+              <select
+                v-model="filters.difficulty"
+                class="filter-select"
+                :class="{ compact: screenSize === 'mobile' }"
+                :disabled="constantsStore.loading"
+              >
+                <option value="">Сложность</option>
+                <option v-for="diff in constantsStore.difficulty" :key="diff.key" :value="diff.key">
+                  {{ diff.label }}
+                </option>
+              </select>
+              <div class="select-arrow">▼</div>
+            </div>
 
-          <button
-            @click="resetFilters"
-            class="reset-btn"
-            :class="{ compact: screenSize === 'mobile' }"
-            :title="screenSize === 'mobile' ? '' : 'Сбросить фильтры'"
-          >
-            {{ screenSize === 'mobile' ? 'Сброс' : '✕' }}
-          </button>
+            <button
+              @click="resetFilters"
+              class="reset-btn"
+              :class="{ compact: screenSize === 'mobile' }"
+              :title="screenSize === 'mobile' ? '' : 'Сбросить фильтры'"
+            >
+              {{ screenSize === 'mobile' ? 'Сброс' : '✕' }}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -866,10 +871,10 @@ onUnmounted(() => {
   box-shadow: var(--shadow-sm);
 }
 
-/* ==================== FILTERS ==================== */
+/* ==================== FILTERS CONTAINER ==================== */
 .filters-container {
   background-color: var(--bg-card);
-  padding: 16px;
+  padding: 20px;
   border-radius: 16px;
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--border-light);
@@ -880,10 +885,14 @@ onUnmounted(() => {
   margin-bottom: 24px;
 }
 
+/* Поиск - всегда отдельная строка */
+.search-row {
+  width: 100%;
+}
+
 .search-group {
-  flex: 1;
   position: relative;
-  min-width: 220px;
+  width: 100%;
 }
 
 .search-icon {
@@ -924,10 +933,16 @@ onUnmounted(() => {
   color: var(--text-tertiary);
 }
 
+/* Фильтры - всегда отдельная строка */
+.filters-row {
+  width: 100%;
+}
+
 .filter-group {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+  width: 100%;
 }
 
 .select-wrapper {
@@ -1330,6 +1345,7 @@ onUnmounted(() => {
 .task-card:hover {
   transform: translateY(-4px);
   box-shadow: var(--shadow-hover);
+  border-color: var(--accent-color);
 }
 
 .task-accent {
@@ -1564,7 +1580,7 @@ onUnmounted(() => {
     font-size: 13px;
   }
   .filters-container {
-    padding: 12px;
+    padding: 16px;
     gap: 12px;
   }
   .search-input {
@@ -1684,16 +1700,6 @@ onUnmounted(() => {
   .description {
     font-size: 16px;
   }
-  .filters-container {
-    flex-direction: row;
-    align-items: center;
-  }
-  .filter-group {
-    flex-wrap: nowrap;
-  }
-  .select-wrapper {
-    min-width: 160px;
-  }
   .tasks-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 24px;
@@ -1772,6 +1778,7 @@ onUnmounted(() => {
 
 :root.dark .task-card:hover {
   background-color: #1e293b;
+  border-color: #3b82f6;
   box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.2);
 }
 

@@ -2,6 +2,9 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api/axios' // Наш настроенный инстанс
+import { useNotificationStore } from '@/pinia/NotificationStore'
+const notify = useNotificationStore()
+
 
 const router = useRouter()
 const loading = ref(true)
@@ -43,7 +46,7 @@ const handleFileChange = async (event) => {
     }
   } catch (err) {
     console.error('Ошибка загрузки аватара:', err)
-    alert('Не удалось загрузить аватар')
+    notify.show('Не удалось загрузить аватар')
   }
 }
 
