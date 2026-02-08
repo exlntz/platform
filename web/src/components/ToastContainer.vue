@@ -3,25 +3,21 @@ import { useNotificationStore } from '@/pinia/NotificationStore'
 
 const store = useNotificationStore()
 
-// Добавляем стиль 'achievement'
 const typeClasses = {
   info: 'bg-blue-600 border-blue-800',
   success: 'bg-green-600 border-green-800',
   error: 'bg-red-600 border-red-800',
   warning: 'bg-yellow-600 border-yellow-800',
-  // Стиль для ачивки (градиент или золотой цвет)
-  achievement: 'bg-gradient-to-r from-amber-500 to-orange-600 border-amber-700 shadow-amber-500/50'
+  // 🔥 ДОБАВИЛИ СТИЛЬ ДЛЯ АЧИВКИ (Золотой/Янтарный)
+  achievement: 'bg-amber-500 border-amber-700 text-white shadow-lg shadow-amber-500/50'
 }
 
-// Функция для иконки в зависимости от типа
+// Функция для эмодзи
 const getIcon = (type) => {
-  switch (type) {
-    case 'success': return '✅'
-    case 'error': return '⛔'
-    case 'warning': return '⚠️'
-    case 'achievement': return '🏆'
-    default: return 'ℹ️'
-  }
+  if (type === 'achievement') return '🏆'
+  if (type === 'success') return '✅'
+  if (type === 'error') return '⛔'
+  return 'ℹ️'
 }
 </script>
 
@@ -35,25 +31,25 @@ const getIcon = (type) => {
         <div 
           v-for="note in store.notifications" 
           :key="note.id"
-          class="pointer-events-auto p-4 rounded-lg shadow-2xl text-white flex justify-between items-start border-l-4 transform transition-all duration-300 backdrop-blur-sm bg-opacity-95"
+          class="pointer-events-auto p-4 rounded-lg shadow-2xl text-white flex justify-between items-center border-l-4 transform transition-all duration-300 backdrop-blur-sm bg-opacity-95"
           :class="typeClasses[note.type] || typeClasses.info"
         >
-          <div class="mr-3 text-xl">
-             {{ getIcon(note.type) }}
+          <div class="mr-3 text-2xl">
+            {{ getIcon(note.type) }}
           </div>
 
           <div class="flex-1 pr-2">
-            <span v-if="note.type === 'achievement'" class="block text-xs font-bold uppercase tracking-wider text-amber-100 mb-1">
-              Новое достижение!
-            </span>
+             <div v-if="note.type === 'achievement'" class="text-xs font-bold uppercase tracking-wider text-amber-100 mb-0.5">
+              Достижение!
+            </div>
             <span class="font-medium text-sm leading-snug block">{{ note.message }}</span>
           </div>
           
           <button 
             @click="store.remove(note.id)" 
-            class="text-white opacity-70 hover:opacity-100 transition focus:outline-none"
+            class="text-white opacity-70 hover:opacity-100 transition focus:outline-none text-xl leading-none px-2"
           >
-            ✕
+            &times;
           </button>
         </div>
       </TransitionGroup>

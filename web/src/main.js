@@ -57,13 +57,8 @@ axios.interceptors.response.use(
       
       // Для каждой полученной ачивки кидаем тост
       data.achievements.forEach(achievementText => {
-        // Проверь в NotificationStore, какой метод добавляет уведомление!
-        // Обычно это add() или notify()
-        notificationStore.add({ 
-          type: 'achievement',     // Наш новый тип
-          message: achievementText, 
-          timeout: 5000            // Пусть повисит подольше (5 сек)
-        })
+
+          notificationStore.show(achievementText, 'achievement') 
       })
     }
     // =================================================
