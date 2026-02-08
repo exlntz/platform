@@ -91,7 +91,7 @@ async def upload_avatar(
 
     return {
         'url': generated_url,
-        'new_achievements': new_badges,
+        'achievements': new_badges,
     }
 
 
