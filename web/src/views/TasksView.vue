@@ -80,10 +80,9 @@ const getDifficultyColorClass = (diffKey) => {
   const key = diffKey ? diffKey.toUpperCase() : ''
 
   const map = {
-    EASY: 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-800',
-    MEDIUM:
-      'text-amber-700 bg-amber-50 border-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800',
-    HARD: 'text-rose-700 bg-rose-50 border-rose-200 dark:bg-rose-900/40 dark:text-rose-300 dark:border-rose-800',
+    EASY: 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:bg-emerald-200/40 dark:text-emerald-300 dark:border-emerald-800',
+    MEDIUM: 'text-amber-700 bg-amber-50 border-amber-200 dark:bg-amber-200/40 dark:text-amber-300 dark:border-amber-800',
+    HARD: 'text-rose-700 bg-rose-50 border-rose-200 dark:bg-rose-200/40 dark:text-rose-300 dark:border-rose-800',
   }
   return (
     map[key] || 'text-slate-600 bg-slate-100 border-slate-200 dark:bg-slate-800 dark:text-slate-300'
