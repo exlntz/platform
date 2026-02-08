@@ -255,7 +255,7 @@ const closeMenu = () => {
               <span class="mobile-nav-icon">🏆</span>
               <span class="mobile-nav-text">Рейтинг</span>
             </RouterLink>
-            <RouterLink to="/leaderboard" class="mobile-nav-link" @click="closeMenu">
+            <RouterLink to="/statistics" class="mobile-nav-link" @click="closeMenu">
               <span class="mobile-nav-icon">📊</span>
               <span class="mobile-nav-text">Статистика</span>
             </RouterLink>
