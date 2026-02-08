@@ -995,6 +995,12 @@ const closeMenu = () => {
   }
 }
 
+@media (max-width: 640px) {
+  .logo-container {
+    margin-left: 50px;
+  }
+}
+
 @media (max-width: 800px) {
   .burger-menu {
     display: flex;
