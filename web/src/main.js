@@ -1,6 +1,7 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import axios from 'axios'
+import { useAchievementsStore } from '@/pinia/AchievementsStore'
 
 import App from './App.vue'
 import router from './router'
@@ -36,6 +37,10 @@ ChartJS.register(
 axios.defaults.baseURL = '/api';
 const app = createApp(App)
 
+app.use(createPinia())
+app.use(pinia) // Сначала подключаем Pinia
+app.use(router)
+
 // --- ГЛОБАЛЬНАЯ НАСТРОЙКА AXIOS ---
 
 // 1. Перехватчик запросов: Автоматически цепляет токен
@@ -50,21 +55,27 @@ axios.interceptors.request.use(config => {
 
 // 2. Перехватчик ответов: Обработка истекшей сессии
 axios.interceptors.response.use(
-  response => response, // Если запрос успешен, просто возвращаем ответ
+  response => {
+    // === МАГИЯ ЗДЕСЬ ===
+    // Проверяем, есть ли в ответе массив achievements
+    const data = response.data
+    if (data && Array.isArray(data.achievements) && data.achievements.length > 0) {
+      // Получаем доступ к стору (так как Pinia уже подключена к app)
+      const achievementsStore = useAchievementsStore()
+      achievementsStore.addAchievements(data.achievements)
+    }
+    // ===================
+    
+    return response
+  }, 
   error => {
-    // Если сервер вернул 401 (Unauthorized), значит токен протух или неверен
     if (error.response && error.response.status === 401) {
-
-      // 1. Удаляем невалидный токен
       localStorage.removeItem('user-token')
-
-      // 2. Проверяем, где мы сейчас находимся, чтобы не зациклить редирект
       if (router.currentRoute.value.path !== '/auth') {
-        alert('Время сессии истекло. Пожалуйста, войдите снова.')
+        // alert('Время сессии истекло. Пожалуйста, войдите снова.')
         router.push('/auth')
       }
     }
-    // Пробрасываем ошибку дальше, чтобы компоненты могли её обработать (если нужно)
     return Promise.reject(error)
   }
 )
@@ -124,7 +135,6 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e)
   }
 })
 
-app.use(createPinia())
-app.use(router)
+
 
 app.mount('#app')
