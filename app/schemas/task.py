@@ -36,7 +36,7 @@ class AnswerCheckResponse(BaseModel):
     is_correct: bool
     correct_answer: str | None = None
     message: str
-    achievements: list[Achievement]
+    achievements: list[str]
 
 class TaskAdminRead(TaskRead):
     correct_answer: str

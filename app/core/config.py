@@ -9,7 +9,9 @@ class Settings(BaseSettings):
     VITE_IS_PROD: str
     SECRET_KEY: str
     ALGORITHM: str = 'HS256'
-    GROQ_API_KEY: str | None = None
+    GROQ_API_KEY_1: str | None = None
+    GROQ_API_KEY_2: str | None = None
+    GROQ_API_KEY_3: str | None = None
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
