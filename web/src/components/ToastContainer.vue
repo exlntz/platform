@@ -40,7 +40,7 @@ const getIcon = (type) => {
 
           <div class="flex-1 pr-2">
              <div v-if="note.type === 'achievement'" class="text-xs font-bold uppercase tracking-wider text-amber-100 mb-0.5">
-              Достижение!
+              Получено новое достижение!
             </div>
             <span class="font-medium text-sm leading-snug block">{{ note.message }}</span>
           </div>
