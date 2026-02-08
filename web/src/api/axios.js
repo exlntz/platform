@@ -135,6 +135,7 @@ api.interceptors.response.use(
       }
     } else if (status === 403) notify.show('Доступ запрещен', 'warning')
     else if (status === 422) notify.show(`Ошибка данных: ${message}`, 'warning')
+    else if (status == 429) notify.show('Слишком много запросов, попробуйте позже', 'error')
     else if (status >= 500) notify.show('Ошибка сервера', 'error')
     else if (!status) notify.show('Нет соединения с сервером', 'error')
 
