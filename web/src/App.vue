@@ -302,7 +302,8 @@ const closeMenu = () => {
   border-bottom: 1px solid rgb(241 245 249);
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   transition: background-color 0.3s ease, border-color 0.3s ease;
-  width: 100%;
+  padding-left: 12px;
+  padding-right: 12px;
 }
 
 .dark .header {
@@ -312,15 +313,14 @@ const closeMenu = () => {
 }
 
 .menu {
-  margin: 0 auto;
+  max-width: 1280px;
+  margin-left: auto;
+  margin-right: auto;
   height: 56px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   position: relative;
-  padding: 0 12px;
-  max-width: 100%;
-  box-sizing: border-box;
 }
 
 .logo-container {
@@ -365,7 +365,7 @@ const closeMenu = () => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 100px;
+  max-width: 120px;
 }
 
 .dark .text-logo {
@@ -1014,7 +1014,6 @@ const closeMenu = () => {
     display: none;
   }
   
-  /* Показываем блок авторизации на планшетах */
   @media (min-width: 641px) {
     .menu {
       padding: 0 20px;
@@ -1235,10 +1234,31 @@ const closeMenu = () => {
   }
   
   .profile-icon {
-    width: 40px;
-    height: 40px;
-    font-size: 18px;
-  }
+  width: 44px;               
+  height: 44px;              
+  min-width: 44px;           
+  min-height: 44px;          
+  background-color: #f1f5f9; 
+  border-radius: 50%;        
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;           
+  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+  border: 3px solid white;   
+  transition: all 0.3s ease;
+  overflow: hidden;          
+}
+
+.dark .profile-icon {
+  background-color: #334155;
+  border-color: #1e293b;     
+}
+
+.profile-link:hover .profile-icon {
+  transform: scale(1.05);    
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3); 
+}
   
   .small-text {
     font-size: 12px;
@@ -1255,7 +1275,7 @@ const closeMenu = () => {
 
 @media (min-width: 801px) and (max-width: 1023px) {
   .desktop-navigation {
-    gap: 12px;
+    gap: 8px;
     margin-left: 20px;
   }
   
@@ -1270,7 +1290,7 @@ const closeMenu = () => {
   }
   
   .desktop-theme-icon {
-    font-size: 14px;
+    font-size: 12px;
   }
   
   .auth-link {
@@ -1308,77 +1328,15 @@ const closeMenu = () => {
   }
 }
 
-@media (min-width: 1150px) {
-  .desktop-navigation {
-    gap: 30px;
-  }
-  
-  .nav-link {
-    font-size: 15px;
-  }
-  
-  .desktop-theme-toggle {
-    padding: 9px 20px;
-    font-size: 14px;
-    margin-left: 28px;
-  }
-  
-  .desktop-theme-icon {
-    font-size: 17px;
-  }
-}
-
 @media (min-width: 1280px) {
   .menu {
     max-width: 1280px;
-    margin: 0 auto;
-    padding: 0 32px;
-  }
-  
-  .desktop-navigation {
-    gap: 35px;
-    margin-left: 48px;
-  }
-  
-  .nav-link {
-    font-size: 15px;
-  }
-  
-  .desktop-theme-toggle {
-    padding: 10px 24px;
-    font-size: 15px;
-    margin-left: 32px;
-  }
-  
-  .desktop-theme-icon {
-    font-size: 18px;
   }
 }
 
 @media (min-width: 1536px) {
   .menu {
     max-width: 1400px;
-    margin: 0 auto;
-    padding: 0 40px;
-  }
-  
-  .desktop-navigation {
-    gap: 40px;
-    margin-left: 56px;
-  }
-  
-  .nav-link {
-    font-size: 16px;
-  }
-  
-  .desktop-theme-toggle {
-    padding: 11px 28px;
-    font-size: 16px;
-    margin-left: 36px;
-  }
-  
-  .desktop-theme-icon {
-    font-size: 20px;
   }
 }
 </style>
