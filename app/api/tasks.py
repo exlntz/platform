@@ -1,6 +1,5 @@
 import logging
-from random import choice
-
+import httpx
 from fastapi import APIRouter,HTTPException,status
 from sqlalchemy import select, exists, func, desc
 
@@ -145,6 +144,7 @@ async def check_task_answer(
 KEY_1 = settings.GROQ_API_KEY_1
 KEY_2 = settings.GROQ_API_KEY_2
 KEY_3 = settings.GROQ_API_KEY_3
+
 keys_list = [KEY_1, KEY_2, KEY_3]
 
 models_list = ['openai/gpt-oss-120b', 'llama-3.3-70b-versatile', 'meta-llama/llama-4-maverick-17b-128e-instruct',
@@ -164,23 +164,25 @@ async def generate_task_for_user(
         difficulty: DifficultyLevel
 ):
 
-    for current_key in keys_list:
+    for key in keys_list:
         for model in models_list:
-            max_attempts = 3
-            for attempt in range(max_attempts):
+            for attempt in range(3):
                 try:
-                    return await generate_task(subject=subject,
+                    return await generate_task(
+                            subject=subject,
                             difficulty=difficulty,
-                            api_key=current_key,
+                            api_key=key,
                             model=model,
                             allowed_tags=allowed_tags)
-
+                except (httpx.ConnectError, httpx.ProxyError) as e:
+                    logger.warning(f"Проблема с прокси на модели {model}, ключ {key}: {e}")
+                    continue
                 except Exception as e:
-                    logger.error(f'ошибка модели {model}, ключ {current_key}, ошибка {e}')
+                    logger.error(f'ошибка модели {model}, ключ {key}, ошибка {e}')
                     continue
 
     raise HTTPException(
-            status_code=500,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Не удалось сгенерировать задачу. ИИ отдыхает"
     )
 

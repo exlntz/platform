@@ -12,8 +12,10 @@ class Settings(BaseSettings):
     GROQ_API_KEY_1: str | None = None
     GROQ_API_KEY_2: str | None = None
     GROQ_API_KEY_3: str | None = None
+    PROXY_URL: str | None
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
 
     @property
     def DATABASE_URL(self):
