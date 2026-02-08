@@ -1,8 +1,10 @@
-from fastapi import APIRouter, WebSocket
+from fastapi import APIRouter, WebSocket, Query
 import asyncio
 import jwt
-from sqlalchemy import select, func
-from app.schemas.matchmaking import QueueEntry, MessageEvent
+from sqlalchemy import select, func, or_
+from sqlalchemy.orm import aliased
+from app.core.dependencies import UserDep
+from app.schemas.matchmaking import QueueEntry, MessageEvent, MatchHistoryItem
 from app.core.database import SessionDep
 from app.core.config import settings
 from app.core.models import UserModel, TaskModel, PvPMatchModel, EloHistoryModel
@@ -13,6 +15,7 @@ import bisect
 from app.core.database import new_session
 from fastapi.responses import HTMLResponse
 from collections import defaultdict, deque
+from app.utils.elo import ELO_RANKS
 
 ALGORITHM = settings.ALGORITHM
 SECRET_KEY = settings.SECRET_KEY
@@ -531,3 +534,79 @@ html = """
 @router.get("/")
 async def get():
     return HTMLResponse(html)
+
+
+@router.get('/matches_history', summary='История игр для пвп')
+async def get_matches_history(
+        session: SessionDep,
+        user: UserDep,
+        limit: int = Query(default=10, le=50),
+        offset: int = 0
+):
+
+    Player1 = aliased(UserModel)
+    Player2 = aliased(UserModel)
+
+    query = (
+        select(
+            PvPMatchModel.id,
+            PvPMatchModel.player1_id,
+            PvPMatchModel.player2_id,
+            Player1.username.label("p1_name"),
+            Player2.username.label("p2_name"),
+            PvPMatchModel.p1_elo_change,
+            PvPMatchModel.p2_elo_change,
+            PvPMatchModel.result,
+            PvPMatchModel.created_at
+        )
+        .join(Player1, PvPMatchModel.player1_id == Player1.id)
+        .join(Player2, PvPMatchModel.player2_id == Player2.id)
+        .where(or_(PvPMatchModel.player1_id == user.id, PvPMatchModel.player2_id == user.id))
+        .order_by(PvPMatchModel.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+    )
+
+    result = await session.execute(query)
+    matches : list[PvPMatchModel] = result.all()
+
+    response_list = []
+
+    for row in matches:
+        is_p1 = row.player1_id == user.id
+
+        if is_p1:
+            current_player_name = row.p1_name
+            opponent_name = row.p2_name
+            my_elo_change = row.p1_elo_change
+            opponent_elo_change = row.p2_elo_change
+        else:
+            current_player_name = row.p2_name
+            opponent_name = row.p1_name
+            my_elo_change = row.p2_elo_change
+            opponent_elo_change = row.p1_elo_change
+
+        if row.result == 'draw':
+            match_outcome = 'Ничья'
+        elif row.result == "cancelled":
+            match_outcome = 'Матч отменен'
+        elif my_elo_change > 0:
+            match_outcome = 'Победа'
+        else:
+            match_outcome = 'Проигрыш'
+
+        response_list.append(MatchHistoryItem(
+            current_player=current_player_name,
+            opponent=opponent_name,
+            current_player_elo_change=my_elo_change,
+            opponent_elo_change=opponent_elo_change,
+            result=match_outcome,
+            created_at=row.created_at
+        ))
+
+    return response_list
+
+
+@router.get('/ranks_info', summary='Возвращает инфу про ранги')
+async def get_ranks_info():
+    return ELO_RANKS
