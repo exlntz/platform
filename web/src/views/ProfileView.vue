@@ -166,7 +166,7 @@ onMounted(() => {
             </div>
             <div v-if="profile?.user?.achievements?.length" class="flex items-center gap-2 py-2">
               <div 
-                v-for="(ach, index) in profile.user.achievements" 
+                v-for="(ach, index) in profile.user.all_achievements" 
                 :key="index"
                 class="px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider shadow-sm transition hover:scale-105 select-none flex items-center gap-1"
               >
