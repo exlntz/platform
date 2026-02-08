@@ -1252,12 +1252,11 @@ const closeMenu = () => {
 
 .dark .profile-icon {
   background-color: #334155;
-  border-color: #1e293b;     
+  border-color: #334155;     
 }
 
 .profile-link:hover .profile-icon {
   transform: scale(1.05);    
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3); 
 }
   
   .small-text {
