@@ -197,7 +197,7 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
     numtasks = 3  # количество задач
     max_cons_ans = 3  # максимальное количество ответов подряд
     ans_window = 10
-    reconnect_timeout = 15  # УВЕЛИЧИЛИ ВРЕМЯ НА РЕКОННЕКТ
+    reconnect_timeout = 10
 
     ws1 = player1._ws
     ws2 = player2._ws
