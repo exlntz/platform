@@ -1,5 +1,10 @@
+import logging
+from random import choice
+
 from fastapi import APIRouter,HTTPException,status
 from sqlalchemy import select, exists, func, desc
+
+from app.core.config import settings
 from app.core.database import SessionDep
 from app.core.models import TaskModel, AttemptModel
 from app.schemas.task import TaskRead, AnswerCheckRequest, AnswerCheckResponse
@@ -113,9 +118,14 @@ async def check_task_answer(
 
     if is_correct:
         message = 'Правильно!!!'
+        print(f"DEBUG: Task is correct! Difficulty: {task.difficulty}")
 
-        new_badges = await check_and_award_achievement(current_user,session)
-
+        try:
+            new_badges = await check_and_award_achievement(current_user, session)
+            print(f"DEBUG: Achievements awarded: {new_badges}")
+        except Exception as e:
+            print(f"DEBUG: Achievement error: {e}")
+        
         if not was_solved_before:
             reward = rewards.get(task.difficulty)
 
@@ -132,24 +142,46 @@ async def check_task_answer(
     )
 
 
+KEY_1 = settings.GROQ_API_KEY_1
+KEY_2 = settings.GROQ_API_KEY_2
+KEY_3 = settings.GROQ_API_KEY_3
+keys_list = [KEY_1, KEY_2, KEY_3]
+
+models_list = ['openai/gpt-oss-120b', 'llama-3.3-70b-versatile', 'meta-llama/llama-4-maverick-17b-128e-instruct',
+       'meta-llama/llama-4-scout-17b-16e-instruct']
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+allowed_tags = [t.value for t in Tag]
 
 @router.get('/generate',summary='Генерирует задачу по заданным параметрам')
 async def generate_task_for_user(
         subject: Subject,
         difficulty: DifficultyLevel
 ):
-    max_attempts = 3
-    error = None
-    for attempt in range(max_attempts):
-        try:
-            return await generate_task(subject, difficulty)
-        except Exception as e:
-            error = e
-            continue
+
+    for current_key in keys_list:
+        for model in models_list:
+            max_attempts = 3
+            for attempt in range(max_attempts):
+                try:
+                    return await generate_task(subject=subject,
+                            difficulty=difficulty,
+                            api_key=current_key,
+                            model=model,
+                            allowed_tags=allowed_tags)
+
+                except Exception as e:
+                    logger.error(f'ошибка модели {model}, ключ {current_key}, ошибка {e}')
+                    continue
 
     raise HTTPException(
-        status_code=500,
-        detail=f"Не удалось сгенерировать сложную задачу. Ошибка: {str(error)}"
+            status_code=500,
+            detail="Не удалось сгенерировать задачу. ИИ отдыхает"
     )
 
 
