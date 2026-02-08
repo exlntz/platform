@@ -193,6 +193,7 @@ watch(
               <label class="input-label" :class="{ 'mobile': screenSize === 'mobile' }">Ваш ответ</label>
               <textarea
                 v-model="answer"
+                @keydown.enter.exact.prevent="submitAnswer"
                 :rows="screenSize === 'mobile' ? 4 : 3"
                 :disabled="isSolved"
                 placeholder="Введите решение..."
