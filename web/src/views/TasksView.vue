@@ -1114,7 +1114,6 @@ onUnmounted(() => {
 .task-card:hover {
   transform: translateY(-4px);
   box-shadow: var(--shadow-hover);
-  border-color: var(--accent-color);
 }
 
 .task-accent {
@@ -1557,7 +1556,6 @@ onUnmounted(() => {
 
 :root.dark .task-card:hover {
   background-color: #1e293b;
-  border-color: #3b82f6;
   box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.2);
 }
 
@@ -1617,5 +1615,21 @@ onUnmounted(() => {
   background-color: #334155;
   color: #cbd5e1;
   border-color: #475569;
+}
+
+/* Убрать синюю рамку у всего окна в тёмной теме */
+:global(.dark) {
+  outline: none !important;
+  border-color: inherit !important;
+}
+
+:global(.dark) *:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+:global(.dark) body {
+  border: none !important;
+  outline: none !important;
 }
 </style>
