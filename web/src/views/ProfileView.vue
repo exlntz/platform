@@ -164,7 +164,7 @@ onMounted(() => {
                 <div class="progress-fill" :style="{ width: `${profile.user.progress}%` }"></div>
               </div>
             </div>
-            <div v-if="profile?.user?.achievements?.length" class="flex items-center gap-2 py-2">
+            <div v-if="profile?.user?.all_achievements?.length" class="flex items-center gap-2 py-2">
               <div 
                 v-for="(ach, index) in profile.user.all_achievements" 
                 :key="index"
