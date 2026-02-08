@@ -144,7 +144,7 @@ async def calculate_profile_info(
         email=current_user.email,
         rating=round(current_user.rating, 1),
         avatar_url=current_user.avatar_url,
-        achievements=formatted_achievements,
+        all_achievements=formatted_achievements,
         rank=current_user.user_rank,
         total_attempts=total,
         correct_solutions=unique_solved,

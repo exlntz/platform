@@ -42,7 +42,7 @@ class UserProfileRead(BaseModel):
     email: str
     rating: float
     avatar_url: str | None = None
-    achievements: list[str]
+    all_achievements: list[str]
     rank: RankName
     total_attempts: int
     correct_solutions: int

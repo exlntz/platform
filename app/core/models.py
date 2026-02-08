@@ -15,7 +15,7 @@ class UserModel(Model):
     hashed_password: Mapped[str] = mapped_column()
     rating: Mapped[float] = mapped_column(default=1000.0)
     user_rank: Mapped[RankName] = mapped_column(SQLEnum(RankName, native_enum=False),default=RankName.BRONZE,server_default="BRONZE")
-    achievements: Mapped[list[Achievement]] = mapped_column(JSONB, default_factory=list)
+    all_achievements: Mapped[list[Achievement]] = mapped_column(JSONB, default_factory=list)
     is_admin: Mapped[bool] = mapped_column(default=False)
     is_banned: Mapped[bool] = mapped_column(default=False)
     xp: Mapped[int] = mapped_column(default=0)
