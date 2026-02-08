@@ -4,6 +4,7 @@ import axios from 'axios'
 
 import App from './App.vue'
 import router from './router'
+import { useNotificationStore } from '@/pinia/NotificationStore'
 
 // Импортируем само ядро Chart.js и нужные модули
 import {
@@ -36,35 +37,45 @@ ChartJS.register(
 axios.defaults.baseURL = '/api';
 const app = createApp(App)
 
-// --- ГЛОБАЛЬНАЯ НАСТРОЙКА AXIOS ---
+// --- AXIOS ---
 
-// 1. Перехватчик запросов: Автоматически цепляет токен
 axios.interceptors.request.use(config => {
   const token = localStorage.getItem('user-token')
-  if (token) {
-    // Если токен есть, добавляем его в заголовок Authorization
-    config.headers.Authorization = `Bearer ${token}`
-  }
+  if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
 
-// 2. Перехватчик ответов: Обработка истекшей сессии
 axios.interceptors.response.use(
-  response => response, // Если запрос успешен, просто возвращаем ответ
+  response => {
+    // === ОБРАБОТКА АЧИВОК ЧЕРЕЗ СУЩЕСТВУЮЩИЙ TOAST ===
+    const data = response.data
+    
+    if (data && Array.isArray(data.achievements) && data.achievements.length > 0) {
+      // Получаем доступ к существующему стору
+      const notificationStore = useNotificationStore()
+      
+      // Для каждой полученной ачивки кидаем тост
+      data.achievements.forEach(achievementText => {
+        // Проверь в NotificationStore, какой метод добавляет уведомление!
+        // Обычно это add() или notify()
+        notificationStore.add({ 
+          type: 'achievement',     // Наш новый тип
+          message: achievementText, 
+          timeout: 5000            // Пусть повисит подольше (5 сек)
+        })
+      })
+    }
+    // =================================================
+    
+    return response
+  }, 
   error => {
-    // Если сервер вернул 401 (Unauthorized), значит токен протух или неверен
     if (error.response && error.response.status === 401) {
-
-      // 1. Удаляем невалидный токен
       localStorage.removeItem('user-token')
-
-      // 2. Проверяем, где мы сейчас находимся, чтобы не зациклить редирект
       if (router.currentRoute.value.path !== '/auth') {
-        alert('Время сессии истекло. Пожалуйста, войдите снова.')
         router.push('/auth')
       }
     }
-    // Пробрасываем ошибку дальше, чтобы компоненты могли её обработать (если нужно)
     return Promise.reject(error)
   }
 )
