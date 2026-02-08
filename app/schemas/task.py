@@ -36,7 +36,7 @@ class AnswerCheckResponse(BaseModel):
     is_correct: bool
     correct_answer: str | None = None
     message: str
-    achievements: list[str]
+    achievements: list[str] = []
 
 class TaskAdminRead(TaskRead):
     correct_answer: str
@@ -51,3 +51,5 @@ class GeneratedTask(BaseModel):
     tags: list[Tag] = Field(description="Список тегов из предоставленного перечня")
     hint: str = Field(description="Подсказка, направляющая ход мыслей")
 
+class GeneratedTaskCheckRequest(BaseModel):
+    answer: str
