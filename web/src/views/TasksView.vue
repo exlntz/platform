@@ -235,6 +235,8 @@ watch(
     filters.difficulty = newQuery.difficulty || ''
     filters.tags = newQuery.tags || ''
     pagination.page = Number(newQuery.page) || 1
+    
+    fetchTasks()
   },
   { immediate: true }
 )
@@ -279,13 +281,8 @@ onMounted(async () => {
   }
 
   await updateAvailableTags()
-  // Не загружаем задачи если уже загружаются из URL при монтировании
-  if (!route.query.search && !route.query.subject && !route.query.difficulty && !route.query.tags) {
-    await fetchTasks()
-  } else {
-    // Фильтры уже установлены из URL через watch выше
-    loading.value = false
-  }
+  
+  await fetchTasks()
 })
 
 onUnmounted(() => {

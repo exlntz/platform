@@ -4,9 +4,14 @@ import { ref } from 'vue'
 export const useNotificationStore = defineStore('notification', () => {
   const notifications = ref([])
 
-  // Добавить уведомление
-  const show = (message, type = 'info') => {
-    // ЗАЩИТА ОТ ДУБЛЕЙ: Если такое сообщение уже есть, не показываем снова
+  // Добавили duration с дефолтом 3000
+  const show = (message, type = 'info', duration = 3000) => {
+    
+    // Для ачивок ставим дефолт подольше (если не передали явно)
+    if (type === 'achievement' && duration === 3000) {
+      duration = 5000 // 5 секунд для ачивок
+    }
+
     const exists = notifications.value.find(n => n.message === message)
     if (exists) return
 
@@ -14,10 +19,9 @@ export const useNotificationStore = defineStore('notification', () => {
     
     notifications.value.push({ id, message, type })
 
-    // Авто-удаление через 3 секунды
     setTimeout(() => {
       remove(id)
-    }, 3000)
+    }, duration) // Используем переменную
   }
 
   const remove = (id) => {
