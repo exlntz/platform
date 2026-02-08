@@ -34,6 +34,14 @@ const pagination = reactive({
   limit: 32, // Лимит 32 задачи
 })
 
+// --- State (AI Mode) ---
+const showAiMenu = ref(false)
+
+const openAiMenu = () => {
+  showAiMenu.value = true
+  console.log('AI Menu Opened') // Для проверки
+}
+
 // --- Utils ---
 let searchTimeout = null
 let abortController = null
@@ -94,9 +102,9 @@ const navigateToTask = (id) => {
   // Сохраняем текущие фильтры в URL при переходе
   const query = { ...route.query }
   delete query.id // Убираем id текущей задачи, если есть
-  router.push({ 
+  router.push({
     path: `/tasks/${id}`,
-    query // Передаем текущие фильтры
+    query, // Передаем текущие фильтры
   })
 }
 
@@ -187,10 +195,10 @@ const updateUrl = () => {
   if (filters.difficulty) query.difficulty = filters.difficulty
   if (filters.tags) query.tags = filters.tags
   if (pagination.page > 1) query.page = pagination.page
-  
-  router.replace({ 
+
+  router.replace({
     query,
-    hash: route.hash // Сохраняем якорь если есть
+    hash: route.hash, // Сохраняем якорь если есть
   })
 }
 
@@ -235,10 +243,10 @@ watch(
     filters.difficulty = newQuery.difficulty || ''
     filters.tags = newQuery.tags || ''
     pagination.page = Number(newQuery.page) || 1
-    
+
     fetchTasks()
   },
-  { immediate: true }
+  { immediate: true },
 )
 
 watch(
@@ -281,7 +289,7 @@ onMounted(async () => {
   }
 
   await updateAvailableTags()
-  
+
   await fetchTasks()
 })
 
@@ -303,11 +311,19 @@ onUnmounted(() => {
             автоматически.
           </p>
         </div>
-        <div
-          v-if="!loading && screenSize !== 'mobile' && screenSize !== 'sm'"
-          class="tasks-counter"
-        >
-          <span class="counter-badge"> Всего задач: {{ totalTasks }} </span>
+
+        <div class="header-actions">
+          <div
+            v-if="!loading && screenSize !== 'mobile' && screenSize !== 'sm'"
+            class="tasks-counter"
+          >
+            <span class="counter-badge"> Всего задач: {{ totalTasks }} </span>
+          </div>
+
+          <button @click="openAiMenu" class="ai-mode-btn">
+            <span class="ai-icon">✨</span>
+            <span class="ai-text">Режим ИИ</span>
+          </button>
         </div>
       </div>
 
@@ -1631,5 +1647,44 @@ onUnmounted(() => {
 :global(.dark) body {
   border: none !important;
   outline: none !important;
+}
+
+/* ==================== AI BUTTON STYLES ==================== */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px; /* Расстояние между счетчиком и кнопкой */
+}
+
+.ai-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); /* Красивый градиент */
+  color: white;
+  border-radius: 9999px;
+  font-weight: 700;
+  font-size: 14px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 10px rgba(124, 58, 237, 0.3); /* Легкая тень */
+}
+
+.ai-mode-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(124, 58, 237, 0.4);
+}
+
+.ai-icon {
+  font-size: 16px;
+}
+
+/* Адаптив для хедера, чтобы кнопка не прилипала */
+@media (min-width: 768px) {
+  .header-actions {
+    margin-left: auto; /* Прижимает блок вправо */
+  }
 }
 </style>
