@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onUnmounted, nextTick, computed, onMounted } from 'vue'
+import { ref, onUnmounted, nextTick, computed, onMounted, watch } from 'vue'
 import api from '@/api/axios'
 import { useRouter } from 'vue-router'
 
@@ -38,6 +38,10 @@ const isNextTaskTimerActive = ref(false)
 const nextTaskTimer = ref(3)
 let taskTimerInterval = null
 
+// --- ТАЙМЕР РЕКОННЕКТА ---
+let reconnectButtonTimer = null
+const RECONNECT_WINDOW_MS = 5000
+
 // --- СТАТИСТИКА И ИСТОРИЯ ---
 const stats = ref({ rank: 'Loading...', points: 0, username: '' })
 const matchHistory = ref([])
@@ -47,6 +51,41 @@ const isHistoryLoading = ref(true)
 const showRankModal = ref(false)
 const openRankModal = () => (showRankModal.value = true)
 const closeRankModal = () => (showRankModal.value = false)
+
+// --- ЛОГИКА СОХРАНЕНИЯ СЧЕТА (LOCAL STORAGE) ---
+const saveScoreState = () => {
+  const scoreData = {
+    me: myScore.value,
+    opp: opponentScore.value,
+  }
+  localStorage.setItem('pvp_score_state', JSON.stringify(scoreData))
+}
+
+const restoreScoreState = () => {
+  const saved = localStorage.getItem('pvp_score_state')
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved)
+      myScore.value = parsed.me || 0
+      opponentScore.value = parsed.opp || 0
+    } catch (e) {
+      console.error('Ошибка восстановления счета', e)
+    }
+  }
+}
+
+const clearScoreState = () => {
+  localStorage.removeItem('pvp_score_state')
+  myScore.value = 0
+  opponentScore.value = 0
+}
+
+// Следим за изменениями счета и сохраняем
+watch([myScore, opponentScore], () => {
+  if (gameState.value === 'playing') {
+    saveScoreState()
+  }
+})
 
 // --- ВЫЧИСЛЕНИЯ ДЛЯ РАНГОВ ---
 const currentRankObj = computed(() => {
@@ -165,10 +204,7 @@ const loadUserData = async () => {
 const loadHistory = async () => {
   isHistoryLoading.value = true
   try {
-    // Убрали переменную historyLimit, грузим фиксированные 10
-    const historyRes = await api.get('/pvp/matches_history', {
-      params: { limit: 10 },
-    })
+    const historyRes = await api.get('/pvp/matches_history', { params: { limit: 10 } })
     matchHistory.value = historyRes.data
   } catch (e) {
     console.error('Ошибка истории:', e)
@@ -231,7 +267,7 @@ const goToTasks = () => {
 
 const goBackToLobby = () => {
   disconnect()
-  // disconnect уже ставит gameState = 'idle', но на всякий случай
+  isReconnecting.value = false
   gameState.value = 'idle'
 }
 
@@ -246,16 +282,22 @@ const connectPvp = () => {
     return
   }
 
+  if (reconnectButtonTimer) clearTimeout(reconnectButtonTimer)
+
   if (!isReconnecting.value) {
+    // НОВАЯ ИГРА - СБРОС ВСЕГО
     gameState.value = 'searching'
     gameResult.value = null
     activeTask.value = null
     logs.value = []
     userAnswer.value = ''
     isNextTaskTimerActive.value = false
-    // Сбрасываем счет при начале поиска
-    myScore.value = 0
-    opponentScore.value = 0
+    clearScoreState() // Очищаем старый счет
+  } else {
+    // РЕКОННЕКТ
+    gameState.value = 'playing'
+    addLog('system', 'Восстановление соединения...')
+    restoreScoreState() // Восстанавливаем счет из памяти
   }
 
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
@@ -273,8 +315,11 @@ const connectPvp = () => {
       const currentToken = localStorage.getItem('user-token')
       socket.value.send(currentToken)
     } else if (msg === 'token accepted') {
-      addLog('system', 'Авторизация успешна. Ищем противника...')
-      isReconnecting.value = false
+      if (!isReconnecting.value) {
+        addLog('system', 'Авторизация успешна. Ищем противника...')
+      } else {
+        addLog('system', 'Вы переподключились к матчу!')
+      }
     } else if (msg === 'invalid token') {
       socket.value.close()
       if (isReconnecting.value) {
@@ -291,7 +336,9 @@ const connectPvp = () => {
     } else if (msg === 'Search started') {
     } else if (msg === 'match started') {
       gameState.value = 'playing'
-      addLog('system', 'Матч начался! Ждем задачу...')
+      if (!isReconnecting.value) {
+        addLog('system', 'Матч начался! Ждем задачу...')
+      }
     } else if (msg === 'нет задач') {
       alert('Нет задач!')
       disconnect()
@@ -302,51 +349,73 @@ const connectPvp = () => {
       startNextTaskTimer()
     } else if (msg.includes('other player answered')) {
       addLog('error', 'Оппонент ответил верно. Следующая задача...')
-      opponentScore.value++ // Увеличиваем счет оппонента
+      opponentScore.value++
       startNextTaskTimer()
     } else if (msg.includes('incorrect')) {
       addLog('error', 'Неверно! Попробуй еще раз.')
     } else if (msg.includes('chat message')) {
       addLog('chat', msg.substr(12))
     } else if (msg.includes('please wait')) {
-      addLog('error', 'Подождите...')
+      addLog('error', 'Ожидание следующего раунда...')
     } else if (msg.includes('correct')) {
       addLog('system', 'Верно!')
-      myScore.value++ // Увеличиваем свой счет
+      myScore.value++
       startNextTaskTimer()
     } else if (msg.includes('win')) {
       finishGame('win')
       loadUserData()
+      isReconnecting.value = false
     } else if (msg.includes('loss')) {
       finishGame('loss')
       loadUserData()
+      isReconnecting.value = false
     } else if (msg === 'opponent disconnected') {
       finishGame('disconnect')
       loadUserData()
+      isReconnecting.value = false
     } else if (msg.includes('draw')) {
       finishGame('draw')
       loadUserData()
-    } else if (msg.includes('already in a match')) finishGame('already_in_match')
-    else if (msg.includes('emoji ')) {
+      isReconnecting.value = false
+    } else if (msg.includes('already in a match')) {
+      gameState.value = 'playing'
+      isReconnecting.value = true
+      addLog('system', 'Вы вернулись в игру!')
+      restoreScoreState() // Попытка восстановить счет
+    } else if (msg.includes('emoji ')) {
       const emojiChar = msg.split(' ')[1]
       triggerFloatingEmoji(emojiChar, 'opponent')
     }
   }
 
   socket.value.onclose = () => {
-    if (
-      !isReconnecting.value &&
-      (gameState.value === 'searching' || gameState.value === 'playing')
-    ) {
+    if (gameState.value === 'searching' || gameState.value === 'playing') {
+      isReconnecting.value = true
       gameState.value = 'idle'
+      startReconnectExpirationTimer(RECONNECT_WINDOW_MS)
     }
   }
 
   socket.value.onerror = (e) => {
     console.error('WebSocket error:', e)
     addLog('error', 'Ошибка соединения')
+    isReconnecting.value = true
     gameState.value = 'idle'
+    startReconnectExpirationTimer(RECONNECT_WINDOW_MS)
   }
+}
+
+const startReconnectExpirationTimer = (duration) => {
+  if (reconnectButtonTimer) clearTimeout(reconnectButtonTimer)
+
+  reconnectButtonTimer = setTimeout(() => {
+    if (gameState.value === 'idle' && isReconnecting.value) {
+      isReconnecting.value = false
+      clearScoreState() // Время вышло, сбрасываем счет
+      localStorage.removeItem('pvp_reconnect')
+      localStorage.removeItem('pvp_disconnect_time')
+    }
+  }, duration)
 }
 
 const sendAnswer = () => {
@@ -363,7 +432,6 @@ const loadTask = async (taskId) => {
       headers: { Authorization: `Bearer ${token}` },
     })
     activeTask.value = response.data
-    // Если таймер активен, задача загрузится, но не покажется из-за v-if в шаблоне
     addLog('system', 'Задача получена!')
   } catch (e) {
     console.error(e)
@@ -377,11 +445,19 @@ const finishGame = (result) => {
   if (taskTimerInterval) clearInterval(taskTimerInterval)
   isNextTaskTimerActive.value = false
   if (socket.value) socket.value.close()
+
+  localStorage.removeItem('pvp_reconnect')
+  localStorage.removeItem('pvp_disconnect_time')
+  clearScoreState() // Очищаем счет при завершении
 }
 
 const disconnect = () => {
   if (socket.value) socket.value.close()
   gameState.value = 'idle'
+  isReconnecting.value = false
+  clearScoreState()
+  localStorage.removeItem('pvp_reconnect')
+  localStorage.removeItem('pvp_disconnect_time')
 }
 
 const addLog = (type, text) => {
@@ -395,11 +471,42 @@ const addLog = (type, text) => {
 
 onMounted(() => {
   loadUserData()
+
+  const wasInMatch = localStorage.getItem('pvp_reconnect') === 'true'
+  const disconnectTime = parseInt(localStorage.getItem('pvp_disconnect_time') || '0')
+  const now = Date.now()
+
+  if (wasInMatch && now - disconnectTime < RECONNECT_WINDOW_MS) {
+    isReconnecting.value = true
+    restoreScoreState() // Восстанавливаем счет при рефреше
+
+    const remainingTime = RECONNECT_WINDOW_MS - (now - disconnectTime)
+    startReconnectExpirationTimer(remainingTime)
+  } else {
+    localStorage.removeItem('pvp_reconnect')
+    localStorage.removeItem('pvp_disconnect_time')
+    clearScoreState()
+    isReconnecting.value = false
+  }
+})
+
+window.addEventListener('beforeunload', () => {
+  if (gameState.value === 'playing' || gameState.value === 'searching') {
+    localStorage.setItem('pvp_reconnect', 'true')
+    localStorage.setItem('pvp_disconnect_time', Date.now().toString())
+    saveScoreState() // Сохраняем счет перед уходом
+  } else {
+    localStorage.removeItem('pvp_reconnect')
+    localStorage.removeItem('pvp_disconnect_time')
+    clearScoreState()
+  }
 })
 
 onUnmounted(() => {
   if (socket.value) socket.value.close()
   if (taskTimerInterval) clearInterval(taskTimerInterval)
+  if (reconnectButtonTimer) clearTimeout(reconnectButtonTimer)
+  window.removeEventListener('beforeunload', () => {})
 })
 </script>
 
@@ -414,7 +521,14 @@ onUnmounted(() => {
             <p class="arena-description">
               Сразись с реальным противником. Кто первый решит задачу — забирает рейтинг.
             </p>
-            <button @click="connectPvp" class="find-opponent-btn">Найти противника</button>
+
+            <button
+              @click="connectPvp"
+              class="find-opponent-btn"
+              :class="{ 'reconnect-btn': isReconnecting }"
+            >
+              {{ isReconnecting ? 'Переподключиться к матчу' : 'Найти противника' }}
+            </button>
           </div>
         </div>
 
@@ -462,7 +576,7 @@ onUnmounted(() => {
                 <p>{{ activeTask.description }}</p>
               </div>
             </div>
-            <div v-else class="loading-task">Загрузка задачи...</div>
+            <div v-else class="loading-task">Ожидание задачи...</div>
           </div>
 
           <div class="game-controls">
@@ -640,6 +754,25 @@ onUnmounted(() => {
 
 <style scoped>
 /* ==================== БАЗОВЫЕ СТИЛИ ==================== */
+
+/* СТИЛИ КНОПКИ РЕКОННЕКТА */
+.reconnect-btn {
+  background-color: #ef4444 !important;
+  box-shadow: 0 6px 12px -3px rgba(239, 68, 68, 0.3) !important;
+  animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
 
 /* СТИЛИ СЧЕТА */
 .match-score {
