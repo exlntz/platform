@@ -98,3 +98,18 @@ class EloHistoryModel(Model):
     rating: Mapped[float] = mapped_column() #рейтинг после матча
     change: Mapped[float] = mapped_column()
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),insert_default=lambda: datetime.now(timezone.utc),init=False)
+
+
+class GeneratedTasksModel(Model):
+    __tablename__ = "generated_tasks"
+
+    id: Mapped[int] = mapped_column(primary_key=True,init=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True)
+
+    title: Mapped[str] = mapped_column(index=True)
+    description: Mapped[str] = mapped_column(Text)
+    subject: Mapped[Subject] = mapped_column(SQLEnum(Subject, native_enum=False), index=True)
+    correct_answer: Mapped[str] = mapped_column()
+    difficulty: Mapped[DifficultyLevel] = mapped_column(SQLEnum(DifficultyLevel, native_enum=False), index=True)
+    tags: Mapped[list[Tag]] = mapped_column(JSONB, default_factory=list)
+    hint: Mapped[str | None] = mapped_column(Text, default=None)

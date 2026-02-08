@@ -2,13 +2,13 @@ import logging
 import httpx
 from fastapi import APIRouter,HTTPException,status
 from sqlalchemy import select, exists, func, desc
-
 from app.core.config import settings
 from app.core.database import SessionDep
-from app.core.models import TaskModel, AttemptModel
-from app.schemas.task import TaskRead, AnswerCheckRequest, AnswerCheckResponse
+from app.core.models import TaskModel, AttemptModel, GeneratedTasksModel
+from app.schemas.task import TaskRead, AnswerCheckRequest, AnswerCheckResponse, GeneratedTask
 from app.core.dependencies import UserDep
 from app.core.constants import DifficultyLevel, Subject, Tag
+from app.schemas.task import GeneratedTaskCheckRequest
 from app.utils.levels import rewards
 from app.utils.formatters import format_answer
 from app.utils.achievments import check_and_award_achievement
@@ -117,13 +117,8 @@ async def check_task_answer(
 
     if is_correct:
         message = 'Правильно!!!'
-        print(f"DEBUG: Task is correct! Difficulty: {task.difficulty}")
 
-        try:
-            new_badges = await check_and_award_achievement(current_user, session)
-            print(f"DEBUG: Achievements awarded: {new_badges}")
-        except Exception as e:
-            print(f"DEBUG: Achievement error: {e}")
+        new_badges = await check_and_award_achievement(current_user, session)
         
         if not was_solved_before:
             reward = rewards.get(task.difficulty)
@@ -161,19 +156,27 @@ allowed_tags = [t.value for t in Tag]
 @router.get('/generate',summary='Генерирует задачу по заданным параметрам')
 async def generate_task_for_user(
         subject: Subject,
-        difficulty: DifficultyLevel
+        difficulty: DifficultyLevel,
+        session: SessionDep,
+        user: UserDep
 ):
+    generated_data: GeneratedTask | None = None  # Сюда положим результат
+    success = False
 
     for key in keys_list:
+        if success: break
         for model in models_list:
+            if success: break
             for attempt in range(3):
                 try:
-                    return await generate_task(
+                    generated_data = await generate_task(
                             subject=subject,
                             difficulty=difficulty,
                             api_key=key,
                             model=model,
                             allowed_tags=allowed_tags)
+                    success = True
+                    break
                 except (httpx.ConnectError, httpx.ProxyError) as e:
                     logger.warning(f"Проблема с прокси на модели {model}, ключ {key}: {e}")
                     continue
@@ -181,11 +184,62 @@ async def generate_task_for_user(
                     logger.error(f'ошибка модели {model}, ключ {key}, ошибка {e}')
                     continue
 
-    raise HTTPException(
+    if not success or not generated_data:
+        raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Не удалось сгенерировать задачу. ИИ отдыхает"
-    )
+        )
 
+    query = select(GeneratedTasksModel).where(GeneratedTasksModel.user_id == user.id)
+    result = await session.execute(query)
+    existing_task = result.scalar_one_or_none()
+
+    task_dict = generated_data.model_dump()
+
+    if existing_task:
+        for key, value in task_dict.items():
+            if hasattr(existing_task, key):
+                setattr(existing_task, key, value)
+
+        session.add(existing_task)
+    else:
+        new_task = GeneratedTasksModel(
+            user_id=user.id,
+            **task_dict
+        )
+        session.add(new_task)
+
+    await session.commit()
+
+    return generated_data
+
+
+@router.post('/check', summary='Проверяет ответ на задачу из песочницы')
+async def check_sandbox_task(
+        user_data: GeneratedTaskCheckRequest,
+        session: SessionDep,
+        user: UserDep
+):
+
+    query = select(GeneratedTasksModel).where(GeneratedTasksModel.user_id == user.id)
+    result = await session.execute(query)
+    task = result.scalar_one_or_none()
+
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Сначала сгенерируйте задачу"
+        )
+
+    correct_ans = format_answer(task.correct_answer)
+    user_ans = format_answer(user_data.answer)
+
+    is_correct = user_ans == correct_ans
+
+    return AnswerCheckResponse(
+        is_correct=is_correct,
+        message="Верно! 🎉" if is_correct else "Неверно! Попробуй еще раз."
+    )
 
 @router.get('/{task_id}',summary='Получение задачи по ее id без ответа')
 async def get_task_by_id(
