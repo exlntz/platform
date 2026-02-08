@@ -97,8 +97,8 @@ async def calculate_profile_info(
     level_data = calculate_level_info(current_user.xp)
 
 
-    if current_user.achievements:
-        formatted_achievements = [Achievement[ach].label for ach in current_user.achievements]
+    if current_user.all_achievements:
+        formatted_achievements = [Achievement[ach].label for ach in current_user.all_achievements]
     else:
         formatted_achievements = []
 
