@@ -3,6 +3,10 @@ import { ref, onUnmounted, nextTick, computed, onMounted, watch } from 'vue'
 import api from '@/api/axios'
 import { useRouter } from 'vue-router'
 import { useNotificationStore } from '@/pinia/NotificationStore'
+
+import { useDateFormatter } from '@/composables/useDateFormatter' // <--- Импортируем
+
+const { formatDate } = useDateFormatter() // <--- Достаем функцию
 const notify = useNotificationStore()
 const router = useRouter()
 
@@ -214,15 +218,6 @@ const loadHistory = async () => {
   }
 }
 
-const formatDate = (dateString) => {
-  const date = new Date(dateString)
-  return date.toLocaleString('ru-RU', {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
 
 const formatEloRaw = (change) => {
   const val = parseFloat(change)

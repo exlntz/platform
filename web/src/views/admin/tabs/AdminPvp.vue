@@ -2,7 +2,9 @@
 import { ref, onMounted } from 'vue'
 import api from '@/api/axios.js'
 import { useNotificationStore } from '@/pinia/NotificationStore.js'
+import { useDateFormatter } from '@/composables/useDateFormatter' // <--- Импортируем
 
+const { formatDate } = useDateFormatter() // <--- Достаем функцию
 const notify = useNotificationStore()
 
 const loading = ref(false)
@@ -11,21 +13,7 @@ const page = ref(0)
 const limit = 50
 const hasMore = ref(true)
 
-const formatDate = (dateString) => {
-  if (!dateString) return '-'
-  const dateValue = dateString.endsWith('Z') ? dateString : dateString + 'Z'
-  try {
-    return new Date(dateValue).toLocaleString('ru-RU', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  } catch (e) {
-    return dateString
-  }
-}
+
 
 // Форматирование результата для отображения
 const formatResult = (result, p1, p2) => {
