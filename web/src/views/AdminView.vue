@@ -235,7 +235,7 @@ const openUserDetails = async (user) => {
 const updateUserAction = async (userId, data, successMessage = null) => {
   try {
     await api.patch(`/admin/users/${userId}`, data)
-    if (successMessage) alert(successMessage)
+    if (successMessage) notify.show(successMessage)
 
     // Обновляем список пользователей
     await fetchUsers()
@@ -295,7 +295,7 @@ const saveTask = async () => {
     const method = isEditMode.value ? 'patch' : 'post'
     await api[method](finalUrl, taskForm.value)
 
-    alert(isEditMode.value ? 'Задача обновлена!' : 'Задача создана!')
+    notify.show(isEditMode.value ? 'Задача обновлена!' : 'Задача создана!')
     showTaskModal.value = false
     fetchTasks()
     fetchStats()
