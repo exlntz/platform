@@ -269,7 +269,7 @@ onMounted(() => {
               <span class="meta-item">
                 {{ profile.user.email }}
               </span>
-              <span class="meta-item"> Зарегистрирован: {{ formatDate(profile.user.created_at) }} </span>
+              <span class="meta-item"> зарегистрирован {{ formatDate(profile.user.created_at) }} </span>
 
             </div>
             <div class="profile-meta"> <span class="meta-item"> Уровень: {{ profile.user.level }} </span> </div>
