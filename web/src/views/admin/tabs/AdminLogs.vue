@@ -626,7 +626,6 @@ onMounted(() => {
 @media (min-width: 641px) {
   .logs-tab {
     padding: 32px;
-    margin-left: 256px;
   }
   .users-table {
     min-width: auto;
