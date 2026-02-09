@@ -142,8 +142,9 @@ async def check_task_answer(
 KEY_1 = settings.GROQ_API_KEY_1
 KEY_2 = settings.GROQ_API_KEY_2
 KEY_3 = settings.GROQ_API_KEY_3
+KEY_4 = settings.GROQ_API_KEY_4
 
-raw_keys_list = [KEY_1, KEY_2, KEY_3]
+raw_keys_list = [KEY_1, KEY_2, KEY_3, KEY_4]
 
 keys_list = [key for key in raw_keys_list if key]
 
