@@ -2,40 +2,40 @@
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { ref, onMounted, watch, computed } from 'vue'
 import { useTimerRunner } from '@/pinia/TimerRunner.js'
-import { useConstantsStore } from '@/pinia/ConstantsStore.js' 
-import ToastContainer from '@/components/ToastContainer.vue' 
+import { useConstantsStore } from '@/pinia/ConstantsStore.js'
+import ToastContainer from '@/components/ToastContainer.vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 
-
-const constantsStore = useConstantsStore() 
+const constantsStore = useConstantsStore()
 useTimerRunner()
 
-
+/**
+ * Состояние авторизации
+ */
 const isLoggedIn = ref(false)
 const route = useRoute()
 const isMenuOpen = ref(false)
 
-
+/**
+ * Состояние тёмной темы
+ */
 const darkTheme = ref(false)
-
 
 const checkAuth = () => {
   isLoggedIn.value = !!localStorage.getItem('user-token')
 }
 
-
+/**
+ * Синхронизируем состояние переменной с классом в HTML.
+ * (Класс уже был установлен в main.js)
+ */
 const checkSavedTheme = () => {
-  const savedTheme = localStorage.getItem('dark-theme')
-  if (savedTheme === 'true') {
-    darkTheme.value = true
-    document.documentElement.classList.add('dark')
-  } else {
-    darkTheme.value = false
-    document.documentElement.classList.remove('dark')
-  }
+  darkTheme.value = document.documentElement.classList.contains('dark')
 }
 
-
+/**
+ * Переключение темы с сохранением в localStorage
+ */
 const toggleTheme = () => {
   darkTheme.value = !darkTheme.value
   if (darkTheme.value) {
@@ -47,43 +47,31 @@ const toggleTheme = () => {
   }
 }
 
-
 const themeIcon = computed(() => {
   return darkTheme.value ? '🌙' : '☀️'
 })
-
 
 const themeLabel = computed(() => {
   return darkTheme.value ? 'Переключить на светлую тему' : 'Переключить на тёмную тему'
 })
 
-
 onMounted(async () => {
   checkAuth()
-  checkSavedTheme()
-  
-
-  if (!localStorage.getItem('dark-theme')) {
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      darkTheme.value = true
-      document.documentElement.classList.add('dark')
-      localStorage.setItem('dark-theme', 'true')
-    }
-  }
+  checkSavedTheme() // Синхронизируем переключатель с реальной темой
   await constantsStore.fetchConstants()
 })
 
-
-watch(() => route.path, () => {
-  checkAuth()
-  isMenuOpen.value = false
-})
-
+watch(
+  () => route.path,
+  () => {
+    checkAuth()
+    isMenuOpen.value = false
+  },
+)
 
 const toggleMenu = () => {
   isMenuOpen.value = !isMenuOpen.value
 }
-
 
 const closeMenu = () => {
   isMenuOpen.value = false
@@ -94,32 +82,19 @@ const closeMenu = () => {
   <header class="header">
     <nav class="menu">
       <RouterLink to="/" class="logo-container" @click="closeMenu">
-        <div class="logo">
-          L
-        </div>
+        <div class="logo">L</div>
         <span class="text-logo">Platform</span>
       </RouterLink>
 
-
       <div class="desktop-navigation">
-        <RouterLink to="/" class="nav-link">
-          Главная
-        </RouterLink>
-        <RouterLink to="/tasks" class="nav-link">
-          Задачи
-        </RouterLink>
-        <RouterLink to="/pvp" class="nav-link">
-          PvP Дуэли
-        </RouterLink>
-        <RouterLink to="/leaderboard" class="nav-link">
-          Рейтинг
-        </RouterLink>
-        <RouterLink to="/statistics" class="nav-link">
-          Статистика
-        </RouterLink>
+        <RouterLink to="/" class="nav-link"> Главная </RouterLink>
+        <RouterLink to="/tasks" class="nav-link"> Задачи </RouterLink>
+        <RouterLink to="/pvp" class="nav-link"> PvP Дуэли </RouterLink>
+        <RouterLink to="/leaderboard" class="nav-link"> Рейтинг </RouterLink>
+        <RouterLink to="/statistics" class="nav-link"> Статистика </RouterLink>
 
-        <button 
-          @click="toggleTheme" 
+        <button
+          @click="toggleTheme"
           class="desktop-theme-toggle"
           :aria-label="themeLabel"
           :title="themeLabel"
@@ -130,8 +105,8 @@ const closeMenu = () => {
       </div>
 
       <div class="header-right">
-        <button 
-          @click="toggleTheme" 
+        <button
+          @click="toggleTheme"
           class="mobile-theme-icon-button"
           :aria-label="themeLabel"
           :title="themeLabel"
@@ -145,18 +120,14 @@ const closeMenu = () => {
               <p class="small-text">Мой профиль</p>
               <p class="tiny-text">В сети</p>
             </div>
-            <div class="profile-icon">
-              👤
-            </div>
+            <div class="profile-icon">👤</div>
           </RouterLink>
 
-          <RouterLink v-else to="/auth" class="auth-link">
-            Войти
-          </RouterLink>
+          <RouterLink v-else to="/auth" class="auth-link"> Войти </RouterLink>
         </div>
 
-        <button 
-          class="burger-menu" 
+        <button
+          class="burger-menu"
           @click="toggleMenu"
           :aria-expanded="isMenuOpen"
           aria-label="Меню навигации"
@@ -172,14 +143,12 @@ const closeMenu = () => {
         <div class="mobile-menu-content">
           <div class="mobile-menu-header">
             <RouterLink to="/" class="mobile-logo" @click="closeMenu">
-              <div class="logo">
-                L
-              </div>
+              <div class="logo">L</div>
               <span class="text-logo">Platform</span>
             </RouterLink>
             <div class="mobile-header-actions">
-              <button 
-                @click="toggleTheme" 
+              <button
+                @click="toggleTheme"
                 class="mobile-menu-theme-button"
                 :aria-label="themeLabel"
               >
@@ -192,15 +161,13 @@ const closeMenu = () => {
           </div>
 
           <div class="mobile-theme-toggle-section">
-            <button 
-              @click="toggleTheme" 
-              class="mobile-theme-toggle-full"
-              :aria-label="themeLabel"
-            >
+            <button @click="toggleTheme" class="mobile-theme-toggle-full" :aria-label="themeLabel">
               <span class="mobile-theme-toggle-icon">{{ themeIcon }}</span>
-              <span class="mobile-theme-toggle-text">{{ darkTheme ? 'Тёмная тема включена' : 'Светлая тема включена' }}</span>
+              <span class="mobile-theme-toggle-text">{{
+                darkTheme ? 'Тёмная тема включена' : 'Светлая тема включена'
+              }}</span>
               <span class="mobile-theme-toggle-switch">
-                <span class="mobile-theme-toggle-track" :class="{ 'active': darkTheme }">
+                <span class="mobile-theme-toggle-track" :class="{ active: darkTheme }">
                   <span class="mobile-theme-toggle-thumb"></span>
                 </span>
               </span>
@@ -232,9 +199,7 @@ const closeMenu = () => {
 
           <div class="mobile-auth-section">
             <div v-if="isLoggedIn" class="mobile-profile">
-              <div class="mobile-profile-icon">
-                👤
-              </div>
+              <div class="mobile-profile-icon">👤</div>
               <div class="mobile-profile-info">
                 <div class="mobile-profile-name">Мой профиль</div>
                 <div class="mobile-profile-status">В сети</div>
@@ -270,7 +235,9 @@ const closeMenu = () => {
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid rgb(241 245 249);
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  transition: background-color 0.3s ease, border-color 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease;
   padding-left: 12px;
   padding-right: 12px;
 }
@@ -314,8 +281,9 @@ const closeMenu = () => {
   color: white;
   font-weight: 900;
   font-size: 14px;
-  box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.1),
-              0 2px 4px -1px rgba(79, 70, 229, 0.06);
+  box-shadow:
+    0 4px 6px -1px rgba(79, 70, 229, 0.1),
+    0 2px 4px -1px rgba(79, 70, 229, 0.06);
   transition: transform 0.3s ease;
   flex-shrink: 0;
 }
@@ -421,15 +389,15 @@ const closeMenu = () => {
   background-color: #818cf8;
 }
 
-.burger-menu[aria-expanded="true"] .burger-line:nth-child(1) {
+.burger-menu[aria-expanded='true'] .burger-line:nth-child(1) {
   transform: rotate(45deg) translate(5px, 5px);
 }
 
-.burger-menu[aria-expanded="true"] .burger-line:nth-child(2) {
+.burger-menu[aria-expanded='true'] .burger-line:nth-child(2) {
   opacity: 0;
 }
 
-.burger-menu[aria-expanded="true"] .burger-line:nth-child(3) {
+.burger-menu[aria-expanded='true'] .burger-line:nth-child(3) {
   transform: rotate(-45deg) translate(5px, -5px);
 }
 
@@ -448,8 +416,9 @@ const closeMenu = () => {
   font-size: 12px;
   font-weight: 700;
   border-radius: 8px;
-  box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.1),
-              0 2px 4px -1px rgba(79, 70, 229, 0.06);
+  box-shadow:
+    0 4px 6px -1px rgba(79, 70, 229, 0.1),
+    0 2px 4px -1px rgba(79, 70, 229, 0.06);
   transition: all 0.3s ease;
   text-decoration: none;
   border: none;
@@ -874,33 +843,33 @@ const closeMenu = () => {
   .menu {
     padding: 0 8px;
   }
-  
+
   .logo-container {
     margin-left: 4px;
     gap: 4px;
   }
-  
+
   .text-logo {
     max-width: 85px;
     font-size: 12px;
   }
-  
+
   .logo {
     width: 24px;
     height: 24px;
     font-size: 12px;
   }
-  
+
   .burger-menu {
     width: 24px;
     height: 18px;
   }
-  
+
   .mobile-theme-icon-button {
     width: 32px;
     height: 32px;
   }
-  
+
   .header-right {
     gap: 6px;
   }
@@ -910,27 +879,27 @@ const closeMenu = () => {
   .menu {
     padding: 0 12px;
   }
-  
+
   .logo-container {
     margin-left: 12px;
   }
-  
+
   .logo {
     width: 28px;
     height: 28px;
     font-size: 14px;
   }
-  
+
   .text-logo {
     font-size: 14px;
     max-width: 100px;
   }
-  
+
   .mobile-theme-icon-button {
     width: 36px;
     height: 36px;
   }
-  
+
   .burger-menu {
     width: 28px;
     height: 20px;
@@ -942,23 +911,23 @@ const closeMenu = () => {
     padding: 0 16px;
     height: 60px;
   }
-  
+
   .logo-container {
     margin-left: 20px;
     gap: 8px;
   }
-  
+
   .logo {
     width: 32px;
     height: 32px;
     font-size: 16px;
   }
-  
+
   .text-logo {
     font-size: 16px;
     max-width: 120px;
   }
-  
+
   .header-right {
     gap: 12px;
     padding-left: 16px;
@@ -1006,46 +975,46 @@ const closeMenu = () => {
   .burger-menu {
     display: flex;
   }
-  
+
   .mobile-theme-icon-button {
     display: flex;
   }
-  
+
   .desktop-navigation {
     display: none;
   }
-  
+
   @media (min-width: 641px) {
     .menu {
       padding: 0 20px;
       height: 72px;
     }
-    
+
     .logo-container {
       margin-left: 24px;
     }
-    
+
     .logo {
       width: 36px;
       height: 36px;
       font-size: 18px;
     }
-    
+
     .text-logo {
       font-size: 18px;
       max-width: none;
     }
-    
+
     .auth-block {
       display: block;
     }
-    
+
     .auth-link {
       display: inline-block;
       padding: 8px 16px;
       font-size: 14px;
     }
-    
+
     .profile-link {
       display: flex;
       align-items: center;
@@ -1055,16 +1024,16 @@ const closeMenu = () => {
       text-decoration: none;
       transition: border-color 0.3s ease;
     }
-    
+
     .dark .profile-link {
       border-left: 1px solid #1e293b;
     }
-    
+
     .profile-button {
       display: block;
       text-align: right;
     }
-    
+
     .small-text {
       font-size: 12px;
       font-weight: 700;
@@ -1072,25 +1041,25 @@ const closeMenu = () => {
       line-height: 1;
       transition: color 0.3s ease;
     }
-    
+
     .dark .small-text {
       color: #f1f5f9;
     }
-    
+
     .profile-link:hover .small-text {
       color: #4f46e5;
     }
-    
+
     .dark .profile-link:hover .small-text {
       color: #818cf8;
     }
-    
+
     .tiny-text {
       font-size: 10px;
       font-weight: 500;
       color: #94a3b8;
     }
-    
+
     .profile-icon {
       width: 40px;
       height: 40px;
@@ -1104,12 +1073,12 @@ const closeMenu = () => {
       border: 1px solid white;
       transition: all 0.3s ease;
     }
-    
+
     .dark .profile-icon {
       background-color: #334155;
       border-color: #475569;
     }
-    
+
     .profile-link:hover .profile-icon {
       transform: scale(1.1);
     }
@@ -1120,11 +1089,11 @@ const closeMenu = () => {
   .burger-menu {
     display: none;
   }
-  
+
   .mobile-theme-icon-button {
     display: none;
   }
-  
+
   .desktop-navigation {
     display: flex;
     align-items: center;
@@ -1132,7 +1101,7 @@ const closeMenu = () => {
     margin-left: 32px;
     flex-wrap: wrap;
   }
-  
+
   .nav-link {
     font-size: 14px;
     font-weight: 700;
@@ -1141,27 +1110,27 @@ const closeMenu = () => {
     text-decoration: none;
     white-space: nowrap;
   }
-  
+
   .dark .nav-link {
     color: #94a3b8;
   }
-  
+
   .nav-link:hover {
     color: #4f46e5;
   }
-  
+
   .dark .nav-link:hover {
     color: #818cf8;
   }
-  
+
   .nav-link.router-link-active {
     color: #4f46e5;
   }
-  
+
   .dark .nav-link.router-link-active {
     color: #818cf8;
   }
-  
+
   .desktop-theme-toggle {
     display: flex;
     align-items: center;
@@ -1178,48 +1147,48 @@ const closeMenu = () => {
     margin-left: 20px;
     white-space: nowrap;
   }
-  
+
   .dark .desktop-theme-toggle {
     background: #334155;
     border-color: #475569;
     color: #e2e8f0;
   }
-  
+
   .desktop-theme-toggle:hover {
     background: #e2e8f0;
     transform: translateY(-1px);
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   }
-  
+
   .dark .desktop-theme-toggle:hover {
     background: #475569;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
   }
-  
+
   .desktop-theme-icon {
     font-size: 15px;
     transition: transform 0.3s ease;
   }
-  
+
   .desktop-theme-toggle:hover .desktop-theme-icon {
     transform: rotate(30deg);
   }
-  
+
   .desktop-theme-text {
     display: inline;
   }
-  
+
   .auth-block {
     display: block;
   }
-  
+
   .auth-link {
     display: inline-block;
     padding: 10px 24px;
     font-size: 14px;
     border-radius: 12px;
   }
-  
+
   .profile-link {
     display: flex;
     align-items: center;
@@ -1229,45 +1198,45 @@ const closeMenu = () => {
     text-decoration: none;
     transition: border-color 0.3s ease;
   }
-  
+
   .dark .profile-link {
     border-left: 1px solid #1e293b;
   }
-  
+
   .profile-icon {
-  width: 44px;               
-  height: 44px;              
-  min-width: 44px;           
-  min-height: 44px;          
-  background-color: #f1f5f9; 
-  border-radius: 50%;        
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;           
-  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
-  border: 3px solid white;   
-  transition: all 0.3s ease;
-  overflow: hidden;          
-}
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    background-color: #f1f5f9;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+    border: 3px solid white;
+    transition: all 0.3s ease;
+    overflow: hidden;
+  }
 
-.dark .profile-icon {
-  background-color: #334155;
-  border-color: #334155;     
-}
+  .dark .profile-icon {
+    background-color: #334155;
+    border-color: #334155;
+  }
 
-.profile-link:hover .profile-icon {
-  transform: scale(1.05);    
-}
-  
+  .profile-link:hover .profile-icon {
+    transform: scale(1.05);
+  }
+
   .small-text {
     font-size: 12px;
   }
-  
+
   .tiny-text {
     font-size: 10px;
   }
-  
+
   .header-right {
     gap: 20px;
   }
@@ -1278,21 +1247,21 @@ const closeMenu = () => {
     gap: 8px;
     margin-left: 20px;
   }
-  
+
   .nav-link {
     font-size: 12px;
   }
-  
+
   .desktop-theme-toggle {
     padding: 6px 12px;
     font-size: 12px;
     margin-left: 12px;
   }
-  
+
   .desktop-theme-icon {
     font-size: 12px;
   }
-  
+
   .auth-link {
     padding: 8px 18px;
     font-size: 13px;
@@ -1303,26 +1272,26 @@ const closeMenu = () => {
   .menu {
     padding: 0 24px;
   }
-  
+
   .desktop-navigation {
     gap: 25px;
     margin-left: 40px;
   }
-  
+
   .nav-link {
     font-size: 14px;
   }
-  
+
   .desktop-theme-toggle {
     padding: 8px 18px;
     font-size: 14px;
     margin-left: 24px;
   }
-  
+
   .desktop-theme-icon {
     font-size: 16px;
   }
-  
+
   .header-right {
     gap: 24px;
   }

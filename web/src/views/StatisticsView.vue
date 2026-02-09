@@ -1,15 +1,13 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import api from '@/api/axios' 
+import api from '@/api/axios' // Наш настроенный инстанс
 import { Line, Radar, Bar } from 'vue-chartjs'
 
-import { useConstantsStore } from '@/pinia/ConstantsStore.js' 
-
-
+import { useConstantsStore } from '@/pinia/ConstantsStore.js' // 1. Импорт стора
 
 const router = useRouter()
-const constants = useConstantsStore() 
+const constants = useConstantsStore() // 2. Инициализация стора
 
 const loading = ref(true)
 const error = ref(null)
@@ -18,9 +16,10 @@ const subjectStats = ref([])
 const eloHistory = ref([])
 const profile = ref(null)
 
-
+// --- API ---
 const fetchStats = async () => {
   loading.value = true
+  error.value = null // Сбрасываем ошибку перед новым запросом
   try {
     const token = localStorage.getItem('user-token')
     if (!token) {
@@ -28,40 +27,55 @@ const fetchStats = async () => {
       return
     }
 
-    const headers = { Authorization: `Bearer ${token}` }
+    // Заголовки больше не нужны, так как axios сам их подставляет
+    // const headers = { Authorization: `Bearer ${token}` }
 
+    // Выполняем запросы параллельно и деструктурируем результат
     const [profileRes, statsRes, eloHistoryRes] = await Promise.all([
-      api.get('/profile/', { headers }),
-      api.get('/profile/stats', { headers }),
-      api.get('/profile/elo_history', { headers })
+      api.get('/profile/'),
+      api.get('/profile/stats'),
+      api.get('/profile/elo_history'),
     ])
 
-    profile.value = profileRes.data
-    subjectStats.value = statsRes.data.stats || []
-    eloHistory.value = eloHistoryRes.data || []
+    profile.value = {
+      user: profileRes.data,
+      stats: profileRes.data, // Статистика (correct_solutions) лежит в корне профиля
+    }
 
+    // Используем опциональную цепочку ?. для безопасности
+    subjectStats.value = statsRes.data?.stats || []
+    eloHistory.value = eloHistoryRes.data || []
   } catch (err) {
     console.error('Ошибка загрузки статистики:', err)
-
+    error.value = 'Не удалось загрузить данные статистики. Попробуйте позже.'
   } finally {
     loading.value = false
   }
 }
 
-
+// --- RADAR CHART (Навыки) ---
 const radarChartData = computed(() => {
-  const currentStats = subjectStats.value || []
-  const statsMap = {}
-  currentStats.forEach(s => { statsMap[s.subject] = s })
+  // Проверяем наличие данных
+  if (!subjectStats.value || subjectStats.value.length === 0) return null
+  if (!constants.subjects || constants.subjects.length === 0) return null
 
-  const subjectsList = constants.subjects 
+  const currentStats = subjectStats.value
+  const statsMap = {}
+  // Создаем карту: 'MATH' -> { correct_count: 10, ... }
+  currentStats.forEach((s) => {
+    statsMap[s.subject] = s
+  })
+
+  const subjectsList = constants.subjects // Берем список из стора
   const labels = []
   const rawSolved = []
   const rawAccuracy = []
 
-  subjectsList.forEach(subj => {
+  subjectsList.forEach((subj) => {
+    // 3. Формируем подписи (Labels)
     labels.push(subj.label)
 
+    // 4. Ищем данные по Ключу (Key)
     const stat = statsMap[subj.key]
 
     if (stat) {
@@ -76,11 +90,11 @@ const radarChartData = computed(() => {
   const maxSolved = Math.max(...rawSolved) || 1
 
   return {
-    labels: labels, 
+    labels: labels, // Динамические лейблы
     datasets: [
       {
         label: 'Решено задач по предмету',
-        data: rawSolved.map(val => (val / maxSolved) * 100),
+        data: rawSolved.map((val) => (val / maxSolved) * 100),
         originalData: rawSolved,
         backgroundColor: 'rgba(34, 197, 94, 0.2)',
         borderColor: '#22c55e',
@@ -93,8 +107,8 @@ const radarChartData = computed(() => {
         backgroundColor: 'rgba(59, 130, 246, 0.2)',
         borderColor: '#3b82f6',
         pointBackgroundColor: '#3b82f6',
-      }
-    ]
+      },
+    ],
   }
 })
 
@@ -103,48 +117,53 @@ const radarChartOptions = {
   maintainAspectRatio: false,
   scales: {
     r: {
-      min: 0, max: 100,
+      min: 0,
+      max: 100,
       angleLines: { display: true, color: '#e2e8f0' },
       grid: { color: '#e2e8f0' },
       pointLabels: { font: { size: 12, weight: '600' }, color: '#64748b' },
-      ticks: { display: false, backdropColor: 'transparent' }
-    }
+      ticks: { display: false, backdropColor: 'transparent' },
+    },
   },
   plugins: {
     legend: { position: 'top' },
     tooltip: {
       callbacks: {
-        label: function(context) {
-          const label = context.dataset.label || '';
-          const rawValue = context.dataset.originalData[context.dataIndex];
-          const suffix = label.includes('%') ? '%' : '';
-          return `${label}: ${rawValue}${suffix}`;
-        }
-      }
-    }
-  }
+        label: function (context) {
+          const label = context.dataset.label || ''
+          const rawValue = context.dataset.originalData[context.dataIndex]
+          const suffix = label.includes('%') ? '%' : ''
+          return `${label}: ${rawValue}${suffix}`
+        },
+      },
+    },
+  },
 }
 
-
+// --- BAR CHART (Время) ---
 const barChartData = computed(() => {
   if (!subjectStats.value || subjectStats.value.length === 0) return null
+  if (!constants.subjects || constants.subjects.length === 0) return null
 
   const currentStats = subjectStats.value
   const statsMap = {}
-  currentStats.forEach(s => { statsMap[s.subject] = s })
+  currentStats.forEach((s) => {
+    statsMap[s.subject] = s
+  })
 
   const subjectsList = constants.subjects
   const labels = []
   const timeData = []
 
-  subjectsList.forEach(subj => {
+  subjectsList.forEach((subj) => {
     labels.push(subj.label)
     const stat = statsMap[subj.key]
     timeData.push(stat ? Math.round(stat.average_time) : 0)
   })
 
-  if (timeData.every(t => t === 0)) return null
+  if (timeData.every((t) => t === 0)) return null
 
+  // Генерируем массив цветов (циклично), так как количество предметов теперь динамическое
   const bgColors = []
   const borderColors = []
   const baseColors = [
@@ -153,7 +172,7 @@ const barChartData = computed(() => {
     ['rgba(255, 206, 86, 0.6)', 'rgba(255, 206, 86, 1)'],
     ['rgba(75, 192, 192, 0.6)', 'rgba(75, 192, 192, 1)'],
     ['rgba(153, 102, 255, 0.6)', 'rgba(153, 102, 255, 1)'],
-    ['rgba(255, 159, 64, 0.6)', 'rgba(255, 159, 64, 1)']
+    ['rgba(255, 159, 64, 0.6)', 'rgba(255, 159, 64, 1)'],
   ]
 
   timeData.forEach((_, index) => {
@@ -164,57 +183,79 @@ const barChartData = computed(() => {
 
   return {
     labels: labels,
-    datasets: [{
-      label: 'Ср. время (сек)',
-      data: timeData,
-      backgroundColor: bgColors,
-      borderColor: borderColors,
-      borderWidth: 1,
-      borderRadius: 6
-    }]
+    datasets: [
+      {
+        label: 'Ср. время (сек)',
+        data: timeData,
+        backgroundColor: bgColors,
+        borderColor: borderColors,
+        borderWidth: 1,
+        borderRadius: 6,
+      },
+    ],
   }
 })
 
 const barChartOptions = {
-  responsive: true, maintainAspectRatio: false,
+  responsive: true,
+  maintainAspectRatio: false,
   scales: {
     y: { beginAtZero: true, grid: { color: '#e2e8f0' }, ticks: { callback: (v) => `${v}с` } },
-    x: { grid: { display: false } }
+    x: { grid: { display: false } },
   },
-  plugins: { legend: { display: false } }
+  plugins: { legend: { display: false } },
 }
 
-
+// --- LINE CHART (История ELO) ---
 const lineChartData = computed(() => {
-  if (!eloHistory.value || eloHistory.value.length === 0) return null
-  const sortedHistory = [...eloHistory.value].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+  if (!eloHistory.value || !Array.isArray(eloHistory.value) || eloHistory.value.length === 0)
+    return null
+  const sortedHistory = [...eloHistory.value].sort(
+    (a, b) => new Date(a.created_at) - new Date(b.created_at),
+  )
   if (sortedHistory.length === 0) return null
 
   return {
-    labels: sortedHistory.map(h => new Date(h.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })),
-    datasets: [{
-      label: 'Рейтинг',
-      data: sortedHistory.map(h => h.rating),
-      borderColor: '#4f46e5', backgroundColor: 'rgba(79,70,229,0.2)',
-      pointBackgroundColor: '#4f46e5', borderWidth: 2, tension: 0.4, fill: true
-    }]
+    labels: sortedHistory.map((h) =>
+      new Date(h.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }),
+    ),
+    datasets: [
+      {
+        label: 'Рейтинг',
+        data: sortedHistory.map((h) => h.rating),
+        borderColor: '#4f46e5',
+        backgroundColor: 'rgba(79,70,229,0.2)',
+        pointBackgroundColor: '#4f46e5',
+        borderWidth: 2,
+        tension: 0.4,
+        fill: true,
+      },
+    ],
   }
 })
 
 const lineChartOptions = {
-  responsive: true, maintainAspectRatio: false,
-  plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1e293b', displayColors: false } },
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { display: false },
+    tooltip: { backgroundColor: '#1e293b', displayColors: false },
+  },
   scales: {
     x: { grid: { display: false }, ticks: { color: '#94a3b8' } },
-    y: { grid: { borderDash: [5, 5], color: '#e2e8f0' }, ticks: { color: '#94a3b8', precision: 0 } }
-  }
+    y: {
+      grid: { borderDash: [5, 5], color: '#e2e8f0' },
+      ticks: { color: '#94a3b8', precision: 0 },
+    },
+  },
 }
 
-onMounted(() => {
-  fetchStats()
-  if (constants.subjects.length === 0) {
-    constants.fetchConstants()
+onMounted(async () => {
+  // Загружаем константы, если их нет
+  if (!constants.subjects || constants.subjects.length === 0) {
+    await constants.fetchConstants()
   }
+  fetchStats()
 })
 </script>
 
@@ -224,17 +265,18 @@ onMounted(() => {
       <h1 class="page-title">Детальная статистика</h1>
 
       <div v-if="loading" class="loading-state">
-        Загрузка данных...
+        <div class="spinner"></div>
+        <p>Загрузка данных...</p>
       </div>
 
       <div v-else-if="error" class="error-state">
-        {{ error }}
+        <div class="error-icon">⚠️</div>
+        <p>{{ error }}</p>
         <button @click="fetchStats" class="retry-btn">Повторить</button>
       </div>
 
       <div v-else class="charts-grid">
-        <template v-if="profile && profile.correct_solutions >= 1">
-
+        <template v-if="profile && profile.stats && profile.stats.correct_solutions >= 1">
           <div class="chart-card">
             <h3 class="chart-title">Статистика решения задач</h3>
             <div class="chart-wrapper">
@@ -258,7 +300,6 @@ onMounted(() => {
               <div v-else class="no-data-label">История рейтинга пуста</div>
             </div>
           </div>
-
         </template>
 
         <div v-else class="empty-state">
@@ -329,11 +370,28 @@ onMounted(() => {
   width: 100%;
 }
 
-.loading-state, .error-state {
+.loading-state,
+.error-state {
   text-align: center;
   padding: 40px;
   color: #64748b;
   font-size: 18px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e2e8f0;
+  border-top-color: #4f46e5;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .retry-btn {
@@ -370,6 +428,11 @@ onMounted(() => {
   font-weight: 700;
   border-radius: 10px;
   text-decoration: none;
+  transition: background-color 0.2s;
+}
+
+.solve-btn:hover {
+  background-color: #4338ca;
 }
 
 .no-data-label {
@@ -384,10 +447,26 @@ onMounted(() => {
 }
 
 /* Dark theme support */
-:root.dark .stats-container { background-color: #0f172a; }
-:root.dark .page-title { color: #f8fafc; }
-:root.dark .chart-card { background-color: #1e293b; border-color: #334155; }
-:root.dark .chart-title { color: #94a3b8; }
-:root.dark .empty-state { background-color: #1e293b; border-color: #334155; color: #f1f5f9; }
-:root.dark .no-data-label { background-color: #0f172a; color: #64748b; }
+:root.dark .stats-container {
+  background-color: #0f172a;
+}
+:root.dark .page-title {
+  color: #f8fafc;
+}
+:root.dark .chart-card {
+  background-color: #1e293b;
+  border-color: #334155;
+}
+:root.dark .chart-title {
+  color: #94a3b8;
+}
+:root.dark .empty-state {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #f1f5f9;
+}
+:root.dark .no-data-label {
+  background-color: #0f172a;
+  color: #64748b;
+}
 </style>
