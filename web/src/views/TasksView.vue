@@ -54,7 +54,7 @@ const openAiMenu = () => {
 const aiSubject = ref('MATH') // По умолчанию Математика
 const aiDifficulty = ref('EASY') // По умолчанию Легко
 const aiLoading = ref(false) // Статус загрузки (крутилка на кнопке)
-
+const aiError = ref(null)
 // Функция закрытия меню
 const closeAiMenu = () => {
   showAiMenu.value = false
@@ -62,28 +62,28 @@ const closeAiMenu = () => {
 
 const generateAiTask = async () => {
   aiLoading.value = true
-
-  // Сбрасываем состояния
+  aiError.value = null // Сбрасываем старую ошибку
   aiTask.value = null
   aiAnswer.value = ''
   aiCheckResult.value = null
   aiIsSolved.value = false
   aiShowHint.value = false
 
+  // СРАЗУ переключаем UI в режим загрузки задачи
+  isAiMode.value = true
+  showAiMenu.value = false
+
   try {
-    // 1. Делаем запрос к твоему эндпоинту
     const response = await api.get('/tasks/generate', {
       params: {
         subject: aiSubject.value,
         difficulty: aiDifficulty.value,
       },
       headers: { Authorization: `Bearer ${localStorage.getItem('user-token')}` },
+      timeout: 60000, // Ждем до 60 секунд (важно для цепочки ретраев на бэке)
     })
 
-    // 2. Получаем задачу и переключаем режим
     aiTask.value = response.data
-    showAiMenu.value = false // Закрываем меню
-    isAiMode.value = true // Включаем режим задачи
   } catch (err) {
     console.error('AI Generation Error:', err)
     // Здесь можно добавить красивый тост с ошибкой
@@ -91,6 +91,13 @@ const generateAiTask = async () => {
   } finally {
     aiLoading.value = false
   }
+}
+
+// Добавь функцию для возврата из ошибки в меню
+const retryAiMenu = () => {
+  isAiMode.value = false
+  aiError.value = null
+  showAiMenu.value = true
 }
 
 const exitAiMode = () => {
@@ -439,6 +446,14 @@ onUnmounted(() => {
         <div v-if="aiLoading && !aiTask" class="loading-placeholder">
           <div class="spinner-large"></div>
           <p>Нейросеть придумывает задачу...</p>
+        </div>
+
+        <div v-else-if="aiError" class="error-placeholder-ai">
+          <div class="error-icon">⚠️</div>
+          <p>{{ aiError }}</p>
+          <button @click="retryAiMenu" class="ai-generate-btn" style="margin-top: 20px">
+            Попробовать снова
+          </button>
         </div>
 
         <div v-else-if="aiTask" class="task-card-full">
