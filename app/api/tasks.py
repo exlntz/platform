@@ -1,7 +1,8 @@
 import logging
 from random import shuffle
-
+from pydantic import ValidationError
 import httpx
+from groq._exceptions import BadRequestError
 from fastapi import APIRouter,HTTPException,status
 from sqlalchemy import select, exists, func, desc
 from app.core.config import settings
@@ -142,7 +143,9 @@ KEY_1 = settings.GROQ_API_KEY_1
 KEY_2 = settings.GROQ_API_KEY_2
 KEY_3 = settings.GROQ_API_KEY_3
 
-keys_list = [KEY_1, KEY_2, KEY_3]
+raw_keys_list = [KEY_1, KEY_2, KEY_3]
+
+keys_list = [key for key in raw_keys_list if key]
 
 models_list = ['openai/gpt-oss-120b', 'llama-3.3-70b-versatile', 'meta-llama/llama-4-maverick-17b-128e-instruct',
        'meta-llama/llama-4-scout-17b-16e-instruct']
@@ -162,6 +165,12 @@ async def generate_task_for_user(
         session: SessionDep,
         user: UserDep
 ):
+    if not keys_list:
+        logger.critical("В (.env) не найдено ни одного API ключа Groq")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Сервис генерации временно недоступен (отсутствуют ключи API)."
+        )
     generated_data: GeneratedTask | None = None  # Сюда положим результат
     success = False
     shuffle(keys_list)
@@ -180,6 +189,12 @@ async def generate_task_for_user(
                             allowed_tags=allowed_tags)
                     success = True
                     break
+                except ValidationError as e:
+                    logger.error(f"ИИ прислал неверную структуру (модель {model}, ключ {key}): {e}")
+                    continue
+                except BadRequestError as e:
+                    logger.error(f"Не получилось валидировать JSON (модель {model},ключ {key}): {e}")
+                    continue
                 except (httpx.ConnectError, httpx.ProxyError) as e:
                     logger.warning(f"Проблема с прокси на модели {model}, ключ {key}: {e}")
                     continue
@@ -190,7 +205,7 @@ async def generate_task_for_user(
     if not success or not generated_data:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Не удалось сгенерировать задачу. ИИ отдыхает"
+            detail="Не удалось сгенерировать задачу. Попробуйте еще раз"
         )
 
     query = select(GeneratedTasksModel).where(GeneratedTasksModel.user_id == user.id)
