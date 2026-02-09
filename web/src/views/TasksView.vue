@@ -87,7 +87,7 @@ const generateAiTask = async () => {
   } catch (err) {
     console.error('AI Generation Error:', err)
     // Здесь можно добавить красивый тост с ошибкой
-    alert('ИИ устал или нет связи. Попробуйте позже.')
+    notify.show('ИИ устал или нет связи. Попробуйте позже.')
   } finally {
     aiLoading.value = false
   }
