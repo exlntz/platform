@@ -39,7 +39,7 @@ const darkThemeStyles = `
     background-color: #0f172a;
     color: #f1f5f9;
   }
-  :root.dark a { color: #60a5fa; }
+  :root.dark a { color: #f1f5f9; }
   :root.dark a:hover { color: #93c5fd; }
   :root.dark button { transition: background-color 0.2s ease, color 0.2s ease; }
   * { transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease; }
