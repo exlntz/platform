@@ -166,8 +166,7 @@ const getDifficultyColorClass = (diffKey) => {
 
   const map = {
     EASY: 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:bg-emerald-200/40 dark:text-emerald-300 dark:border-emerald-800',
-    MEDIUM:
-      'text-amber-700 bg-amber-50 border-amber-200 dark:bg-amber-200/40 dark:text-amber-300 dark:border-amber-800',
+    MEDIUM: 'text-amber-700 bg-amber-50 border-amber-200 dark:bg-amber-200/40 dark:text-amber-300 dark:border-amber-800',
     HARD: 'text-rose-700 bg-rose-50 border-rose-200 dark:bg-rose-200/40 dark:text-rose-300 dark:border-rose-800',
   }
   return (
@@ -376,6 +375,9 @@ onMounted(async () => {
   await updateAvailableTags()
 
   await fetchTasks()
+  
+  // Включаем тёмную тему при загрузке
+  document.documentElement.classList.add('dark')
 })
 
 onUnmounted(() => {
@@ -386,7 +388,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="tasks-container">
+  <div class="tasks-container dark">
     <div v-if="showAiMenu" class="ai-menu-overlay" @click.self="closeAiMenu">
       <div class="ai-menu-card">
         <div class="ai-menu-header">
@@ -434,65 +436,77 @@ onUnmounted(() => {
 
     <div v-if="isAiMode" class="ai-task-view">
       <div class="task-content">
-        <button @click="exitAiMode" class="back-link">← Вернуться к списку</button>
+        <button @click="exitAiMode" class="ai-back-btn">← Вернуться к списку задач</button>
 
         <div v-if="aiLoading && !aiTask" class="loading-placeholder">
           <div class="spinner-large"></div>
           <p>Нейросеть придумывает задачу...</p>
         </div>
 
-        <div v-else-if="aiTask" class="task-card-full">
-          <div class="task-header-full">
-            <div class="header-tags">
-              <span class="subject-tag-full">{{ getSubjectLabel(aiTask.subject) }}</span>
-              <span class="difficulty-tag-full">{{ getDifficultyLabel(aiTask.difficulty) }}</span>
-              <span class="ai-badge">🤖 AI Generated</span>
+        <div v-else-if="aiTask" class="ai-task-card">
+          <div class="ai-task-accent"></div>
+
+          <div class="ai-task-header">
+            <div class="ai-tags-row">
+              <span class="ai-subject-tag">
+                {{ getSubjectLabel(aiTask.subject) }}
+              </span>
+
+              <span class="ai-difficulty-badge" :class="getDifficultyColorClass(aiTask.difficulty)">
+                {{ getDifficultyLabel(aiTask.difficulty) }}
+              </span>
+              
+              <span class="ai-badge">🤖 AI</span>
             </div>
-            <h1 class="task-title-full">{{ aiTask.title }}</h1>
+
+            <h1 class="ai-task-title">
+              {{ aiTask.title }}
+            </h1>
           </div>
 
-          <div class="task-body-full">
-            <p class="task-description-full">{{ aiTask.description }}</p>
+          <div class="ai-task-body">
+            <p class="ai-task-description">{{ aiTask.description }}</p>
 
-            <div v-if="aiTask.hint" class="hint-section">
-              <button @click="aiShowHint = !aiShowHint" class="hint-btn">
-                {{ aiShowHint ? 'Скрыть подсказку' : '💡 Показать подсказку' }}
+            <div v-if="aiTask.hint" class="ai-hint-section">
+              <button @click="aiShowHint = !aiShowHint" class="ai-hint-btn">
+                {{ aiShowHint ? '▲ Скрыть подсказку' : '▼ Показать подсказку' }}
               </button>
-              <div v-if="aiShowHint" class="hint-box">{{ aiTask.hint }}</div>
+              <div v-if="aiShowHint" class="ai-hint-box">{{ aiTask.hint }}</div>
             </div>
 
-            <div class="answer-section">
+            <div class="ai-answer-section">
               <textarea
                 v-model="aiAnswer"
                 :disabled="aiIsSolved"
                 placeholder="Введите ваш ответ..."
-                class="ai-textarea"
-                :class="{ correct: aiIsSolved, wrong: aiCheckResult && !aiCheckResult.is_correct }"
+                class="ai-answer-textarea"
+                :class="{ 
+                  'ai-answer-correct': aiIsSolved, 
+                  'ai-answer-wrong': aiCheckResult && !aiCheckResult.is_correct 
+                }"
+                rows="4"
               ></textarea>
 
-              <div
-                v-if="aiCheckResult"
-                class="result-msg"
-                :class="aiCheckResult.is_correct ? 'success' : 'error'"
-              >
+              <div v-if="aiCheckResult" class="ai-result-message" 
+                :class="aiCheckResult.is_correct ? 'ai-result-success' : 'ai-result-error'">
                 {{ aiCheckResult.message }}
               </div>
 
-              <div class="ai-actions-footer">
+              <div class="ai-actions">
                 <button
                   v-if="aiIsSolved"
                   @click="openAiMenu"
-                  class="ai-generate-btn"
-                  style="background: var(--accent-color)"
+                  class="ai-generate-another-btn"
                 >
-                  Сгенерировать еще одну
+                  Сгенерировать еще
                 </button>
                 <button
                   v-else
                   @click="submitAiAnswer"
-                  :disabled="aiCheckLoading"
+                  :disabled="aiCheckLoading || !aiAnswer.trim()"
                   class="ai-submit-btn"
                 >
+                  <span v-if="aiCheckLoading" class="ai-btn-spinner"></span>
                   {{ aiCheckLoading ? 'Проверка...' : 'Отправить ответ' }}
                 </button>
               </div>
@@ -532,12 +546,7 @@ onUnmounted(() => {
         <div class="search-row">
           <div class="search-group">
             <div class="search-icon">🔍</div>
-            <input
-              v-model="filters.search"
-              type="text"
-              placeholder="Поиск..."
-              class="search-input"
-            />
+            <input v-model="filters.search" type="text" placeholder="Поиск..." class="search-input" />
           </div>
         </div>
 
@@ -724,19 +733,54 @@ onUnmounted(() => {
 <style scoped>
 /* ==================== THEME CONFIGURATION ==================== */
 .tasks-container {
-  /* LIGHT THEME (Default) */
+  /* ИЗМЕНЕНО: СДЕЛАЛИ ТЁМНУЮ ТЕМУ ПО УМОЛЧАНИЮ */
+  --bg-page: #0f172a; /* Тёмный фон */
+  --bg-card: #1e293b; /* Тёмные карточки */
+  --bg-input: #334155; /* Тёмные инпуты */
+  --bg-tag: #334155; /* Тёмные теги */
+  --bg-subject-tag: #334155; /* Фон тега предмета */
+  --bg-counter: #1e293b; /* Фон счетчика */
+
+  --text-primary: #f8fafc; /* Светлый текст */
+  --text-secondary: #cbd5e1; /* Светлый вторичный текст */
+  --text-tertiary: #94a3b8; /* Светлый третичный текст */
+  --text-subject: #cbd5e1; /* Цвет текста тега предмета */
+  --text-counter: #cbd5e1; /* Цвет текста счетчика */
+
+  --border-light: #334155; /* Тёмные границы */
+  --border-medium: #475569; /* Тёмные средние границы */
+
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3); /* Тёмные тени */
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+  --shadow-hover: 0 10px 15px -3px rgba(59, 130, 246, 0.2);
+
+  --accent-color: #60a5fa; /* Акцентный цвет для тёмной темы */
+  --accent-hover: #3b82f6;
+
+  --btn-bg: #1e293b; /* Тёмные кнопки */
+  --btn-text: #cbd5e1;
+  --btn-border: #334155;
+  --btn-hover-bg: #334155;
+
+  /* ТЕМНЫЕ скелетоны по умолчанию */
+  --skeleton-base: #1e293b;
+  --skeleton-highlight: #334155;
+}
+
+/* СВЕТЛАЯ ТЕМА (если потребуется переключение) */
+:global(.light) .tasks-container {
   --bg-page: #f8fafc;
   --bg-card: #ffffff;
   --bg-input: #f8fafc;
   --bg-tag: #f1f5f9;
-  --bg-subject-tag: #f1f5f9; /* Фон тега предмета */
-  --bg-counter: #ffffff; /* Фон счетчика */
+  --bg-subject-tag: #f1f5f9;
+  --bg-counter: #ffffff;
 
   --text-primary: #0f172a;
   --text-secondary: #64748b;
   --text-tertiary: #94a3b8;
-  --text-subject: #64748b; /* Цвет текста тега предмета */
-  --text-counter: #64748b; /* Цвет текста счетчика */
+  --text-subject: #64748b;
+  --text-counter: #64748b;
 
   --border-light: #e2e8f0;
   --border-medium: #cbd5e1;
@@ -753,44 +797,8 @@ onUnmounted(() => {
   --btn-border: #e2e8f0;
   --btn-hover-bg: #f8fafc;
 
-  /* Светлые цвета скелетонов */
   --skeleton-base: #f1f5f9;
   --skeleton-highlight: #e2e8f0;
-}
-
-/* DARK THEME VARIABLES */
-:global(.dark) .tasks-container {
-  --bg-page: #0f172a;
-  --bg-card: #1e293b;
-  --bg-input: #334155;
-  --bg-tag: #334155;
-  --bg-subject-tag: #334155; /* Темный фон для тега предмета */
-  --bg-counter: #1e293b; /* Темный фон для счетчика */
-
-  --text-primary: #f8fafc;
-  --text-secondary: #cbd5e1;
-  --text-tertiary: #94a3b8;
-  --text-subject: #cbd5e1; /* Светлый текст для тега предмета в темной теме */
-  --text-counter: #cbd5e1; /* Светлый текст для счетчика в темной теме */
-
-  --border-light: #334155;
-  --border-medium: #475569;
-
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
-  --shadow-hover: 0 10px 15px -3px rgba(59, 130, 246, 0.2);
-
-  --accent-color: #60a5fa;
-  --accent-hover: #3b82f6;
-
-  --btn-bg: #1e293b;
-  --btn-text: #cbd5e1;
-  --btn-border: #334155;
-  --btn-hover-bg: #334155;
-
-  /* ТЕМНЫЕ скелетоны */
-  --skeleton-base: #1e293b;
-  --skeleton-highlight: #334155;
 }
 
 /* ==================== BASIC LAYOUT ==================== */
@@ -821,14 +829,14 @@ onUnmounted(() => {
 .tasks-container select:focus,
 .tasks-container textarea:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
-:global(.dark) .tasks-container button:focus,
-:global(.dark) .tasks-container input:focus,
-:global(.dark) .tasks-container select:focus,
-:global(.dark) .tasks-container textarea:focus {
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+:global(.light) .tasks-container button:focus,
+:global(.light) .tasks-container input:focus,
+:global(.light) .tasks-container select:focus,
+:global(.light) .tasks-container textarea:focus {
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
 /* ==================== HEADER ==================== */
@@ -932,7 +940,7 @@ onUnmounted(() => {
 .search-input:focus {
   background-color: var(--bg-card);
   border-color: var(--accent-color);
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
 .search-input::placeholder {
@@ -1004,7 +1012,7 @@ onUnmounted(() => {
 
 .filter-select:focus {
   border-color: var(--accent-color);
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
 .filter-select:disabled {
@@ -1054,10 +1062,14 @@ onUnmounted(() => {
   border-color: #fecaca;
 }
 
+:global(.light) .reset-btn:hover {
+  border-color: #fecaca;
+}
+
 /* ==================== ERROR STATE ==================== */
 .error-state {
-  background-color: #fef2f2;
-  border: 2px solid #fecaca;
+  background-color: #450a0a;
+  border: 2px solid #7f1d1d;
   border-radius: 20px;
   padding: 24px;
   text-align: center;
@@ -1065,9 +1077,9 @@ onUnmounted(() => {
   margin-top: 20px;
 }
 
-:global(.dark) .error-state {
-  background-color: #450a0a;
-  border-color: #7f1d1d;
+:global(.light) .error-state {
+  background-color: #fef2f2;
+  border-color: #fecaca;
 }
 
 .error-icon {
@@ -1078,42 +1090,42 @@ onUnmounted(() => {
 .error-title {
   font-size: 18px;
   font-weight: 700;
-  color: #991b1b;
+  color: #fca5a5;
   margin-bottom: 8px;
 }
 
-:global(.dark) .error-title {
-  color: #fca5a5;
+:global(.light) .error-title {
+  color: #991b1b;
 }
 
 .error-message {
-  color: #dc2626;
+  color: #fecaca;
   font-size: 14px;
   margin-bottom: 20px;
   line-height: 1.5;
 }
 
-:global(.dark) .error-message {
-  color: #fecaca;
+:global(.light) .error-message {
+  color: #dc2626;
 }
 
 .retry-btn {
   padding: 10px 24px;
   background-color: var(--bg-card);
-  color: #dc2626;
+  color: #fca5a5;
   font-weight: 700;
   font-size: 14px;
   border-radius: 10px;
-  border: 2px solid #fecaca;
+  border: 2px solid #7f1d1d;
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: var(--shadow-sm);
 }
 
-:global(.dark) .retry-btn {
-  border-color: #7f1d1d;
-  color: #fca5a5;
-  background-color: #1e293b;
+:global(.light) .retry-btn {
+  border-color: #fecaca;
+  color: #dc2626;
+  background-color: var(--bg-card);
 }
 
 .retry-btn:hover {
@@ -1486,11 +1498,6 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
-/* FIX: ТЕМНАЯ РАМКА ДЛЯ ТЕГОВ В ТЕМНОЙ ТЕМЕ */
-:global(.dark) .tag {
-  border-color: #475569;
-}
-
 .tag.mobile {
   font-size: 9px;
   padding: 3px 6px;
@@ -1501,22 +1508,22 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   padding: 10px 20px;
-  background-color: #0f172a;
-  color: white;
+  background-color: #334155;
+  color: var(--text-primary);
   font-size: 14px;
   font-weight: 700;
   border-radius: 12px;
-  border: none;
+  border: 1px solid #475569;
   cursor: pointer;
   box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.1);
   transition: all 0.2s ease;
   flex-shrink: 0;
 }
 
-:global(.dark) .solve-btn {
-  background-color: #334155;
-  color: var(--text-primary);
-  border: 1px solid #475569;
+:global(.light) .solve-btn {
+  background-color: #0f172a;
+  color: white;
+  border: none;
 }
 
 .solve-btn.mobile {
@@ -1529,13 +1536,12 @@ onUnmounted(() => {
 .task-card:hover .solve-btn {
   background-color: var(--accent-color);
   color: white;
-  box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.2);
+  box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.2);
   border-color: transparent;
 }
 
-:global(.dark) .task-card:hover .solve-btn {
-  background-color: #3b82f6;
-  border-color: transparent;
+:global(.light) .task-card:hover .solve-btn {
+  box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.2);
 }
 
 .solve-btn:active {
@@ -1759,109 +1765,6 @@ onUnmounted(() => {
   }
 }
 
-/* ==================== EXPLICIT DARK THEME OVERRIDES ==================== */
-:root.dark .tasks-container {
-  background-color: #0f172a;
-  color: #f1f5f9;
-}
-
-:root.dark .filters-container {
-  background-color: #1e293b;
-  border-color: #334155;
-}
-
-:root.dark .search-input,
-:root.dark .filter-select {
-  background-color: #334155;
-  border-color: #475569;
-  color: #f1f5f9;
-}
-
-:root.dark .task-card {
-  background-color: #1e293b;
-  border-color: #334155;
-}
-
-:root.dark .task-card:hover {
-  background-color: #1e293b;
-  border-color: #3b82f6;
-  box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.2);
-}
-
-:root.dark .task-title {
-  color: #f1f5f9;
-}
-
-:root.dark .task-title:hover {
-  color: #60a5fa;
-}
-
-:root.dark .task-description {
-  color: #cbd5e1;
-}
-
-:root.dark .reset-btn {
-  background-color: #1e293b;
-  border-color: #334155;
-  color: #cbd5e1;
-}
-
-:root.dark .reset-btn:hover {
-  background-color: #334155;
-  border-color: #475569;
-  color: #f87171;
-}
-
-/* Темные скелетоны */
-:root.dark .task-card-skeleton {
-  background-color: #1e293b;
-  border-color: #334155;
-}
-
-:root.dark .skeleton-tag,
-:root.dark .skeleton-difficulty,
-:root.dark .skeleton-title,
-:root.dark .skeleton-line,
-:root.dark .skeleton-tags,
-:root.dark .skeleton-button {
-  background-color: #334155;
-}
-
-:root.dark .loading-title,
-:root.dark .loading-subtitle {
-  background-color: #334155;
-}
-
-/* Темный счетчик задач */
-:root.dark .counter-badge {
-  background-color: #1e293b;
-  border-color: #334155;
-  color: #cbd5e1;
-}
-
-/* Темный тег предмета */
-:root.dark .subject-tag {
-  background-color: #334155;
-  color: #cbd5e1;
-  border-color: #475569;
-}
-
-/* Убрать синюю рамку у всего окна в тёмной теме */
-:global(.dark) {
-  outline: none !important;
-  border-color: inherit !important;
-}
-
-:global(.dark) *:focus {
-  outline: none !important;
-  box-shadow: none !important;
-}
-
-:global(.dark) body {
-  border: none !important;
-  outline: none !important;
-}
-
 /* ==================== AI BUTTON STYLES ==================== */
 .header-actions {
   display: flex;
@@ -1910,7 +1813,7 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(15, 23, 42, 0.7); /* Чуть темнее для контраста */
+  background-color: rgba(15, 23, 42, 0.8); /* Чуть темнее для контраста */
   backdrop-filter: blur(4px);
   display: flex;
   justify-content: center;
@@ -1922,16 +1825,22 @@ onUnmounted(() => {
 
 /* Карточка меню */
 .ai-menu-card {
-  background-color: white;
+  background-color: #1e293b; /* Тёмный фон по умолчанию */
   border-radius: 24px;
   padding: 32px;
   width: 100%;
   max-width: 420px;
-  box-shadow: 0 25px 50px -12px rgba(148, 163, 184, 0.3); /* Тень как в TaskView */
-  border: 1px solid #f1f5f9;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); /* Тень как в TaskView */
+  border: 1px solid #334155;
   position: relative;
   animation: slideUp 0.3s ease-out;
   box-sizing: border-box; /* Важно, чтобы паддинги не ломали ширину */
+}
+
+:global(.light) .ai-menu-card {
+  background-color: white;
+  border-color: #f1f5f9;
+  box-shadow: 0 25px 50px -12px rgba(148, 163, 184, 0.3);
 }
 
 /* Хедер */
@@ -1949,10 +1858,14 @@ onUnmounted(() => {
 .ai-menu-header h2 {
   font-size: 24px;
   font-weight: 800;
-  color: #0f172a; /* Slate 900 */
+  color: #f1f5f9; /* Светлый текст */
   flex: 1;
   margin: 0;
   letter-spacing: -0.025em;
+}
+
+:global(.light) .ai-menu-header h2 {
+  color: #0f172a;
 }
 
 /* Кнопка закрытия */
@@ -1960,7 +1873,7 @@ onUnmounted(() => {
   background: none;
   border: none;
   font-size: 24px;
-  color: #64748b; /* Slate 500 */
+  color: #94a3b8; /* Светлый цвет */
   cursor: pointer;
   padding: 4px;
   display: flex;
@@ -1970,17 +1883,29 @@ onUnmounted(() => {
   transition: all 0.2s ease;
 }
 .close-btn:hover {
+  color: #fca5a5;
+  background-color: #7f1d1d;
+}
+
+:global(.light) .close-btn {
+  color: #64748b;
+}
+:global(.light) .close-btn:hover {
   color: #ef4444;
   background-color: #fef2f2;
 }
 
 /* Описание */
 .ai-desc {
-  color: #64748b; /* Slate 500 */
+  color: #cbd5e1; /* Светлый цвет */
   margin-bottom: 24px;
   line-height: 1.5;
   font-size: 15px;
   font-weight: 500;
+}
+
+:global(.light) .ai-desc {
+  color: #64748b;
 }
 
 /* Форма */
@@ -1995,9 +1920,13 @@ onUnmounted(() => {
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
-  color: #64748b;
+  color: #94a3b8; /* Светлый цвет */
   margin-bottom: 8px;
   letter-spacing: 0.05em;
+}
+
+:global(.light) .form-group label {
+  color: #64748b;
 }
 
 /* Селект */
@@ -2009,9 +1938,9 @@ onUnmounted(() => {
   width: 100%;
   padding: 14px 16px;
   border-radius: 12px;
-  border: 2px solid #e2e8f0;
-  background-color: #f8fafc;
-  color: #0f172a;
+  border: 2px solid #475569; /* Тёмная граница */
+  background-color: #334155; /* Тёмный фон */
+  color: #f1f5f9; /* Светлый текст */
   font-weight: 600;
   font-size: 15px;
   outline: none;
@@ -2021,7 +1950,19 @@ onUnmounted(() => {
   font-family: inherit;
 }
 
+:global(.light) .ai-select {
+  border-color: #e2e8f0;
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
 .ai-select:focus {
+  border-color: #3b82f6; /* Акцентный цвет для тёмной темы */
+  background-color: #334155;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+:global(.light) .ai-select:focus {
   border-color: #4f46e5;
   background-color: white;
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
@@ -2031,7 +1972,7 @@ onUnmounted(() => {
 .ai-generate-btn {
   width: 100%;
   padding: 16px;
-  background-color: #4f46e5; /* Цвет как в TaskView */
+  background-color: #3b82f6; /* Цвет как в тёмной теме */
   color: white;
   border: none;
   border-radius: 12px;
@@ -2044,13 +1985,23 @@ onUnmounted(() => {
   gap: 10px;
   margin-top: 8px;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.1);
+  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.1);
   font-family: inherit;
 }
 
+:global(.light) .ai-generate-btn {
+  background-color: #4f46e5;
+  box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.1);
+}
+
 .ai-generate-btn:hover:not(:disabled) {
-  background-color: #4338ca;
+  background-color: #2563eb;
   transform: translateY(-1px);
+  box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.1);
+}
+
+:global(.light) .ai-generate-btn:hover:not(:disabled) {
+  background-color: #4338ca;
   box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.1);
 }
 
@@ -2099,638 +2050,405 @@ onUnmounted(() => {
   }
 }
 
-/* ==================== DARK THEME (Unified) ==================== */
+/* ==================== AI TASK VIEW (Consistent with regular tasks) ==================== */
 
-:root.dark .ai-menu-card {
-  background-color: #1e293b; /* Slate 800 */
-  border-color: #334155;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-}
-
-:root.dark .ai-menu-header h2 {
-  color: #f1f5f9;
-}
-
-:root.dark .close-btn {
-  color: #94a3b8;
-}
-:root.dark .close-btn:hover {
-  color: #fca5a5;
-  background-color: #7f1d1d;
-}
-
-:root.dark .ai-desc {
-  color: #cbd5e1;
-}
-
-:root.dark .form-group label {
-  color: #94a3b8;
-}
-
-:root.dark .ai-select {
-  background-color: #334155; /* Slate 700 */
-  border-color: #475569;
-  color: #f1f5f9;
-}
-
-:root.dark .ai-select:focus {
-  border-color: #3b82f6;
-  background-color: #334155;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
-}
-
-:root.dark .ai-generate-btn {
-  background-color: #3b82f6;
-}
-:root.dark .ai-generate-btn:hover:not(:disabled) {
-  background-color: #2563eb;
-}
-/* ==================== AI TASK VIEW (Unified Design) ==================== */
-
-/* Контейнер — берем логику .task-container */
 .ai-task-view {
-  min-height: 100vh;
-  background-color: #f8fafc;
-  font-family:
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  line-height: 1.5;
-  padding: 16px;
-  display: flex;
-  justify-content: center;
-  /* Убираем лишние анимации контейнера, если их нет в оригинале, или оставляем fadeIn */
-  animation: fadeIn 0.3s ease-out;
-}
-
-.task-content {
-  width: 100%;
-  max-width: 768px;
+  max-width: 1280px;
   margin: 0 auto;
-}
-
-/* Ссылка назад — 1в1 как .back-link */
-.back-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #64748b;
-  text-decoration: none;
-  padding: 16px 0;
-  transition: color 0.2s ease;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.back-link:hover {
-  color: #4f46e5;
-}
-
-/* === КАРТОЧКА ЗАДАЧИ (Стили от .task-card) === */
-.task-card-full {
-  background-color: white;
-  border-radius: 24px;
-  box-shadow: 0 10px 25px -5px rgba(148, 163, 184, 0.3);
-  border: 1px solid #f1f5f9;
-  overflow: hidden;
-  margin-bottom: 24px;
-}
-
-/* Хедер */
-.task-header-full {
-  background-color: #0f172a;
-  padding: 0;
-  color: white;
-  position: relative;
-  overflow: hidden;
-}
-
-.task-header-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, rgba(79, 70, 229, 0.1) 0%, rgba(124, 58, 237, 0.1) 100%);
-  z-index: 1;
-}
-
-.task-header-content-full {
-  position: relative;
-  z-index: 10;
-  padding: 24px;
-}
-
-/* Теги */
-.header-tags {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.subject-tag-full {
-  padding: 6px 12px;
-  background-color: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(12px);
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #a5b4fc;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.difficulty-tag-full {
-  padding: 6px 12px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background-color: rgba(255, 255, 255, 0.05);
-  color: white;
-}
-
-/* AI Badge — стилизуем под общую стилистику тегов */
-.ai-badge {
-  padding: 6px 12px;
-  background-color: rgba(245, 158, 11, 0.2); /* Прозрачный оранжевый */
-  border: 1px solid rgba(245, 158, 11, 0.4);
-  color: #fbbf24;
-  backdrop-filter: blur(12px);
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-/* Заголовок — как .task-title */
-.task-title-full {
-  font-size: 32px;
-  font-weight: 900;
-  letter-spacing: -0.025em;
-  line-height: 1.3;
-  margin: 0;
-  color: white;
-}
-
-/* Тело задачи — как .task-body */
-.task-body-full {
-  padding: 24px;
-}
-
-.task-description-full {
-  font-size: 16px;
-  color: #334155;
-  font-weight: 500;
-  line-height: 1.6;
-  white-space: pre-wrap;
-  margin-bottom: 24px;
-}
-
-/* Подсказки — .hint-btn и .hint-box */
-.hint-section {
-  margin-bottom: 24px;
-}
-
-.hint-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: none;
-  border: 1px solid #e2e8f0;
-  padding: 8px 16px;
-  border-radius: 12px;
-  cursor: pointer;
-  color: #64748b;
-  font-weight: 600;
-  font-size: 13px;
-  transition: all 0.2s ease;
-  width: 100%;
-  font-family: inherit;
-}
-.hint-btn:hover {
-  background-color: #f8fafc;
-  color: #4f46e5;
-  border-color: #c7d2fe;
-}
-
-.hint-box {
-  margin-top: 12px;
-  background-color: #fffbeb;
-  border: 1px solid #fcd34d;
-  border-radius: 12px;
   padding: 16px;
-  color: #92400e;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-/* Поле ответа — делаем 1в1 как .answer-textarea */
-.answer-section {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.ai-textarea {
-  width: 100%;
-  background-color: #f8fafc;
-  border: 2px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 16px;
-  font-size: 15px;
-  color: #0f172a;
-  font-weight: 500;
-  outline: none;
-  transition: all 0.2s ease;
-  resize: vertical;
-  min-height: 100px;
-  font-family: inherit;
-}
-
-.ai-textarea:focus {
-  border-color: #4f46e5;
-  background-color: white;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-}
-.ai-textarea:disabled {
-  background-color: #f8fafc;
-  color: #64748b;
-  border-color: #f1f5f9;
-  cursor: not-allowed;
-}
-
-.ai-textarea.correct {
-  border-color: #10b981;
-  background-color: rgba(16, 185, 129, 0.05);
-}
-.ai-textarea.wrong {
-  border-color: #f87171;
-  background-color: rgba(248, 113, 113, 0.05);
-}
-
-/* Результат — как .result-message */
-.result-msg {
-  padding: 16px;
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  animation: fadeInUp 0.4s ease-out;
-}
-.result-msg.success {
-  background-color: #d1fae5;
-  color: #065f46;
-  border: 1px solid #a7f3d0;
-}
-.result-msg.error {
-  background-color: #fee2e2;
-  color: #991b1b;
-  border: 1px solid #fecaca;
-}
-
-/* Футер с кнопками */
-.ai-actions-footer {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding-top: 8px;
-}
-
-/* Кнопки — как .submit-btn */
-.ai-submit-btn,
-.back-to-tasks-btn,
-.ai-generate-btn {
-  width: 100%;
-  padding: 16px;
-  border-radius: 12px;
-  font-weight: 700;
-  font-size: 16px;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 12px;
-  font-family: inherit;
-}
-
-.ai-submit-btn,
-.ai-generate-btn {
-  background-color: #4f46e5;
-  color: white;
-  box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.1);
-}
-.ai-submit-btn:hover:not(:disabled),
-.ai-generate-btn:hover:not(:disabled) {
-  background-color: #4338ca;
-  transform: translateY(-1px);
-  box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.1);
-}
-.ai-submit-btn:active,
-.ai-generate-btn:active {
-  transform: translateY(0);
-}
-.ai-submit-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  box-shadow: none;
-  transform: none;
-}
-
-/* Лоадер */
-.loading-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 300px;
-  color: #64748b;
-  animation: pulse 2s infinite;
-}
-.spinner-large {
-  width: 48px;
-  height: 48px;
-  margin-bottom: 16px;
-  border: 4px solid #e2e8f0;
-  border-top-color: #4f46e5;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-/* ==================== DARK THEME (1v1 Match) ==================== */
-
-:root.dark .ai-task-view {
-  background-color: #0f172a;
-  color: #f1f5f9;
-}
-
-:root.dark .back-link {
-  color: #94a3b8;
-}
-:root.dark .back-link:hover {
-  color: #60a5fa;
-}
-
-:root.dark .task-card-full {
-  background-color: #1e293b;
-  border-color: #334155;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
-}
-
-:root.dark .task-header-full {
-  background-color: #334155;
-}
-:root.dark .task-header-overlay {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.15) 100%);
-}
-
-:root.dark .task-title-full {
-  color: #f8fafc;
-}
-:root.dark .task-description-full {
-  color: #cbd5e1;
-}
-
-:root.dark .subject-tag-full {
-  background-color: rgba(255, 255, 255, 0.15);
-  color: #93c5fd;
-  border-color: rgba(255, 255, 255, 0.2);
-}
-:root.dark .difficulty-tag-full {
-  background-color: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.2);
-  color: #cbd5e1;
-}
-:root.dark .ai-badge {
-  background-color: rgba(245, 158, 11, 0.15);
-  border-color: rgba(245, 158, 11, 0.3);
-  color: #fbbf24;
-}
-
-/* Подсказки Dark */
-:root.dark .hint-btn {
-  border-color: #475569;
-  color: #94a3b8;
-}
-:root.dark .hint-btn:hover {
-  background-color: #334155;
-  color: #60a5fa;
-  border-color: #3b82f6;
-}
-:root.dark .hint-box {
-  background-color: #78350f;
-  color: #fde68a;
-  border-color: #92400e;
-}
-
-/* Инпуты Dark */
-:root.dark .ai-textarea {
-  background-color: #334155;
-  border-color: #475569;
-  color: #f1f5f9;
-}
-:root.dark .ai-textarea:focus {
-  background-color: #334155;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
-}
-:root.dark .ai-textarea:disabled {
-  background-color: #334155;
-  color: #94a3b8;
-  border-color: #475569;
-}
-:root.dark .ai-textarea.correct {
-  border-color: #10b981;
-  background-color: rgba(16, 185, 129, 0.15);
-}
-:root.dark .ai-textarea.wrong {
-  border-color: #f87171;
-  background-color: rgba(248, 113, 113, 0.15);
-}
-
-/* Результат Dark */
-:root.dark .result-msg.success {
-  background-color: #065f46;
-  color: #a7f3d0;
-  border-color: #047857;
-}
-:root.dark .result-msg.error {
-  background-color: #7f1d1d;
-  color: #fecaca;
-  border-color: #991b1b;
-}
-
-/* Кнопки Dark */
-:root.dark .ai-submit-btn,
-:root.dark .ai-generate-btn {
-  background-color: #3b82f6;
-}
-:root.dark .ai-submit-btn:hover:not(:disabled),
-:root.dark .ai-generate-btn:hover:not(:disabled) {
-  background-color: #2563eb;
-}
-
-/* Спиннер в темной теме */
-:root.dark .spinner-large {
-  border-color: rgba(255, 255, 255, 0.1);
-  border-top-color: #60a5fa;
-}
-
-/* ==================== MEDIA QUERIES (Adaptive 1v1) ==================== */
-
-@media (max-width: 320px) {
-  .ai-task-view {
-    padding: 12px;
-  }
-  .task-header-content-full {
-    padding: 20px 16px;
-  }
-  .task-body-full {
-    padding: 20px 16px;
-  }
-  .task-title-full {
-    font-size: 18px;
-  }
-  .task-description-full {
-    font-size: 14px;
-  }
-  .ai-submit-btn,
-  .ai-generate-btn {
-    padding: 12px;
-    font-size: 14px;
-  }
-}
-
-@media (min-width: 376px) {
-  .ai-task-view {
-    padding: 16px;
-  }
 }
 
 @media (min-width: 640px) {
   .ai-task-view {
     padding: 24px;
   }
-  .task-header-content-full {
-    padding: 32px;
-  }
-  .task-body-full {
-    padding: 32px;
-  }
-  .task-title-full {
-    font-size: 28px;
-  }
-  .task-description-full {
-    font-size: 17px;
-    line-height: 1.7;
-  }
-  .hint-btn {
-    width: auto;
-    display: inline-flex;
-  }
-  .ai-textarea {
-    font-size: 16px;
-  }
-  .ai-actions-footer {
-    flex-direction: row;
-    justify-content: flex-end;
-  }
-  .ai-submit-btn,
-  .ai-generate-btn {
-    width: auto;
-    padding: 14px 32px;
-  }
-}
-
-@media (min-width: 768px) {
-  .ai-task-view {
-    padding: 32px;
-  }
-  .task-card-full {
-    border-radius: 32px;
-  }
-  .task-header-content-full {
-    padding: 40px;
-  }
-  .task-body-full {
-    padding: 40px;
-  }
-  .task-title-full {
-    font-size: 32px;
-  }
-  .task-description-full {
-    font-size: 18px;
-  }
-  .ai-textarea {
-    font-size: 17px;
-  }
 }
 
 @media (min-width: 1024px) {
   .ai-task-view {
-    padding: 40px 24px;
-  }
-  .task-content {
-    max-width: 800px;
-  }
-  .task-card-full {
-    border-radius: 40px;
-    box-shadow: 0 25px 50px -12px rgba(148, 163, 184, 0.5);
-  }
-  .task-title-full {
-    font-size: 36px;
-  }
-  .task-description-full {
-    font-size: 19px;
-    line-height: 1.75;
+    padding: 32px 40px;
   }
 }
 
 @media (min-width: 1280px) {
   .ai-task-view {
-    padding: 48px 32px;
-  }
-  .task-content {
-    max-width: 850px;
-  }
-  .task-card-full {
-    border-radius: 48px;
-  }
-  .task-title-full {
-    font-size: 40px;
-  }
-  .task-description-full {
-    font-size: 20px;
+    padding: 40px;
   }
 }
 
-@media (min-width: 1536px) {
-  .ai-task-view {
-    padding: 56px;
-  }
-  .task-content {
-    max-width: 900px;
-  }
-  .task-title-full {
-    font-size: 44px;
-  }
-  .task-description-full {
-    font-size: 21px;
+/* Кнопка назад - сделаем её как в обычном режиме */
+.ai-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 20px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.ai-back-btn:hover {
+  color: var(--accent-color);
+  background-color: var(--bg-input);
+}
+
+/* Карточка AI задачи - идентична обычным карточкам */
+.ai-task-card {
+  background-color: var(--bg-card);
+  border-radius: 20px;
+  border: 1px solid var(--border-light);
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+}
+
+@media (min-width: 640px) {
+  .ai-task-card {
+    padding: 24px;
+    border-radius: 24px;
   }
 }
 
-/* Animations */
+@media (min-width: 1024px) {
+  .ai-task-card {
+    padding: 32px;
+    border-radius: 28px;
+  }
+}
+
+.ai-task-accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(to right, #4f46e5, #ec4899, #f59e0b);
+  opacity: 1;
+}
+
+/* Хедер AI задачи */
+.ai-task-header {
+  margin-bottom: 20px;
+}
+
+.ai-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+  align-items: center;
+}
+
+.ai-subject-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  background-color: var(--bg-subject-tag);
+  color: var(--text-subject);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ai-difficulty-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border: 2px solid;
+}
+
+.ai-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #d97706 0%, #db2777 100%); /* Тёмный градиент для тёмной темы */
+  color: white;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+:global(.light) .ai-badge {
+  background: linear-gradient(135deg, #f59e0b 0%, #ec4899 100%);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.ai-task-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.3;
+  margin: 0;
+}
+
+@media (min-width: 640px) {
+  .ai-task-title {
+    font-size: 28px;
+  }
+}
+
+@media (min-width: 768px) {
+  .ai-task-title {
+    font-size: 32px;
+  }
+}
+
+/* Тело AI задачи */
+.ai-task-body {
+  margin-top: 24px;
+}
+
+.ai-task-description {
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  margin-bottom: 24px;
+  padding: 16px;
+  background-color: var(--bg-input);
+  border-radius: 12px;
+  border: 1px solid var(--border-light);
+}
+
+@media (min-width: 640px) {
+  .ai-task-description {
+    font-size: 17px;
+    padding: 20px;
+  }
+}
+
+/* Подсказки */
+.ai-hint-section {
+  margin-bottom: 24px;
+}
+
+.ai-hint-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-light);
+  padding: 10px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.ai-hint-btn:hover {
+  background-color: var(--btn-hover-bg);
+  color: var(--accent-color);
+  border-color: var(--accent-color);
+}
+
+.ai-hint-box {
+  margin-top: 12px;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 16px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+/* Поле ответа */
+.ai-answer-section {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border-light);
+}
+
+.ai-answer-textarea {
+  width: 100%;
+  background-color: var(--bg-input);
+  border: 2px solid var(--border-light);
+  border-radius: 12px;
+  padding: 16px;
+  font-size: 15px;
+  color: var(--text-primary);
+  font-weight: 500;
+  outline: none;
+  transition: all 0.2s ease;
+  resize: vertical;
+  min-height: 120px;
+  font-family: inherit;
+  margin-bottom: 16px;
+}
+
+.ai-answer-textarea:focus {
+  border-color: var(--accent-color);
+  background-color: var(--bg-card);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+:global(.light) .ai-answer-textarea:focus {
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.ai-answer-textarea:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.ai-answer-correct {
+  border-color: #10b981;
+  background-color: rgba(16, 185, 129, 0.15); /* Темнее для тёмной темы */
+}
+
+:global(.light) .ai-answer-correct {
+  background-color: rgba(16, 185, 129, 0.05);
+}
+
+.ai-answer-wrong {
+  border-color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.15); /* Темнее для тёмной темы */
+}
+
+:global(.light) .ai-answer-wrong {
+  background-color: rgba(239, 68, 68, 0.05);
+}
+
+/* Результат проверки */
+.ai-result-message {
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  animation: fadeInUp 0.3s ease-out;
+}
+
+.ai-result-success {
+  background-color: rgba(16, 185, 129, 0.2); /* Темнее для тёмной темы */
+  color: #a7f3d0; /* Более светлый текст */
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+:global(.light) .ai-result-success {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #047857;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.ai-result-error {
+  background-color: rgba(239, 68, 68, 0.2); /* Темнее для тёмной темы */
+  color: #fca5a5; /* Более светлый текст */
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+:global(.light) .ai-result-error {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+/* Кнопки действий */
+.ai-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.ai-submit-btn,
+.ai-generate-another-btn {
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 15px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 160px;
+}
+
+.ai-submit-btn {
+  background-color: var(--accent-color);
+  color: white;
+}
+
+.ai-submit-btn:hover:not(:disabled) {
+  background-color: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.ai-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ai-generate-another-btn {
+  background-color: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border-light);
+}
+
+.ai-generate-another-btn:hover {
+  background-color: var(--btn-hover-bg);
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+
+.ai-btn-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Лоадер для AI генерации */
+.loading-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  color: var(--text-secondary);
+}
+
+.spinner-large {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 20px;
+  border: 3px solid var(--border-light);
+  border-top-color: var(--accent-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Анимации */
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -2741,21 +2459,32 @@ onUnmounted(() => {
     transform: translateY(0);
   }
 }
+
 @keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
+  to {
     transform: rotate(360deg);
   }
 }
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
+
+/* Адаптивность */
+@media (max-width: 640px) {
+  .ai-task-title {
+    font-size: 20px;
   }
-  50% {
-    opacity: 0.5;
+  
+  .ai-task-description {
+    font-size: 15px;
+    padding: 12px;
+  }
+  
+  .ai-actions {
+    flex-direction: column;
+  }
+  
+  .ai-submit-btn,
+  .ai-generate-another-btn {
+    width: 100%;
+    min-width: auto;
   }
 }
 </style>
