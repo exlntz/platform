@@ -2,7 +2,8 @@
 import { ref, onUnmounted, nextTick, computed, onMounted, watch } from 'vue'
 import api from '@/api/axios'
 import { useRouter } from 'vue-router'
-
+import { useNotificationStore } from '@/pinia/NotificationStore'
+const notify = useNotificationStore()
 const router = useRouter()
 
 // --- КОНСТАНТЫ ВИЗУАЛА ---
@@ -277,7 +278,7 @@ const isReconnecting = ref(false)
 const connectPvp = () => {
   const token = localStorage.getItem('user-token')
   if (!token) {
-    alert('Сначала войдите!')
+    notify.show('Сначала войдите!')
     router.push('/auth')
     return
   }
@@ -340,7 +341,7 @@ const connectPvp = () => {
         addLog('system', 'Матч начался! Ждем задачу...')
       }
     } else if (msg === 'нет задач') {
-      alert('Нет задач!')
+      notify.show('Нет задач!')
       disconnect()
     } else if (!isNaN(parseInt(msg)) && msg.length < 10) {
       await loadTask(msg)

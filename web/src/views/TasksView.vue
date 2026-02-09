@@ -86,12 +86,8 @@ const generateAiTask = async () => {
     aiTask.value = response.data
   } catch (err) {
     console.error('AI Generation Error:', err)
-    // Если запрос упал или отменился по тайм-ауту
-    if (err.code === 'ECONNABORTED') {
-      aiError.value = 'ИИ слишком долго думает. Попробуйте еще раз.'
-    } else {
-      aiError.value = err.response?.data?.detail || 'Не удалось связаться с ИИ.'
-    }
+    // Здесь можно добавить красивый тост с ошибкой
+    notify.show('ИИ устал или нет связи. Попробуйте позже.')
   } finally {
     aiLoading.value = false
   }
