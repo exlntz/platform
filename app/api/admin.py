@@ -14,7 +14,7 @@ import io
 from app.core.dependencies import AdminDep
 from app.utils.changes import calculate_changes
 from app.services.user_stats import calculate_user_stats,calculate_profile_info,calculate_elo_history
-
+from app.utils.formatters import validate_task_data
 router = APIRouter(prefix='/admin', tags=['Админ панель'])
 
 
@@ -318,21 +318,23 @@ async def export_tasks(
     )
 
 
-@router.post('/tasks/import', summary='Импорт задач JSON/CSV (для админов)',
-             description='Поддерживает форматы .json и .csv. Обновляет существующие задачи по названию или создает новые.')
+
+
+
+@router.post('/tasks/import', summary='Импорт задач JSON/CSV (для админов)')
 async def import_tasks(
         session: SessionDep,
         admin: AdminDep,
         file: UploadFile = File(...)
 ):
     content = await file.read()
-    data = []
+    raw_data = []
 
     try:
         if file.filename.endswith('.json'):
-            data = json.loads(content)
+            raw_data = json.loads(content)
         elif file.filename.endswith('.csv'):
-            decoded_content = content.decode('utf-8')
+            decoded_content = content.decode('utf-8-sig')  # utf-8-sig лечит BOM
             f = io.StringIO(decoded_content)
             reader = csv.DictReader(f)
             for row in reader:
@@ -340,45 +342,51 @@ async def import_tasks(
                     row['tags'] = [t.strip() for t in row['tags'].split(',')]
                 else:
                     row['tags'] = []
-                data.append(row)
+                raw_data.append(row)
         else:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Поддерживаются только .json и .csv файлы")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail="Поддерживаются только .json и .csv файлы")
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Ошибка при чтении файла: {str(e)}")
 
-    if not isinstance(data, list):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Неверная структура данных: ожидался список задач')
+    if not isinstance(raw_data, list):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail='Неверная структура данных: ожидался список задач')
 
-    incoming_titles = [item.get("title") for item in data if item.get("title")]
-    query = select(TaskModel).where(TaskModel.title.in_(incoming_titles),TaskModel.is_active == True)
+    incoming_titles = [item.get("title") for item in raw_data if item.get("title")]
+    query = select(TaskModel).where(TaskModel.title.in_(incoming_titles), TaskModel.is_active == True)
     result = await session.execute(query)
     existing_tasks = {t.title: t for t in result.scalars().all()}
 
     created_count = 0
     updated_count = 0
 
-    for item in data:
-        title = item.get('title')
-        if not title: continue
+    for index, item in enumerate(raw_data):
+        validated_data = validate_task_data(index, item)
+
+        if not validated_data:
+            continue
+
+        title = validated_data['title']
 
         if title in existing_tasks:
             task = existing_tasks[title]
-            task.description = item.get("description", task.description)
-            task.subject = item.get("subject", task.subject)
-            task.tags = item.get("tags", task.tags)
-            task.hint = item.get("hint", task.hint)
-            task.difficulty = item.get("difficulty", task.difficulty)
-            task.correct_answer = item.get("correct_answer", task.correct_answer)
+            task.description = validated_data["description"]
+            task.subject = validated_data["subject"]
+            task.tags = validated_data["tags"]
+            task.hint = validated_data["hint"]
+            task.difficulty = validated_data["difficulty"]
+            task.correct_answer = validated_data["correct_answer"]
             updated_count += 1
         else:
             new_task = TaskModel(
                 title=title,
-                description=item.get("description", ""),
-                subject=item.get("subject", "Общее"),
-                tags=item.get("tags", []),
-                hint=item.get("hint"),
-                difficulty=item.get("difficulty", "Easy"),
-                correct_answer=item.get("correct_answer", "")
+                description=validated_data["description"],
+                subject=validated_data["subject"],
+                tags=validated_data["tags"],
+                hint=validated_data["hint"],
+                difficulty=validated_data["difficulty"],
+                correct_answer=validated_data["correct_answer"]
             )
             session.add(new_task)
             created_count += 1
@@ -389,9 +397,14 @@ async def import_tasks(
         action="import_tasks",
         details=f"File: {file.filename}. Created: {created_count}, Updated: {updated_count}"
     )
+
     await session.commit()
 
-    return {"message": "Импорт завершен", "created": created_count, "updated": updated_count}
+    return {
+        "message": "Импорт завершен успешно",
+        "created": created_count,
+        "updated": updated_count
+    }
 
 
 @router.get('/tasks/{task_id}/get', summary='Получить полную задачу с ответом (для админов)')
