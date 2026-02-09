@@ -71,6 +71,11 @@ const fetchLeaderboard = async () => {
   }
 }
 
+// Функция для скролла наверх при переходе
+const scrollToTop = () => {
+  window.scrollTo(0, 0)
+}
+
 onMounted(() => {
   window.addEventListener('resize', updateScreenSize)
   fetchLeaderboard()
@@ -211,16 +216,12 @@ onUnmounted(() => {
             </div>
           </div>
           <div class="stat-card">
-            <div class="stat-icon">🎯</div>
+            <div class="stat-icon">🛡️</div>
             <div class="stat-info">
               <div class="stat-number">
-                {{
-                  Math.round(
-                    topUsers.reduce((sum, user) => sum + user.rating, 0) / (topUsers.length || 1),
-                  ) || 0
-                }}
+                {{ topUsers.length > 0 ? topUsers[topUsers.length - 1].rating : 0 }}
               </div>
-              <div class="stat-label">средний рейтинг</div>
+              <div class="stat-label">порог входа в топ</div>
             </div>
           </div>
         </div>
@@ -228,7 +229,7 @@ onUnmounted(() => {
 
       <div v-if="!loading && !error" class="challenge-section">
         <p class="challenge-text">Доберись до вершины рейтинга!</p>
-        <router-link to="/pvp" class="challenge-btn">
+        <router-link to="/pvp" class="challenge-btn" @click="scrollToTop">
           <span class="btn-icon">⚔️</span>
           <span class="btn-text">Начать соревноваться</span>
           <span class="btn-arrow">→</span>

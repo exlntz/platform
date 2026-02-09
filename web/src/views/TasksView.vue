@@ -16,6 +16,14 @@ const totalTasks = ref(0)
 const loading = ref(true)
 const error = ref(null)
 
+const isAiMode = ref(false) // Активен ли режим решения
+const aiTask = ref(null) // Объект сгенерированной задачи
+const aiAnswer = ref('') // Ответ пользователя
+const aiCheckLoading = ref(false)
+const aiCheckResult = ref(null)
+const aiIsSolved = ref(false)
+const aiShowHint = ref(false)
+
 // --- Filters State ---
 const filters = reactive({
   search: route.query.search || '',
@@ -40,6 +48,83 @@ const showAiMenu = ref(false)
 const openAiMenu = () => {
   showAiMenu.value = true
   console.log('AI Menu Opened') // Для проверки
+}
+
+// --- State (AI Mode Settings) ---
+const aiSubject = ref('MATH') // По умолчанию Математика
+const aiDifficulty = ref('EASY') // По умолчанию Легко
+const aiLoading = ref(false) // Статус загрузки (крутилка на кнопке)
+
+// Функция закрытия меню
+const closeAiMenu = () => {
+  showAiMenu.value = false
+}
+
+const generateAiTask = async () => {
+  aiLoading.value = true
+
+  // Сбрасываем состояния
+  aiTask.value = null
+  aiAnswer.value = ''
+  aiCheckResult.value = null
+  aiIsSolved.value = false
+  aiShowHint.value = false
+
+  try {
+    // 1. Делаем запрос к твоему эндпоинту
+    const response = await api.get('/tasks/generate', {
+      params: {
+        subject: aiSubject.value,
+        difficulty: aiDifficulty.value,
+      },
+      headers: { Authorization: `Bearer ${localStorage.getItem('user-token')}` },
+    })
+
+    // 2. Получаем задачу и переключаем режим
+    aiTask.value = response.data
+    showAiMenu.value = false // Закрываем меню
+    isAiMode.value = true // Включаем режим задачи
+  } catch (err) {
+    console.error('AI Generation Error:', err)
+    // Здесь можно добавить красивый тост с ошибкой
+    alert('ИИ устал или нет связи. Попробуйте позже.')
+  } finally {
+    aiLoading.value = false
+  }
+}
+
+const exitAiMode = () => {
+  isAiMode.value = false
+  aiTask.value = null
+  // Возвращаемся к списку задач
+}
+
+// --- Функция проверки ответа ---
+const submitAiAnswer = async () => {
+  if (!aiAnswer.value) return
+
+  aiCheckLoading.value = true
+  aiCheckResult.value = null
+
+  try {
+    const response = await api.post(
+      '/tasks/generated_task_check',
+      {
+        answer: aiAnswer.value,
+      },
+      { headers: { Authorization: `Bearer ${localStorage.getItem('user-token')}` } },
+    )
+
+    aiCheckResult.value = response.data
+    if (response.data.is_correct) {
+      aiIsSolved.value = true
+    }
+  } catch (err) {
+    console.error(err)
+    aiCheckResult.value = { is_correct: false, message: 'Ошибка проверки' }
+  } finally {
+    aiCheckLoading.value = false
+  }
 }
 
 // --- Utils ---
@@ -81,7 +166,8 @@ const getDifficultyColorClass = (diffKey) => {
 
   const map = {
     EASY: 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:bg-emerald-200/40 dark:text-emerald-300 dark:border-emerald-800',
-    MEDIUM: 'text-amber-700 bg-amber-50 border-amber-200 dark:bg-amber-200/40 dark:text-amber-300 dark:border-amber-800',
+    MEDIUM:
+      'text-amber-700 bg-amber-50 border-amber-200 dark:bg-amber-200/40 dark:text-amber-300 dark:border-amber-800',
     HARD: 'text-rose-700 bg-rose-50 border-rose-200 dark:bg-rose-200/40 dark:text-rose-300 dark:border-rose-800',
   }
   return (
@@ -301,7 +387,122 @@ onUnmounted(() => {
 
 <template>
   <div class="tasks-container">
-    <div class="tasks-content">
+    <div v-if="showAiMenu" class="ai-menu-overlay" @click.self="closeAiMenu">
+      <div class="ai-menu-card">
+        <div class="ai-menu-header">
+          <div class="ai-icon-large">🤖</div>
+          <h2>Режим ИИ</h2>
+          <button @click="closeAiMenu" class="close-btn">✕</button>
+        </div>
+
+        <p class="ai-desc">
+          Нейросеть сгенерирует уникальную задачу специально для вас. Выберите параметры генерации:
+        </p>
+
+        <div class="ai-form">
+          <div class="form-group">
+            <label>Предмет</label>
+            <div class="select-wrapper-ai">
+              <select v-model="aiSubject" class="ai-select">
+                <option v-for="subj in constantsStore.subjects" :key="subj.key" :value="subj.key">
+                  {{ subj.label }}
+                </option>
+              </select>
+              <div class="select-arrow">▼</div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Сложность</label>
+            <div class="select-wrapper-ai">
+              <select v-model="aiDifficulty" class="ai-select">
+                <option v-for="diff in constantsStore.difficulty" :key="diff.key" :value="diff.key">
+                  {{ diff.label }}
+                </option>
+              </select>
+              <div class="select-arrow">▼</div>
+            </div>
+          </div>
+
+          <button @click="generateAiTask" :disabled="aiLoading" class="ai-generate-btn">
+            <span v-if="aiLoading" class="spinner"></span>
+            {{ aiLoading ? 'Генерация...' : 'Создать задачу' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="isAiMode" class="ai-task-view">
+      <div class="task-content">
+        <button @click="exitAiMode" class="back-link">← Вернуться к списку</button>
+
+        <div v-if="aiLoading && !aiTask" class="loading-placeholder">
+          <div class="spinner-large"></div>
+          <p>Нейросеть придумывает задачу...</p>
+        </div>
+
+        <div v-else-if="aiTask" class="task-card-full">
+          <div class="task-header-full">
+            <div class="header-tags">
+              <span class="subject-tag-full">{{ getSubjectLabel(aiTask.subject) }}</span>
+              <span class="difficulty-tag-full">{{ getDifficultyLabel(aiTask.difficulty) }}</span>
+              <span class="ai-badge">🤖 AI Generated</span>
+            </div>
+            <h1 class="task-title-full">{{ aiTask.title }}</h1>
+          </div>
+
+          <div class="task-body-full">
+            <p class="task-description-full">{{ aiTask.description }}</p>
+
+            <div v-if="aiTask.hint" class="hint-section">
+              <button @click="aiShowHint = !aiShowHint" class="hint-btn">
+                {{ aiShowHint ? 'Скрыть подсказку' : '💡 Показать подсказку' }}
+              </button>
+              <div v-if="aiShowHint" class="hint-box">{{ aiTask.hint }}</div>
+            </div>
+
+            <div class="answer-section">
+              <textarea
+                v-model="aiAnswer"
+                :disabled="aiIsSolved"
+                placeholder="Введите ваш ответ..."
+                class="ai-textarea"
+                :class="{ correct: aiIsSolved, wrong: aiCheckResult && !aiCheckResult.is_correct }"
+              ></textarea>
+
+              <div
+                v-if="aiCheckResult"
+                class="result-msg"
+                :class="aiCheckResult.is_correct ? 'success' : 'error'"
+              >
+                {{ aiCheckResult.message }}
+              </div>
+
+              <div class="ai-actions-footer">
+                <button
+                  v-if="aiIsSolved"
+                  @click="openAiMenu"
+                  class="ai-generate-btn"
+                  style="background: var(--accent-color)"
+                >
+                  Сгенерировать еще одну
+                </button>
+                <button
+                  v-else
+                  @click="submitAiAnswer"
+                  :disabled="aiCheckLoading"
+                  class="ai-submit-btn"
+                >
+                  {{ aiCheckLoading ? 'Проверка...' : 'Отправить ответ' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-else class="tasks-content">
       <div class="tasks-header">
         <div class="header-text">
           <h1 class="title">Тренировочные задачи</h1>
@@ -331,7 +532,12 @@ onUnmounted(() => {
         <div class="search-row">
           <div class="search-group">
             <div class="search-icon">🔍</div>
-            <input v-model="filters.search" type="text" placeholder="Поиск..." class="search-input" />
+            <input
+              v-model="filters.search"
+              type="text"
+              placeholder="Поиск..."
+              class="search-input"
+            />
           </div>
         </div>
 
@@ -1692,6 +1898,864 @@ onUnmounted(() => {
 @media (min-width: 768px) {
   .header-actions {
     margin-left: auto; /* Прижимает блок вправо */
+  }
+}
+
+/* ==================== AI MENU STYLES (MODAL FIXED) ==================== */
+
+/* Затемнение фона */
+.ai-menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(15, 23, 42, 0.7); /* Чуть темнее для контраста */
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000; /* Поднял выше, чтобы перекрывать хедеры */
+  padding: 20px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* Карточка меню */
+.ai-menu-card {
+  background-color: white;
+  border-radius: 24px;
+  padding: 32px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 25px 50px -12px rgba(148, 163, 184, 0.3); /* Тень как в TaskView */
+  border: 1px solid #f1f5f9;
+  position: relative;
+  animation: slideUp 0.3s ease-out;
+  box-sizing: border-box; /* Важно, чтобы паддинги не ломали ширину */
+}
+
+/* Хедер */
+.ai-menu-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.ai-icon-large {
+  font-size: 28px;
+}
+
+.ai-menu-header h2 {
+  font-size: 24px;
+  font-weight: 800;
+  color: #0f172a; /* Slate 900 */
+  flex: 1;
+  margin: 0;
+  letter-spacing: -0.025em;
+}
+
+/* Кнопка закрытия */
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #64748b; /* Slate 500 */
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+.close-btn:hover {
+  color: #ef4444;
+  background-color: #fef2f2;
+}
+
+/* Описание */
+.ai-desc {
+  color: #64748b; /* Slate 500 */
+  margin-bottom: 24px;
+  line-height: 1.5;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+/* Форма */
+.ai-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #64748b;
+  margin-bottom: 8px;
+  letter-spacing: 0.05em;
+}
+
+/* Селект */
+.select-wrapper-ai {
+  position: relative;
+}
+
+.ai-select {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 2px solid #e2e8f0;
+  background-color: #f8fafc;
+  color: #0f172a;
+  font-weight: 600;
+  font-size: 15px;
+  outline: none;
+  appearance: none; /* Убирает стандартную стрелку браузера */
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.ai-select:focus {
+  border-color: #4f46e5;
+  background-color: white;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+/* Кнопка генерации */
+.ai-generate-btn {
+  width: 100%;
+  padding: 16px;
+  background-color: #4f46e5; /* Цвет как в TaskView */
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.1);
+  font-family: inherit;
+}
+
+.ai-generate-btn:hover:not(:disabled) {
+  background-color: #4338ca;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.1);
+}
+
+.ai-generate-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.ai-generate-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: #6366f1;
+}
+
+/* Лоадер */
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Анимации */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ==================== DARK THEME (Unified) ==================== */
+
+:root.dark .ai-menu-card {
+  background-color: #1e293b; /* Slate 800 */
+  border-color: #334155;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+:root.dark .ai-menu-header h2 {
+  color: #f1f5f9;
+}
+
+:root.dark .close-btn {
+  color: #94a3b8;
+}
+:root.dark .close-btn:hover {
+  color: #fca5a5;
+  background-color: #7f1d1d;
+}
+
+:root.dark .ai-desc {
+  color: #cbd5e1;
+}
+
+:root.dark .form-group label {
+  color: #94a3b8;
+}
+
+:root.dark .ai-select {
+  background-color: #334155; /* Slate 700 */
+  border-color: #475569;
+  color: #f1f5f9;
+}
+
+:root.dark .ai-select:focus {
+  border-color: #3b82f6;
+  background-color: #334155;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+:root.dark .ai-generate-btn {
+  background-color: #3b82f6;
+}
+:root.dark .ai-generate-btn:hover:not(:disabled) {
+  background-color: #2563eb;
+}
+/* ==================== AI TASK VIEW (Unified Design) ==================== */
+
+/* Контейнер — берем логику .task-container */
+.ai-task-view {
+  min-height: 100vh;
+  background-color: #f8fafc;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  line-height: 1.5;
+  padding: 16px;
+  display: flex;
+  justify-content: center;
+  /* Убираем лишние анимации контейнера, если их нет в оригинале, или оставляем fadeIn */
+  animation: fadeIn 0.3s ease-out;
+}
+
+.task-content {
+  width: 100%;
+  max-width: 768px;
+  margin: 0 auto;
+}
+
+/* Ссылка назад — 1в1 как .back-link */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #64748b;
+  text-decoration: none;
+  padding: 16px 0;
+  transition: color 0.2s ease;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.back-link:hover {
+  color: #4f46e5;
+}
+
+/* === КАРТОЧКА ЗАДАЧИ (Стили от .task-card) === */
+.task-card-full {
+  background-color: white;
+  border-radius: 24px;
+  box-shadow: 0 10px 25px -5px rgba(148, 163, 184, 0.3);
+  border: 1px solid #f1f5f9;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+/* Хедер */
+.task-header-full {
+  background-color: #0f172a;
+  padding: 0;
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+
+.task-header-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.1) 0%, rgba(124, 58, 237, 0.1) 100%);
+  z-index: 1;
+}
+
+.task-header-content-full {
+  position: relative;
+  z-index: 10;
+  padding: 24px;
+}
+
+/* Теги */
+.header-tags {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.subject-tag-full {
+  padding: 6px 12px;
+  background-color: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #a5b4fc;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.difficulty-tag-full {
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.05);
+  color: white;
+}
+
+/* AI Badge — стилизуем под общую стилистику тегов */
+.ai-badge {
+  padding: 6px 12px;
+  background-color: rgba(245, 158, 11, 0.2); /* Прозрачный оранжевый */
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+  backdrop-filter: blur(12px);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Заголовок — как .task-title */
+.task-title-full {
+  font-size: 32px;
+  font-weight: 900;
+  letter-spacing: -0.025em;
+  line-height: 1.3;
+  margin: 0;
+  color: white;
+}
+
+/* Тело задачи — как .task-body */
+.task-body-full {
+  padding: 24px;
+}
+
+.task-description-full {
+  font-size: 16px;
+  color: #334155;
+  font-weight: 500;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  margin-bottom: 24px;
+}
+
+/* Подсказки — .hint-btn и .hint-box */
+.hint-section {
+  margin-bottom: 24px;
+}
+
+.hint-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: 1px solid #e2e8f0;
+  padding: 8px 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 13px;
+  transition: all 0.2s ease;
+  width: 100%;
+  font-family: inherit;
+}
+.hint-btn:hover {
+  background-color: #f8fafc;
+  color: #4f46e5;
+  border-color: #c7d2fe;
+}
+
+.hint-box {
+  margin-top: 12px;
+  background-color: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 12px;
+  padding: 16px;
+  color: #92400e;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Поле ответа — делаем 1в1 как .answer-textarea */
+.answer-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.ai-textarea {
+  width: 100%;
+  background-color: #f8fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  font-size: 15px;
+  color: #0f172a;
+  font-weight: 500;
+  outline: none;
+  transition: all 0.2s ease;
+  resize: vertical;
+  min-height: 100px;
+  font-family: inherit;
+}
+
+.ai-textarea:focus {
+  border-color: #4f46e5;
+  background-color: white;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+.ai-textarea:disabled {
+  background-color: #f8fafc;
+  color: #64748b;
+  border-color: #f1f5f9;
+  cursor: not-allowed;
+}
+
+.ai-textarea.correct {
+  border-color: #10b981;
+  background-color: rgba(16, 185, 129, 0.05);
+}
+.ai-textarea.wrong {
+  border-color: #f87171;
+  background-color: rgba(248, 113, 113, 0.05);
+}
+
+/* Результат — как .result-message */
+.result-msg {
+  padding: 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  animation: fadeInUp 0.4s ease-out;
+}
+.result-msg.success {
+  background-color: #d1fae5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+.result-msg.error {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+/* Футер с кнопками */
+.ai-actions-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+/* Кнопки — как .submit-btn */
+.ai-submit-btn,
+.back-to-tasks-btn,
+.ai-generate-btn {
+  width: 100%;
+  padding: 16px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 16px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  font-family: inherit;
+}
+
+.ai-submit-btn,
+.ai-generate-btn {
+  background-color: #4f46e5;
+  color: white;
+  box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.1);
+}
+.ai-submit-btn:hover:not(:disabled),
+.ai-generate-btn:hover:not(:disabled) {
+  background-color: #4338ca;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.1);
+}
+.ai-submit-btn:active,
+.ai-generate-btn:active {
+  transform: translateY(0);
+}
+.ai-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+/* Лоадер */
+.loading-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  color: #64748b;
+  animation: pulse 2s infinite;
+}
+.spinner-large {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 16px;
+  border: 4px solid #e2e8f0;
+  border-top-color: #4f46e5;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* ==================== DARK THEME (1v1 Match) ==================== */
+
+:root.dark .ai-task-view {
+  background-color: #0f172a;
+  color: #f1f5f9;
+}
+
+:root.dark .back-link {
+  color: #94a3b8;
+}
+:root.dark .back-link:hover {
+  color: #60a5fa;
+}
+
+:root.dark .task-card-full {
+  background-color: #1e293b;
+  border-color: #334155;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+}
+
+:root.dark .task-header-full {
+  background-color: #334155;
+}
+:root.dark .task-header-overlay {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.15) 100%);
+}
+
+:root.dark .task-title-full {
+  color: #f8fafc;
+}
+:root.dark .task-description-full {
+  color: #cbd5e1;
+}
+
+:root.dark .subject-tag-full {
+  background-color: rgba(255, 255, 255, 0.15);
+  color: #93c5fd;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+:root.dark .difficulty-tag-full {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #cbd5e1;
+}
+:root.dark .ai-badge {
+  background-color: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #fbbf24;
+}
+
+/* Подсказки Dark */
+:root.dark .hint-btn {
+  border-color: #475569;
+  color: #94a3b8;
+}
+:root.dark .hint-btn:hover {
+  background-color: #334155;
+  color: #60a5fa;
+  border-color: #3b82f6;
+}
+:root.dark .hint-box {
+  background-color: #78350f;
+  color: #fde68a;
+  border-color: #92400e;
+}
+
+/* Инпуты Dark */
+:root.dark .ai-textarea {
+  background-color: #334155;
+  border-color: #475569;
+  color: #f1f5f9;
+}
+:root.dark .ai-textarea:focus {
+  background-color: #334155;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+:root.dark .ai-textarea:disabled {
+  background-color: #334155;
+  color: #94a3b8;
+  border-color: #475569;
+}
+:root.dark .ai-textarea.correct {
+  border-color: #10b981;
+  background-color: rgba(16, 185, 129, 0.15);
+}
+:root.dark .ai-textarea.wrong {
+  border-color: #f87171;
+  background-color: rgba(248, 113, 113, 0.15);
+}
+
+/* Результат Dark */
+:root.dark .result-msg.success {
+  background-color: #065f46;
+  color: #a7f3d0;
+  border-color: #047857;
+}
+:root.dark .result-msg.error {
+  background-color: #7f1d1d;
+  color: #fecaca;
+  border-color: #991b1b;
+}
+
+/* Кнопки Dark */
+:root.dark .ai-submit-btn,
+:root.dark .ai-generate-btn {
+  background-color: #3b82f6;
+}
+:root.dark .ai-submit-btn:hover:not(:disabled),
+:root.dark .ai-generate-btn:hover:not(:disabled) {
+  background-color: #2563eb;
+}
+
+/* Спиннер в темной теме */
+:root.dark .spinner-large {
+  border-color: rgba(255, 255, 255, 0.1);
+  border-top-color: #60a5fa;
+}
+
+/* ==================== MEDIA QUERIES (Adaptive 1v1) ==================== */
+
+@media (max-width: 320px) {
+  .ai-task-view {
+    padding: 12px;
+  }
+  .task-header-content-full {
+    padding: 20px 16px;
+  }
+  .task-body-full {
+    padding: 20px 16px;
+  }
+  .task-title-full {
+    font-size: 18px;
+  }
+  .task-description-full {
+    font-size: 14px;
+  }
+  .ai-submit-btn,
+  .ai-generate-btn {
+    padding: 12px;
+    font-size: 14px;
+  }
+}
+
+@media (min-width: 376px) {
+  .ai-task-view {
+    padding: 16px;
+  }
+}
+
+@media (min-width: 640px) {
+  .ai-task-view {
+    padding: 24px;
+  }
+  .task-header-content-full {
+    padding: 32px;
+  }
+  .task-body-full {
+    padding: 32px;
+  }
+  .task-title-full {
+    font-size: 28px;
+  }
+  .task-description-full {
+    font-size: 17px;
+    line-height: 1.7;
+  }
+  .hint-btn {
+    width: auto;
+    display: inline-flex;
+  }
+  .ai-textarea {
+    font-size: 16px;
+  }
+  .ai-actions-footer {
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+  .ai-submit-btn,
+  .ai-generate-btn {
+    width: auto;
+    padding: 14px 32px;
+  }
+}
+
+@media (min-width: 768px) {
+  .ai-task-view {
+    padding: 32px;
+  }
+  .task-card-full {
+    border-radius: 32px;
+  }
+  .task-header-content-full {
+    padding: 40px;
+  }
+  .task-body-full {
+    padding: 40px;
+  }
+  .task-title-full {
+    font-size: 32px;
+  }
+  .task-description-full {
+    font-size: 18px;
+  }
+  .ai-textarea {
+    font-size: 17px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .ai-task-view {
+    padding: 40px 24px;
+  }
+  .task-content {
+    max-width: 800px;
+  }
+  .task-card-full {
+    border-radius: 40px;
+    box-shadow: 0 25px 50px -12px rgba(148, 163, 184, 0.5);
+  }
+  .task-title-full {
+    font-size: 36px;
+  }
+  .task-description-full {
+    font-size: 19px;
+    line-height: 1.75;
+  }
+}
+
+@media (min-width: 1280px) {
+  .ai-task-view {
+    padding: 48px 32px;
+  }
+  .task-content {
+    max-width: 850px;
+  }
+  .task-card-full {
+    border-radius: 48px;
+  }
+  .task-title-full {
+    font-size: 40px;
+  }
+  .task-description-full {
+    font-size: 20px;
+  }
+}
+
+@media (min-width: 1536px) {
+  .ai-task-view {
+    padding: 56px;
+  }
+  .task-content {
+    max-width: 900px;
+  }
+  .task-title-full {
+    font-size: 44px;
+  }
+  .task-description-full {
+    font-size: 21px;
+  }
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
   }
 }
 </style>

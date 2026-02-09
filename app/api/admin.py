@@ -5,7 +5,7 @@ from app.core.constants import SUBJECT_TO_TAGS
 from app.core.database import SessionDep
 from app.core.models import UserModel, TaskModel, AttemptModel, AuditLogModel, PvPMatchModel
 from app.schemas.admin_schemas import UserAdminRead, AdminDashboardStats, UserAdminUpdate, TaskAdminUpdate, \
-    AuditLogRead, AdminUserFullResponse, AdminPvpMatchesHistoryPlayer
+    AuditLogRead, AdminUserFullResponse, AdminPvpMatchesHistoryPlayer, BanUserRequest, PromoteUserRequest
 from datetime import datetime, timedelta, timezone
 from app.schemas.task import TaskAdminRead, TaskRead, TaskCreate
 import json
@@ -75,9 +75,6 @@ async def update_user(
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                 detail="Этот Email уже используется другим аккаунтом")
 
-    if user.id == admin.id and (update_data.is_admin == False or update_data.is_banned == True):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail='Вы не можете лишить прав или забанить самого себя')
 
     data = update_data.model_dump(exclude_unset=True)
 
@@ -97,6 +94,86 @@ async def update_user(
 
     await session.commit()
     return {'message': f'Данные пользователя {user.username} успешно обновлены'}
+
+
+@router.patch("/users/{user_id}/ban", summary="Заблокировать/Разблокировать пользователя (для админов)")
+async def set_user_ban_status(
+        user_id: int,
+        data: BanUserRequest,
+        session: SessionDep,
+        admin: AdminDep,
+):
+
+    user = await session.get(UserModel, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Пользователь не найден"
+        )
+
+    if user.id == admin.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Вы не можете заблокировать самого себя"
+        )
+
+    previous_status = user.is_banned
+    user.is_banned = data.is_banned
+
+    action_text = "заблокирован" if data.is_banned else "разблокирован"
+
+    await log_admin_action(
+        session=session,
+        admin_id=admin.id,
+        action=f"Пользователь {action_text}",
+        target_id=user.id,
+        details=f"Статус изменен с {previous_status} на {user.is_banned}"
+    )
+
+    await session.commit()
+
+    msg = "Пользователь заблокирован" if data.is_banned else "Пользователь разблокирован"
+    return {"message": msg, "user_id": user.id, "is_banned": user.is_banned}
+
+
+
+@router.patch("/users/{user_id}/promote", summary="Выдать/Снять права администратора (для админов)")
+async def set_user_admin_status(
+        user_id: int,
+        data: PromoteUserRequest,
+        session: SessionDep,
+        admin: AdminDep,
+):
+
+    user = await session.get(UserModel, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Пользователь не найден"
+        )
+
+    if user.id == admin.id and data.is_admin is False:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Вы не можете лишить прав администратора самого себя"
+        )
+
+    user.is_admin = data.is_admin
+
+    action_text = "теперь админ" if data.is_admin else "больше не админ"
+
+    await log_admin_action(
+        session=session,
+        admin_id=admin.id,
+        action=action_text,
+        target_id=user.id,
+        details=f"Статус админа был изменен на {user.is_admin}"
+    )
+
+    await session.commit()
+
+    msg = "Права администратора выданы" if data.is_admin else "Права администратора отозваны"
+    return {"message": msg, "user_id": user.id, "is_admin": user.is_admin}
 
 
 @router.delete('/users/{user_id}', summary='Удалить пользователя (для админов)')

@@ -152,11 +152,11 @@ onMounted(() => {
               <span class="meta-item">
                 {{ profile.user.email }}
               </span>
-              <span class="meta-item"> В клубе с {{ formatDate(profile.user.created_at) }} </span>
-              
+              <span class="meta-item"> На сайте с {{ formatDate(profile.user.created_at) }} </span>
+
             </div>
             <div class="profile-meta"> <span class="meta-item"> Уровень: {{ profile.user.level }} </span> </div>
-            
+
 
             <div class="progress-section">
               <div class="progress-header">
@@ -168,8 +168,8 @@ onMounted(() => {
               </div>
             </div>
             <div v-if="profile?.user?.all_achievements?.length" class="flex items-center gap-2 py-2">
-              <div 
-                v-for="(ach, index) in profile.user.all_achievements" 
+              <div
+                v-for="(ach, index) in profile.user.all_achievements"
                 :key="index"
                 class="px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider shadow-sm transition hover:scale-105 select-none flex items-center gap-1"
               >

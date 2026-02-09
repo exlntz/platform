@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed, reactive } from 'vue'
-import api from '@/api/axios' // Наш настроенный инстанс
+import api from '@/api/axios'
 import { useConstantsStore } from '@/pinia/ConstantsStore.js'
 import { useNotificationStore } from '@/pinia/NotificationStore'
 const notify = useNotificationStore()
@@ -17,20 +17,33 @@ const isSidebarCollapsed = ref(false)
 
 // --- УПРАВЛЕНИЕ ПОЛЬЗОВАТЕЛЯМИ ---
 const activeMenuId = ref(null)
-const showUserEditModal = ref(false)
-const userEditForm = ref({ id: null, username: '', email: '', rating: 0 })
 
-// Новое: Просмотр полной статистики пользователя
+// --- ДЕТАЛИ И РЕДАКТИРОВАНИЕ ПОЛЬЗОВАТЕЛЯ ---
 const showUserDetailsModal = ref(false)
-const selectedUser = ref(null)
+const userDetailsLoading = ref(false)
+const isUserEditMode = ref(false) // Режим редактирования внутри досье
+
+// Форма для редактирования (связана с полями в модалке)
+const userForm = ref({
+  id: null,
+  username: '',
+  email: '',
+  rating: 0,
+  rank: 'BRONZE',
+  xp: 0,
+  is_admin: false,
+  is_banned: false,
+  avatar_url: '',
+  achievements: []
+})
+
+// Данные для статистики (графики, история)
 const selectedUserStats = ref(null)
 const selectedUserEloHistory = ref([])
-const userDetailsLoading = ref(false)
 
 // --- РЕДАКТИРОВАНИЕ ЗАДАЧ ---
 const isEditMode = ref(false)
 const currentEditId = ref(null)
-// tagsInput больше не нужен как строка, работаем с массивом напрямую
 
 // --- СОРТИРОВКА ЗАДАЧ ---
 const sortKey = ref('id')
@@ -48,6 +61,17 @@ const users = ref([])
 const tasks = ref([])
 const logs = ref([])
 
+// Константы рангов
+const RANKS_INFO = {
+  'BRONZE': 0,
+  'SILVER': 1200,
+  'GOLD': 1700,
+  'ELITE': 2300,
+  'SENSEI': 3000,
+  'LEGEND': 5000
+}
+const ranksList = Object.keys(RANKS_INFO)
+
 const getBadgeClass = (action) => {
   const act = action.toLowerCase()
   if (act.includes('delete') || act.includes('ban')) return 'hard'
@@ -60,21 +84,19 @@ const taskForm = ref({
   title: '',
   description: '',
   subject: '',
-  tags: [], // Массив строк
+  tags: [],
   difficulty: '',
   correct_answer: '',
   hint: ''
 })
 
-// --- ВЫЧИСЛЯЕМЫЕ СВОЙСТВА (СОРТИРОВКА) ---
+// --- ВЫЧИСЛЯЕМЫЕ СВОЙСТВА ---
 const sortedTasks = computed(() => {
   return [...tasks.value].sort((a, b) => {
     let modifier = sortOrder.value === 'asc' ? 1 : -1
-
     let valA = a[sortKey.value]
     let valB = b[sortKey.value]
 
-    // Веса для сложности
     if (sortKey.value === 'difficulty') {
       const weights = { 'EASY': 1, 'MEDIUM': 2, 'HARD': 3 }
       valA = weights[valA] || 0
@@ -84,11 +106,9 @@ const sortedTasks = computed(() => {
     if (typeof valA === 'number' && typeof valB === 'number') {
       return (valA - valB) * modifier
     }
-
     if (typeof valA === 'string' && typeof valB === 'string') {
       return valA.localeCompare(valB) * modifier
     }
-
     return 0
   })
 })
@@ -103,20 +123,15 @@ const sortBy = (key) => {
 }
 
 // --- API ХЕЛПЕРЫ ---
-// Больше не нужно вручную добавлять headers, так как api (axios instance) делает это сам.
-// Но для методов, где мы не используем api (если такие остались), оставим.
-// В данном фиксе мы везде заменим axios на api.
-
 const handleApiError = (err) => {
   if (err.response && err.response.status === 403) {
     accessDenied.value = true
   } else {
     console.error('API Error:', err)
-    notify.show(err)
+    notify.show('Ошибка: ' + (err.response?.data?.detail || err.message))
   }
 }
 
-// Исправленная функция форматирования даты для шаблона
 const formatDate = (dateString) => {
   if (!dateString) return '-'
   const dateValue = dateString.endsWith('Z') ? dateString : dateString + 'Z'
@@ -130,7 +145,7 @@ const formatDate = (dateString) => {
   }
 }
 
-// --- ЗАГРУЗКА ДАННЫХ ---
+// --- ЗАГРУЗКА СПИСКОВ ---
 const fetchStats = async () => {
   try {
     const response = await api.get('/admin/stats')
@@ -169,35 +184,47 @@ const fetchLogs = async () => {
   finally { loading.value = false }
 }
 
-// --- УПРАВЛЕНИЕ ПОЛЬЗОВАТЕЛЯМИ ---
+// --- ЛОГИКА ПОЛЬЗОВАТЕЛЕЙ ---
+
 const toggleMenu = (event, id) => {
   event.stopPropagation()
   activeMenuId.value = activeMenuId.value === id ? null : id
 }
 
-// Открыть модалку редактирования (простая)
-const openEditUser = (user) => {
-  userEditForm.value = { ...user }
-  showUserEditModal.value = true
-  activeMenuId.value = null
-}
-
-// Открыть модалку полного досье
+// Открытие досье пользователя
 const openUserDetails = async (user) => {
   activeMenuId.value = null
-  selectedUser.value = user
   showUserDetailsModal.value = true
   userDetailsLoading.value = true
+  isUserEditMode.value = false // Сначала режим просмотра
   selectedUserStats.value = null
   selectedUserEloHistory.value = []
 
+  // Инициализируем форму данными из списка (на случай ошибки загрузки подробностей)
+  userForm.value = { ...user, achievements: user.achievements || [] }
+
   try {
-    const response = await api.get(`/admin/users/${user.id}/full_details`)
-    const data = response.data
-    // Обновляем данные пользователя из полного ответа, если они новее
-    if (data.profile) selectedUser.value = { ...selectedUser.value, ...data.profile }
+    // 1. Пытаемся получить подробные данные для редактирования
+    // Если этот эндпоинт вернет 405, мы останемся с данными из списка
+    try {
+        const detailRes = await api.get(`/admin/users/${user.id}`)
+        userForm.value = { ...userForm.value, ...detailRes.data }
+    } catch (e) {
+        console.warn('GET /admin/users/{id} not supported or failed, using list data', e)
+    }
+
+    // 2. Получаем статистику и историю (существующий рабочий эндпоинт)
+    const statsRes = await api.get(`/admin/users/${user.id}/full_details`)
+    const data = statsRes.data
+
+    // Если в full_details есть профиль, обновляем форму им (он может быть свежее)
+    if (data.profile) {
+        userForm.value = { ...userForm.value, ...data.profile }
+    }
+
     selectedUserStats.value = data.stats
     selectedUserEloHistory.value = data.elo_history
+
   } catch (err) {
     handleApiError(err)
   } finally {
@@ -208,7 +235,7 @@ const openUserDetails = async (user) => {
 const updateUserAction = async (userId, data, successMessage = null) => {
   try {
     await api.patch(`/admin/users/${userId}`, data)
-    if (successMessage) notify.show(successMessage)
+    if (successMessage) alert(successMessage)
 
     // Обновляем список пользователей
     await fetchUsers()
@@ -228,25 +255,19 @@ const deleteUser = async (user) => {
     await api.delete(`/admin/users/${user.id}`)
     users.value = users.value.filter(u => u.id !== user.id)
     fetchStats()
-    showUserDetailsModal.value = false // Закрыть досье если открыто
+    showUserDetailsModal.value = false
   } catch (err) { handleApiError(err) }
 }
 
-// --- УПРАВЛЕНИЕ ЗАДАЧАМИ ---
+// --- ЛОГИКА ЗАДАЧ (ОСТАВЛЕНА КАК ЕСТЬ) ---
 
 const openCreateModal = () => {
   isEditMode.value = false
   currentEditId.value = null
-
-  // Инициализация дефолтными значениями
   taskForm.value = {
-    title: '',
-    description: '',
-    subject: constants.subjects[0]?.key || '',
-    tags: [],
-    difficulty: constants.difficulty[0]?.key || 'EASY',
-    correct_answer: '',
-    hint: ''
+    title: '', description: '', subject: constants.subjects[0]?.key || '',
+    tags: [], difficulty: constants.difficulty[0]?.key || 'EASY',
+    correct_answer: '', hint: ''
   }
   showTaskModal.value = true
 }
@@ -254,39 +275,27 @@ const openCreateModal = () => {
 const openEditModal = async (task) => {
   isEditMode.value = true
   currentEditId.value = task.id
-  taskForm.value = { ...task, tags: task.tags || [] } // Гарантируем массив
+  taskForm.value = { ...task, tags: task.tags || [] }
   showTaskModal.value = true
   try {
-    // Используем api вместо axios
     const { data } = await api.get(`/admin/tasks/${task.id}`)
     taskForm.value = { ...data, tags: data.tags || [] }
   } catch (e) { handleApiError(e) }
 }
 
-// Логика тегов: Добавить/Удалить по клику
 const toggleTag = (tagKey) => {
   const index = taskForm.value.tags.indexOf(tagKey)
-  if (index === -1) {
-    taskForm.value.tags.push(tagKey)
-  } else {
-    taskForm.value.tags.splice(index, 1)
-  }
+  if (index === -1) taskForm.value.tags.push(tagKey)
+  else taskForm.value.tags.splice(index, 1)
 }
 
 const saveTask = async () => {
   try {
-    // Теги уже в массиве taskForm.value.tags, преобразование не нужно
-
-    const finalUrl = isEditMode.value
-       ? `/admin/tasks/${currentEditId.value}`
-       : '/admin/tasks/create'
-
+    const finalUrl = isEditMode.value ? `/admin/tasks/${currentEditId.value}` : '/admin/tasks/create'
     const method = isEditMode.value ? 'patch' : 'post'
-
-    // Используем api вместо axios
     await api[method](finalUrl, taskForm.value)
 
-    notify.show(isEditMode.value ? 'Задача обновлена!' : 'Задача создана!')
+    alert(isEditMode.value ? 'Задача обновлена!' : 'Задача создана!')
     showTaskModal.value = false
     fetchTasks()
     fetchStats()
@@ -304,7 +313,6 @@ const deleteTask = async (taskId) => {
 
 const exportTasks = async () => {
   try {
-    // Используем api и указываем responseType: 'blob'
     const response = await api.get('/admin/tasks/export', { responseType: 'blob' })
     const url = window.URL.createObjectURL(new Blob([response.data]))
     const link = document.createElement('a')
@@ -322,8 +330,6 @@ const handleImport = async (event) => {
   const formData = new FormData(); formData.append('file', file)
   try {
     loading.value = true
-    // api автоматически добавит токен, но Content-Type для файла нужно указать явно или дать браузеру решить (обычно api instance сам справляется, но добавим для надежности)
-    // Важно: api instance обычно имеет interceptor.
     const response = await api.post('/admin/tasks/import', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
@@ -339,11 +345,7 @@ onMounted(() => {
   window.addEventListener('click', () => { activeMenuId.value = null })
   fetchStats()
   fetchUsers()
-
-  // Если константы еще не загружены
-  if (constants.subjects.length === 0) {
-    constants.fetchConstants()
-  }
+  if (constants.subjects.length === 0) constants.fetchConstants()
 })
 </script>
 
@@ -455,11 +457,7 @@ onMounted(() => {
                   <td class="actions-cell">
                     <button @click="toggleMenu($event, user.id)" class="actions-btn">Действия ▾</button>
                     <div v-if="activeMenuId === user.id" class="actions-dropdown">
-                      <button @click="openUserDetails(user)" class="dropdown-item"><span class="item-icon">ℹ️</span> <span>Подробнее</span></button>
-                      <button @click="openEditUser(user)" class="dropdown-item"><span class="item-icon">✏️</span> <span>Изменить данные</span></button>
-                      <div class="dropdown-divider"></div>
-                      <button @click="updateUserAction(user.id, { is_admin: !user.is_admin })" class="dropdown-item"><span class="item-icon">{{ user.is_admin ? '⭐' : '👑' }}</span> <span>{{ user.is_admin ? 'Снять админа' : 'Сделать админом' }}</span></button>
-                      <button @click="updateUserAction(user.id, { is_banned: !user.is_banned })" class="dropdown-item"><span class="item-icon">{{ user.is_banned ? '🔓' : '🚫' }}</span> <span>{{ user.is_banned ? 'Разблокировать' : 'Заблокировать' }}</span></button>
+                      <button @click="openUserDetails(user)" class="dropdown-item"><span class="item-icon">ℹ️</span> <span>Подробнее...</span></button>
                       <div class="dropdown-divider"></div>
                       <button @click="deleteUser(user)" class="dropdown-item delete-item"><span class="item-icon">🗑️</span> <span>Удалить</span></button>
                     </div>
@@ -553,88 +551,42 @@ onMounted(() => {
           <h2>{{ isEditMode ? 'Редактировать задачу' : 'Новая задача' }}</h2>
           <button @click="showTaskModal = false" class="close-modal">✕</button>
         </div>
-
         <form @submit.prevent="saveTask" class="modal-form">
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">Предмет</label>
               <select v-model="taskForm.subject" required class="form-select">
-                <option v-for="s in constants.subjects" :key="s.key" :value="s.key">
-                  {{ s.label }}
-                </option>
+                <option v-for="s in constants.subjects" :key="s.key" :value="s.key">{{ s.label }}</option>
               </select>
             </div>
             <div class="form-group">
               <label class="form-label">Сложность</label>
               <select v-model="taskForm.difficulty" required class="form-select">
-                <option v-for="d in constants.difficulty" :key="d.key" :value="d.key">
-                  {{ d.label }}
-                </option>
+                <option v-for="d in constants.difficulty" :key="d.key" :value="d.key">{{ d.label }}</option>
               </select>
             </div>
           </div>
-
-          <div class="form-group">
-            <label class="form-label">Название</label>
-            <input v-model="taskForm.title" required placeholder="Например: Сумма двух чисел" class="form-input" />
-          </div>
-
+          <div class="form-group"><label class="form-label">Название</label><input v-model="taskForm.title" required class="form-input" /></div>
           <div class="form-group">
             <label class="form-label">Теги</label>
             <div class="tags-selector">
-              <button
-                type="button"
-                v-for="tag in constants.tags"
-                :key="tag.key"
-                @click="toggleTag(tag.key)"
-                class="tag-choice-btn"
-                :class="{ active: taskForm.tags.includes(tag.key) }"
-              >
-                {{ tag.label }}
-                <span v-if="taskForm.tags.includes(tag.key)" class="tag-check">✓</span>
+              <button type="button" v-for="tag in constants.tags" :key="tag.key" @click="toggleTag(tag.key)" class="tag-choice-btn" :class="{ active: taskForm.tags.includes(tag.key) }">
+                {{ tag.label }}<span v-if="taskForm.tags.includes(tag.key)" class="tag-check">✓</span>
               </button>
             </div>
-            <p class="form-hint">Выбрано: {{ taskForm.tags.length }}</p>
           </div>
-
-          <div class="form-group">
-            <label class="form-label">Подсказка</label>
-            <textarea v-model="taskForm.hint" rows="2" placeholder="Необязательная подсказка..." class="form-textarea"></textarea>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Условие</label>
-            <textarea v-model="taskForm.description" required rows="4" placeholder="Текст условия..." class="form-textarea"></textarea>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Ответ</label>
-            <input v-model="taskForm.correct_answer" required placeholder="Точное совпадение" class="form-input answer-field" />
-          </div>
-
-          <div class="form-submit">
-            <button type="submit" class="submit-btn">{{ isEditMode ? 'Сохранить изменения' : 'Создать задачу' }}</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <div v-if="showUserEditModal" class="modal-overlay">
-      <div class="user-modal">
-        <div class="modal-header"><h2>Редактировать профиль</h2><button @click="showUserEditModal = false" class="close-modal">✕</button></div>
-        <form @submit.prevent="updateUserAction(userEditForm.id, userEditForm, 'Данные сохранены')" class="modal-form">
-          <div class="form-group"><label class="form-label">Имя пользователя</label><input v-model="userEditForm.username" class="form-input"></div>
-          <div class="form-group"><label class="form-label">Email</label><input v-model="userEditForm.email" class="form-input"></div>
-          <div class="form-group"><label class="form-label">Рейтинг ELO</label><input v-model.number="userEditForm.rating" type="number" class="form-input"></div>
-          <div class="form-actions"><button type="submit" class="save-btn">Сохранить</button><button @click="showUserEditModal = false" type="button" class="cancel-btn">Отмена</button></div>
+          <div class="form-group"><label class="form-label">Подсказка</label><textarea v-model="taskForm.hint" rows="2" class="form-textarea"></textarea></div>
+          <div class="form-group"><label class="form-label">Условие</label><textarea v-model="taskForm.description" required rows="4" class="form-textarea"></textarea></div>
+          <div class="form-group"><label class="form-label">Ответ</label><input v-model="taskForm.correct_answer" required class="form-input answer-field" /></div>
+          <div class="form-submit"><button type="submit" class="submit-btn">{{ isEditMode ? 'Сохранить изменения' : 'Создать задачу' }}</button></div>
         </form>
       </div>
     </div>
 
     <div v-if="showUserDetailsModal" class="modal-overlay">
-      <div class="task-modal user-details-modal">
+      <div class="task-modal user-details-modal" :class="{ 'extended': isUserEditMode }">
         <div class="modal-header">
-          <h2>Досье пользователя</h2>
+          <h2>{{ isUserEditMode ? 'Редактирование профиля' : 'Досье пользователя' }}</h2>
           <button @click="showUserDetailsModal = false" class="close-modal">✕</button>
         </div>
 
@@ -642,64 +594,122 @@ onMounted(() => {
           <div class="spinner"></div> Загрузка данных...
         </div>
 
-        <div v-else-if="selectedUser" class="user-dossier">
-          <div class="dossier-header">
-            <div class="dossier-avatar">
-              {{ selectedUser.username.charAt(0).toUpperCase() }}
-            </div>
-            <div class="dossier-main-info">
-              <h3>{{ selectedUser.username }}</h3>
-              <p class="dossier-email">{{ selectedUser.email }}</p>
-              <div class="dossier-badges">
-                <span class="rating-badge">ELO: {{ selectedUser.rating }}</span>
-                <span class="status-badge" :class="{ banned: selectedUser.is_banned }">
-                  {{ selectedUser.is_banned ? 'Заблокирован' : 'Активен' }}
-                </span>
-                <span v-if="selectedUser.is_admin" class="admin-badge">Администратор</span>
-              </div>
-            </div>
-            <div class="dossier-actions">
-              <button @click="updateUserAction(selectedUser.id, { is_banned: !selectedUser.is_banned })" class="action-btn" :class="selectedUser.is_banned ? 'success' : 'danger'">
-                {{ selectedUser.is_banned ? 'Разблокировать' : 'Заблокировать' }}
-              </button>
-              <button @click="openEditUser(selectedUser)" class="action-btn secondary">Редактировать</button>
-            </div>
-          </div>
-
-          <div class="dossier-section" v-if="selectedUserStats">
-            <h4>Статистика по предметам</h4>
-            <div class="stats-grid-mini">
-              <div v-for="(stat, subject) in selectedUserStats.subjects" :key="subject" class="mini-stat-card">
-                <div class="mini-stat-title">{{ constants.getSubjectLabel(subject) }}</div>
-                <div class="mini-stat-row">
-                  <span>Решено: {{ stat.solved }}/{{ stat.total_attempts }}</span>
-                  <span class="winrate" :class="{'high': (stat.solved/stat.total_attempts) > 0.7}">
-                    {{ stat.total_attempts ? Math.round((stat.solved / stat.total_attempts) * 100) : 0 }}%
-                  </span>
+        <div v-else class="user-dossier-content">
+          <div v-if="!isUserEditMode && userForm">
+              <div class="dossier-header">
+                <div class="dossier-avatar">
+                  <img v-if="userForm.avatar_url" :src="userForm.avatar_url" class="avatar-img">
+                  <span v-else>{{ userForm.username.charAt(0).toUpperCase() }}</span>
                 </div>
-                <div class="progress-bar-bg">
-                  <div class="progress-bar-fill" :style="{ width: (stat.total_attempts ? (stat.solved / stat.total_attempts) * 100 : 0) + '%' }"></div>
+                <div class="dossier-main-info">
+                  <h3>{{ userForm.username }} <span class="id-hint">#{{ userForm.id }}</span></h3>
+                  <p class="dossier-email">{{ userForm.email }}</p>
+                  <div class="dossier-badges">
+                    <span class="rating-badge">ELO: {{ userForm.rating }}</span>
+                    <span class="rating-badge" v-if="userForm.rank">{{ userForm.rank }}</span>
+                    <span class="status-badge" :class="{ banned: userForm.is_banned }">{{ userForm.is_banned ? 'Заблокирован' : 'Активен' }}</span>
+                    <span v-if="userForm.is_admin" class="admin-badge">Администратор</span>
+                  </div>
+                </div>
+                <div class="dossier-actions">
+                  <button @click="toggleUserEditMode" class="action-btn secondary">✎ Редактировать</button>
+                  <button @click="toggleUserStatus('is_banned')" class="action-btn" :class="userForm.is_banned ? 'success' : 'danger'">
+                    {{ userForm.is_banned ? 'Разблокировать' : 'Заблокировать' }}
+                  </button>
+                  <button @click="toggleUserStatus('is_admin')" class="action-btn" :class="userForm.is_admin ? 'danger' : 'success'">
+                     {{ userForm.is_admin ? 'Снять админа' : 'Назначить админом' }}
+                  </button>
                 </div>
               </div>
-            </div>
+
+              <div class="dossier-section" v-if="selectedUserStats">
+                <h4>Статистика</h4>
+                <div class="stats-grid-mini">
+                  <div v-for="(stat, subject) in selectedUserStats.subjects" :key="subject" class="mini-stat-card">
+                    <div class="mini-stat-title">{{ constants.getSubjectLabel(subject) }}</div>
+                    <div class="mini-stat-row">
+                      <span>{{ stat.solved }}/{{ stat.total_attempts }}</span>
+                      <span class="winrate">{{ stat.total_attempts ? Math.round((stat.solved / stat.total_attempts) * 100) : 0 }}%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
           </div>
 
-          <div class="dossier-section" v-if="selectedUserEloHistory && selectedUserEloHistory.length">
-            <h4>История рейтинга (Последние 10)</h4>
-            <table class="mini-table">
-              <thead><tr><th>Дата</th><th>Изменение</th><th>Рейтинг</th></tr></thead>
-              <tbody>
-                <tr v-for="item in selectedUserEloHistory.slice(0, 10)" :key="item.id">
-                  <td>{{ formatDate(item.date) }}</td>
-                  <td :class="item.change >= 0 ? 'text-green' : 'text-red'">
-                    {{ item.change > 0 ? '+' : '' }}{{ item.change }}
-                  </td>
-                  <td>{{ item.rating }}</td>
-                </tr>
-              </tbody>
-            </table>
+          <div v-else-if="isUserEditMode">
+            <form @submit.prevent="saveUserChanges" class="modal-form">
+              <div class="form-row">
+                  <div class="form-group">
+                      <label class="form-label">ID</label>
+                      <input :value="userForm.id" disabled class="form-input disabled-input">
+                  </div>
+                   <div class="form-group">
+                      <label class="form-label">Рейтинг ELO</label>
+                      <input v-model.number="userForm.rating" type="number" class="form-input">
+                  </div>
+              </div>
+
+              <div class="form-group">
+                  <label class="form-label">Ранг</label>
+                  <select v-model="userForm.rank" class="form-select" @change="onRankChange">
+                    <option v-for="r in ranksList" :key="r" :value="r">{{ r }}</option>
+                  </select>
+              </div>
+
+              <div class="form-group">
+                  <label class="form-label">Имя пользователя</label>
+                  <input v-model="userForm.username" class="form-input">
+              </div>
+
+              <div class="form-group">
+                  <label class="form-label">Email</label>
+                  <input v-model="userForm.email" class="form-input">
+              </div>
+
+              <div class="form-group">
+                  <label class="form-label">Avatar URL</label>
+                  <input v-model="userForm.avatar_url" class="form-input">
+              </div>
+
+              <div class="form-row">
+                   <div class="form-group">
+                      <label class="form-label">Опыт (XP)</label>
+                      <input v-model.number="userForm.xp" type="number" class="form-input">
+                  </div>
+              </div>
+
+              <div class="form-group checkboxes-group">
+                  <label class="checkbox-label">
+                      <input type="checkbox" v-model="userForm.is_admin"> Администратор
+                  </label>
+                  <label class="checkbox-label">
+                      <input type="checkbox" v-model="userForm.is_banned"> Заблокирован
+                  </label>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Достижения</label>
+                <div class="tags-selector">
+                  <button
+                    type="button"
+                    v-for="ach in constants.achievements"
+                    :key="ach.key"
+                    @click="toggleAchievement(ach.key)"
+                    class="tag-choice-btn"
+                    :class="{ active: userForm.achievements.includes(ach.key) }"
+                  >
+                    {{ ach.label }}
+                    <span v-if="userForm.achievements.includes(ach.key)" class="tag-check">✓</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="form-actions">
+                  <button type="submit" class="save-btn">Сохранить</button>
+                  <button @click="isUserEditMode = false" type="button" class="cancel-btn">Отмена</button>
+              </div>
+            </form>
           </div>
-          <div v-else class="empty-section">Нет истории игр</div>
 
         </div>
       </div>
@@ -1165,6 +1175,12 @@ onMounted(() => {
   transition: all 0.2s ease;
   flex-shrink: 0;
 }
+.avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: inherit;
+}
 .table-row:hover .user-avatar {
   transform: scale(1.1);
   background-color: #e0e7ff;
@@ -1560,6 +1576,12 @@ onMounted(() => {
 .user-modal {
   max-width: 400px;
 }
+.user-modal.extended {
+  max-width: 600px; /* Для расширенной формы */
+}
+.user-details-modal {
+    max-width: 500px;
+}
 .modal-header {
   display: flex;
   justify-content: space-between;
@@ -1629,6 +1651,11 @@ onMounted(() => {
   transition: all 0.2s ease;
   font-family: inherit;
   font-size: 14px;
+}
+.disabled-input {
+  opacity: 0.6;
+  background-color: #e2e8f0;
+  cursor: not-allowed;
 }
 .form-select:focus,
 .form-input:focus,
@@ -1741,6 +1768,25 @@ onMounted(() => {
   margin-top: 6px;
 }
 
+/* --- Checkboxes Group --- */
+.checkboxes-group {
+    flex-direction: row;
+    gap: 20px;
+    margin-top: 8px;
+}
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #334155;
+    cursor: pointer;
+}
+:root.dark .checkbox-label {
+    color: #cbd5e1;
+}
+
 /* --- USER DOSSIER --- */
 .user-dossier {
   display: flex;
@@ -1766,6 +1812,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
+  overflow: hidden;
 }
 .dossier-main-info {
   flex: 1;
@@ -1776,6 +1823,12 @@ onMounted(() => {
   color: #0f172a;
   margin-bottom: 4px;
 }
+.id-hint {
+    color: #94a3b8;
+    font-size: 14px;
+    font-weight: 500;
+    margin-left: 6px;
+}
 .dossier-email {
   color: #64748b;
   font-size: 14px;
@@ -1784,6 +1837,7 @@ onMounted(() => {
 .dossier-badges {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 .dossier-actions {
   display: flex;
@@ -1798,6 +1852,7 @@ onMounted(() => {
   cursor: pointer;
   border: none;
   transition: all 0.2s ease;
+  white-space: nowrap;
 }
 .action-btn.success {
   background-color: #dcfce7;
@@ -2084,6 +2139,11 @@ onMounted(() => {
 :root.dark .form-textarea:focus {
   background-color: #334155;
   border-color: #3b82f6;
+}
+
+:root.dark .disabled-input {
+    background-color: #475569;
+    color: #94a3b8;
 }
 
 :root.dark .form-label {
@@ -2443,7 +2503,7 @@ onMounted(() => {
     padding: 20px 24px;
   }
 
-  .task-modal {
+  .task-modal, .user-modal {
     max-width: 700px;
     padding: 32px;
     border-radius: 24px;

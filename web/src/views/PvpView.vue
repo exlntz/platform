@@ -1,11 +1,22 @@
 <script setup>
-import { ref, onUnmounted, nextTick, computed } from 'vue'
-import api from '@/api/axios' // Наш настроенный инстанс
+import { ref, onUnmounted, nextTick, computed, onMounted, watch } from 'vue'
+import api from '@/api/axios'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 
+// --- КОНСТАНТЫ ВИЗУАЛА ---
+const RANK_VISUALS = {
+  LEGEND: { emoji: '🐲', color: 'from-purple-500 to-pink-500' },
+  SENSEI: { emoji: '🥋', color: 'from-red-500 to-orange-500' },
+  ELITE: { emoji: '⚔️', color: 'from-blue-500 to-cyan-500' },
+  GOLD: { emoji: '🥇', color: 'from-yellow-400 to-yellow-600' },
+  SILVER: { emoji: '🥈', color: 'from-slate-300 to-slate-400' },
+  BRONZE: { emoji: '🥉', color: 'from-amber-700 to-amber-900' },
+}
+
 // --- СОСТОЯНИЕ ---
+const ELO_RANKS = ref([])
 const socket = ref(null)
 const gameState = ref('idle')
 const gameResult = ref(null)
@@ -14,57 +25,145 @@ const userAnswer = ref('')
 const logs = ref([])
 const logContainer = ref(null)
 
+// --- СЧЕТ МАТЧА ---
+const myScore = ref(0)
+const opponentScore = ref(0)
+
 const availableEmojis = ['😎', '🔥', '😱', '🤔', '😭', '😂']
 const showEmojiPicker = ref(false)
-const floatingEmojis = ref([]) // Массив для анимаций
+const floatingEmojis = ref([])
+
+// --- ТАЙМЕР МЕЖДУ ЗАДАЧАМИ ---
+const isNextTaskTimerActive = ref(false)
+const nextTaskTimer = ref(3)
+let taskTimerInterval = null
+
+// --- ТАЙМЕР РЕКОННЕКТА ---
+let reconnectButtonTimer = null
+const RECONNECT_WINDOW_MS = 5000
+
+// --- СТАТИСТИКА И ИСТОРИЯ ---
+const stats = ref({ rank: 'Loading...', points: 0, username: '' })
+const matchHistory = ref([])
+const isHistoryLoading = ref(true)
+
+// --- MODAL STATE ---
+const showRankModal = ref(false)
+const openRankModal = () => (showRankModal.value = true)
+const closeRankModal = () => (showRankModal.value = false)
+
+// --- ЛОГИКА СОХРАНЕНИЯ СЧЕТА (LOCAL STORAGE) ---
+const saveScoreState = () => {
+  const scoreData = {
+    me: myScore.value,
+    opp: opponentScore.value,
+  }
+  localStorage.setItem('pvp_score_state', JSON.stringify(scoreData))
+}
+
+const restoreScoreState = () => {
+  const saved = localStorage.getItem('pvp_score_state')
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved)
+      myScore.value = parsed.me || 0
+      opponentScore.value = parsed.opp || 0
+    } catch (e) {
+      console.error('Ошибка восстановления счета', e)
+    }
+  }
+}
+
+const clearScoreState = () => {
+  localStorage.removeItem('pvp_score_state')
+  myScore.value = 0
+  opponentScore.value = 0
+}
+
+// Следим за изменениями счета и сохраняем
+watch([myScore, opponentScore], () => {
+  if (gameState.value === 'playing') {
+    saveScoreState()
+  }
+})
+
+// --- ВЫЧИСЛЕНИЯ ДЛЯ РАНГОВ ---
+const currentRankObj = computed(() => {
+  if (ELO_RANKS.value.length === 0) {
+    return { name: '...', min_elo: 0, emoji: '⏳', label: 'Loading...', color: 'from-gray-500' }
+  }
+  const points = stats.value.points || 0
+  const sortedRanks = [...ELO_RANKS.value].sort((a, b) => a.min_elo - b.min_elo)
+  return (
+    sortedRanks.reverse().find((r) => r.min_elo <= points) || sortedRanks[sortedRanks.length - 1]
+  )
+})
+
+const nextRankObj = computed(() => {
+  if (ELO_RANKS.value.length === 0) return null
+  const points = stats.value.points || 0
+  const sorted = [...ELO_RANKS.value].sort((a, b) => a.min_elo - b.min_elo)
+  return sorted.find((r) => r.min_elo > points) || null
+})
+
+const progressToNextRank = computed(() => {
+  if (ELO_RANKS.value.length === 0) return 0
+  if (!nextRankObj.value) return 100
+  const current = stats.value.points || 0
+  const prevLimit = currentRankObj.value.min_elo
+  const nextLimit = nextRankObj.value.min_elo
+  const totalDiff = nextLimit - prevLimit
+  const currentDiff = current - prevLimit
+  let percent = (currentDiff / totalDiff) * 100
+  return Math.min(Math.max(percent, 0), 100).toFixed(1)
+})
+
 const sendEmoji = (emojiChar) => {
   if (!socket.value) return
-  
-  // 1. Отправляем на сервер
   socket.value.send(`SendEmoji ${emojiChar}`)
-  
-  // 2. Сразу показываем у себя (справа)
   triggerFloatingEmoji(emojiChar, 'me')
-  
-  showEmojiPicker.value = false // Закрываем пикер после выбора (опционально)
+  showEmojiPicker.value = false
 }
 
 const triggerFloatingEmoji = (char, source) => {
   const id = Date.now() + Math.random()
   floatingEmojis.value.push({ id, char, source })
-  
-  // Удаляем из DOM через 2 секунды (время анимации)
   setTimeout(() => {
-    floatingEmojis.value = floatingEmojis.value.filter(e => e.id !== id)
+    floatingEmojis.value = floatingEmojis.value.filter((e) => e.id !== id)
   }, 2000)
 }
 
-const stats = ref({ rank: "Gold IV", points: 1250, winStreak: 3 })
-const leaderboard = ref([
-  { id: 1, name: "Alex_Pro", points: 2840, avatar: "⚔️" },
-  { id: 2, name: "Olimpiad_Master", points: 2710, avatar: "🔥" },
-  { id: 3, name: "PythonLover", points: 2590, avatar: "🐍" }
-])
-
 const resultTitle = computed(() => {
   switch (gameResult.value) {
-    case 'win': return 'Победа! 🎉'
-    case 'loss': return 'Поражение 😔'
-    case 'disconnect': return 'Обрыв соединения 😔'
-    case 'draw': return 'Ничья'
-    case 'already_in_match': return 'Матч уже идёт'
-    default: return ''
+    case 'win':
+      return 'Победа! 🎉'
+    case 'loss':
+      return 'Поражение 😔'
+    case 'disconnect':
+      return 'Обрыв соединения 😔'
+    case 'draw':
+      return 'Ничья'
+    case 'already_in_match':
+      return 'Матч уже идёт'
+    default:
+      return ''
   }
 })
 
 const resultDescription = computed(() => {
   switch (gameResult.value) {
-    case 'win': return 'Ты решил задачу быстрее соперника! +15 рейтинга'
-    case 'loss': return 'Соперник был быстрее. Не сдавайся!'
-    case 'disconnect': return 'Игра не будет засчитана'
-    case 'draw': return 'Силы оказались равны'
-    case 'already_in_match': return 'Матч уже идёт'
-    default: return ''
+    case 'win':
+      return 'Ты решил задачу быстрее соперника!'
+    case 'loss':
+      return 'Соперник был быстрее. Не сдавайся!'
+    case 'disconnect':
+      return 'Игра не будет засчитана'
+    case 'draw':
+      return 'Силы оказались равны'
+    case 'already_in_match':
+      return 'Матч уже идёт'
+    default:
+      return ''
   }
 })
 
@@ -78,37 +177,134 @@ const resultTitleClass = computed(() => {
   }
 })
 
-// --- ЛОГИКА WEBSOCKET ---
-// Добавляем флаг, чтобы не зациклить реконнект
+// --- ЗАГРУЗКА ДАННЫХ ---
+const loadUserData = async () => {
+  try {
+    if (ELO_RANKS.value.length === 0) {
+      const ranksRes = await api.get('/pvp/ranks_info')
+      ELO_RANKS.value = ranksRes.data.map((rank) => ({
+        ...rank,
+        label: rank.name,
+        emoji: RANK_VISUALS[rank.name]?.emoji || '🏆',
+        color: RANK_VISUALS[rank.name]?.color || 'from-gray-500 to-gray-700',
+      }))
+    }
+    const profileRes = await api.get('/profile/')
+    stats.value = {
+      rank: profileRes.data.rank,
+      points: profileRes.data.rating,
+      username: profileRes.data.username,
+    }
+    await loadHistory()
+  } catch (e) {
+    console.error('Ошибка загрузки данных:', e)
+  }
+}
+
+const loadHistory = async () => {
+  isHistoryLoading.value = true
+  try {
+    const historyRes = await api.get('/pvp/matches_history', { params: { limit: 10 } })
+    matchHistory.value = historyRes.data
+  } catch (e) {
+    console.error('Ошибка истории:', e)
+  } finally {
+    isHistoryLoading.value = false
+  }
+}
+
+const formatDate = (dateString) => {
+  const date = new Date(dateString)
+  return date.toLocaleString('ru-RU', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+const formatEloRaw = (change) => {
+  const val = parseFloat(change)
+  if (val > 0) return `+${val}`
+  return `${val}`
+}
+
+const getResultIcon = (resultStr) => {
+  if (resultStr === 'Победа') return '🏆'
+  if (resultStr === 'Проигрыш') return '💀'
+  if (resultStr === 'Ничья') return '🤝'
+  if (resultStr === 'Матч отменен') return '🚫'
+  return '❓'
+}
+
+const getResultClass = (resultStr) => {
+  if (resultStr === 'Победа') return 'res-text-win'
+  if (resultStr === 'Проигрыш') return 'res-text-loss'
+  if (resultStr === 'Ничья') return 'res-text-draw'
+  return 'res-text-neutral'
+}
+
+// --- ТАЙМЕР МЕЖДУ РАУНДАМИ ---
+const startNextTaskTimer = () => {
+  isNextTaskTimerActive.value = true
+  nextTaskTimer.value = 3
+
+  if (taskTimerInterval) clearInterval(taskTimerInterval)
+
+  taskTimerInterval = setInterval(() => {
+    nextTaskTimer.value--
+    if (nextTaskTimer.value <= 0) {
+      clearInterval(taskTimerInterval)
+      isNextTaskTimerActive.value = false
+    }
+  }, 1000)
+}
+
+// --- НАВИГАЦИЯ ПОСЛЕ МАТЧА ---
+const goToTasks = () => {
+  router.push('/tasks')
+}
+
+const goBackToLobby = () => {
+  disconnect()
+  isReconnecting.value = false
+  gameState.value = 'idle'
+}
+
+// --- WEBSOCKET ---
 const isReconnecting = ref(false)
 
 const connectPvp = () => {
-  // 1. ПРОВЕРКИ
   const token = localStorage.getItem('user-token')
   if (!token) {
-    alert('Сначала войдите в аккаунт!')
+    alert('Сначала войдите!')
     router.push('/auth')
     return
   }
 
+  if (reconnectButtonTimer) clearTimeout(reconnectButtonTimer)
+
   if (!isReconnecting.value) {
+    // НОВАЯ ИГРА - СБРОС ВСЕГО
     gameState.value = 'searching'
     gameResult.value = null
     activeTask.value = null
     logs.value = []
     userAnswer.value = ''
+    isNextTaskTimerActive.value = false
+    clearScoreState() // Очищаем старый счет
+  } else {
+    // РЕКОННЕКТ
+    gameState.value = 'playing'
+    addLog('system', 'Восстановление соединения...')
+    restoreScoreState() // Восстанавливаем счет из памяти
   }
 
-  // 2. СОЗДАНИЕ СОКЕТА
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  socket.value = new WebSocket(`${protocol}//${window.location.host}/api/pvp/join`);
-
-  // 3. НАЗНАЧЕНИЕ ОБРАБОТЧИКОВ (ВСЕ ОНИ ДОЛЖНЫ БЫТЬ ВНУТРИ ЭТОЙ ФУНКЦИИ)
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  socket.value = new WebSocket(`${protocol}//${window.location.host}/api/pvp/join`)
 
   socket.value.onopen = () => {
-    if (!isReconnecting.value) {
-        addLog('system', 'Соединение установлено...')
-    }
+    if (!isReconnecting.value) addLog('system', 'Соединение установлено...')
   }
 
   socket.value.onmessage = async (event) => {
@@ -118,89 +314,109 @@ const connectPvp = () => {
     if (msg === 'Connected') {
       const currentToken = localStorage.getItem('user-token')
       socket.value.send(currentToken)
-    }
-    else if (msg === 'token accepted') {
-      addLog('system', 'Авторизация успешна. Ищем противника...')
-      isReconnecting.value = false
-    }
-    else if (msg === 'invalid token') {
-      console.warn('WS: Токен истек. Пытаемся обновить через HTTP...')
-      socket.value.close()
-
-      if (isReconnecting.value) {
-         alert('Сессия истекла. Пожалуйста, войдите снова.')
-         router.push('/auth')
-         return
+    } else if (msg === 'token accepted') {
+      if (!isReconnecting.value) {
+        addLog('system', 'Авторизация успешна. Ищем противника...')
+      } else {
+        addLog('system', 'Вы переподключились к матчу!')
       }
-
+    } else if (msg === 'invalid token') {
+      socket.value.close()
+      if (isReconnecting.value) {
+        router.push('/auth')
+        return
+      }
       isReconnecting.value = true
-
       try {
         await api.get('/profile/')
-        console.log('WS: Токен успешно обновлен. Переподключаемся...')
         connectPvp()
       } catch (e) {
-        console.error('WS: Не удалось обновить токен.', e)
         router.push('/auth')
       }
-    }
-    else if (msg === 'Search started') {
-       // ждем
-    }
-    else if (msg === 'match started') {
+    } else if (msg === 'Search started') {
+    } else if (msg === 'match started') {
       gameState.value = 'playing'
-      addLog('system', 'Матч начался! Ждем задачу...')
-    }
-    else if (msg === 'нет задач') {
-      alert('В базе нет задач для игры!')
-      disconnect()
-    }
-    else if (!isNaN(parseInt(msg)) && msg.length < 10) {
-      await loadTask(msg)
-    }
-    else if (msg.includes('time is up')) {
-      addLog('error', 'Время вышло. Следующая задача...')
-    }
-    else if (msg.includes('other player answered')) {
-      addLog('error', 'Оппонент ответил верно. Следующая задача...')
-    }
-    else if (msg.includes('incorrect')) {
-      addLog('error', 'Неверно! Попробуй еще раз.')
-    }
-    else if (msg.includes('chat message')) {
-      addLog('chat', msg.substr(12, msg.length))
-    }
-    else if (msg.includes('please wait')) {
-      addLog('error', 'Подождите несколько секунд...')
-    }
-    else if (msg.includes('correct')) {
-      addLog('system', 'Верно!')
-    }
-    else if (msg.includes('win')) finishGame('win')
-    else if (msg.includes('loss')) finishGame('loss')
-    else if (msg === 'opponent disconnected') finishGame('disconnect')
-    else if (msg.includes('draw')) finishGame('draw')
-    else if (msg.includes('already in a match')) finishGame('already_in_match')
-    else if (msg.includes('emoji ')) {
-        const emojiChar = msg.split(' ')[1]
-        triggerFloatingEmoji(emojiChar, 'opponent')
+      if (!isReconnecting.value) {
+        addLog('system', 'Матч начался! Ждем задачу...')
       }
+    } else if (msg === 'нет задач') {
+      alert('Нет задач!')
+      disconnect()
+    } else if (!isNaN(parseInt(msg)) && msg.length < 10) {
+      await loadTask(msg)
+    } else if (msg.includes('time is up')) {
+      addLog('error', 'Время вышло. Следующая задача...')
+      startNextTaskTimer()
+    } else if (msg.includes('other player answered')) {
+      addLog('error', 'Оппонент ответил верно. Следующая задача...')
+      opponentScore.value++
+      startNextTaskTimer()
+    } else if (msg.includes('incorrect')) {
+      addLog('error', 'Неверно! Попробуй еще раз.')
+    } else if (msg.includes('chat message')) {
+      addLog('chat', msg.substr(12))
+    } else if (msg.includes('please wait')) {
+      addLog('error', 'Ожидание следующего раунда...')
+    } else if (msg.includes('correct')) {
+      addLog('system', 'Верно!')
+      myScore.value++
+      startNextTaskTimer()
+    } else if (msg.includes('win')) {
+      finishGame('win')
+      loadUserData()
+      isReconnecting.value = false
+    } else if (msg.includes('loss')) {
+      finishGame('loss')
+      loadUserData()
+      isReconnecting.value = false
+    } else if (msg === 'opponent disconnected') {
+      finishGame('disconnect')
+      loadUserData()
+      isReconnecting.value = false
+    } else if (msg.includes('draw')) {
+      finishGame('draw')
+      loadUserData()
+      isReconnecting.value = false
+    } else if (msg.includes('already in a match')) {
+      gameState.value = 'playing'
+      isReconnecting.value = true
+      addLog('system', 'Вы вернулись в игру!')
+      restoreScoreState() // Попытка восстановить счет
+    } else if (msg.includes('emoji ')) {
+      const emojiChar = msg.split(' ')[1]
+      triggerFloatingEmoji(emojiChar, 'opponent')
+    }
   }
 
-  // ВАЖНО: onclose и onerror тоже внутри функции!
   socket.value.onclose = () => {
-    if (!isReconnecting.value && (gameState.value === 'searching' || gameState.value === 'playing')) {
+    if (gameState.value === 'searching' || gameState.value === 'playing') {
+      isReconnecting.value = true
       gameState.value = 'idle'
+      startReconnectExpirationTimer(RECONNECT_WINDOW_MS)
     }
   }
 
   socket.value.onerror = (e) => {
     console.error('WebSocket error:', e)
     addLog('error', 'Ошибка соединения')
+    isReconnecting.value = true
     gameState.value = 'idle'
+    startReconnectExpirationTimer(RECONNECT_WINDOW_MS)
   }
+}
 
-} // <--- ВОТ ЗДЕСЬ КОНЕЦ ФУНКЦИИ connectPvp
+const startReconnectExpirationTimer = (duration) => {
+  if (reconnectButtonTimer) clearTimeout(reconnectButtonTimer)
+
+  reconnectButtonTimer = setTimeout(() => {
+    if (gameState.value === 'idle' && isReconnecting.value) {
+      isReconnecting.value = false
+      clearScoreState() // Время вышло, сбрасываем счет
+      localStorage.removeItem('pvp_reconnect')
+      localStorage.removeItem('pvp_disconnect_time')
+    }
+  }, duration)
+}
 
 const sendAnswer = () => {
   if (!userAnswer.value.trim() || !socket.value) return
@@ -212,9 +428,8 @@ const sendAnswer = () => {
 const loadTask = async (taskId) => {
   try {
     const token = localStorage.getItem('user-token')
-    // Здесь тоже используем относительный путь, axios.baseURL сам подставит /api если настроен
     const response = await api.get(`/tasks/${taskId}`, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${token}` },
     })
     activeTask.value = response.data
     addLog('system', 'Задача получена!')
@@ -227,12 +442,22 @@ const loadTask = async (taskId) => {
 const finishGame = (result) => {
   gameResult.value = result
   gameState.value = 'result'
+  if (taskTimerInterval) clearInterval(taskTimerInterval)
+  isNextTaskTimerActive.value = false
   if (socket.value) socket.value.close()
+
+  localStorage.removeItem('pvp_reconnect')
+  localStorage.removeItem('pvp_disconnect_time')
+  clearScoreState() // Очищаем счет при завершении
 }
 
 const disconnect = () => {
   if (socket.value) socket.value.close()
   gameState.value = 'idle'
+  isReconnecting.value = false
+  clearScoreState()
+  localStorage.removeItem('pvp_reconnect')
+  localStorage.removeItem('pvp_disconnect_time')
 }
 
 const addLog = (type, text) => {
@@ -244,8 +469,44 @@ const addLog = (type, text) => {
   })
 }
 
+onMounted(() => {
+  loadUserData()
+
+  const wasInMatch = localStorage.getItem('pvp_reconnect') === 'true'
+  const disconnectTime = parseInt(localStorage.getItem('pvp_disconnect_time') || '0')
+  const now = Date.now()
+
+  if (wasInMatch && now - disconnectTime < RECONNECT_WINDOW_MS) {
+    isReconnecting.value = true
+    restoreScoreState() // Восстанавливаем счет при рефреше
+
+    const remainingTime = RECONNECT_WINDOW_MS - (now - disconnectTime)
+    startReconnectExpirationTimer(remainingTime)
+  } else {
+    localStorage.removeItem('pvp_reconnect')
+    localStorage.removeItem('pvp_disconnect_time')
+    clearScoreState()
+    isReconnecting.value = false
+  }
+})
+
+window.addEventListener('beforeunload', () => {
+  if (gameState.value === 'playing' || gameState.value === 'searching') {
+    localStorage.setItem('pvp_reconnect', 'true')
+    localStorage.setItem('pvp_disconnect_time', Date.now().toString())
+    saveScoreState() // Сохраняем счет перед уходом
+  } else {
+    localStorage.removeItem('pvp_reconnect')
+    localStorage.removeItem('pvp_disconnect_time')
+    clearScoreState()
+  }
+})
+
 onUnmounted(() => {
   if (socket.value) socket.value.close()
+  if (taskTimerInterval) clearInterval(taskTimerInterval)
+  if (reconnectButtonTimer) clearTimeout(reconnectButtonTimer)
+  window.removeEventListener('beforeunload', () => {})
 })
 </script>
 
@@ -254,10 +515,21 @@ onUnmounted(() => {
     <div class="pvp-grid">
       <div class="main-section">
         <div v-if="gameState === 'idle'" class="idle-state">
-          <div class="arena-badge">PvP Arena</div>
-          <h1 class="arena-title">Готов к битве?</h1>
-          <p class="arena-description">Сразись с реальным противником. Кто первый решит задачу — забирает рейтинг.</p>
-          <button @click="connectPvp" class="find-opponent-btn">Найти противника</button>
+          <div class="idle-content">
+            <div class="arena-badge">PvP Arena</div>
+            <h1 class="arena-title">Готов к битве?</h1>
+            <p class="arena-description">
+              Сразись с реальным противником. Кто первый решит задачу — забирает рейтинг.
+            </p>
+
+            <button
+              @click="connectPvp"
+              class="find-opponent-btn"
+              :class="{ 'reconnect-btn': isReconnecting }"
+            >
+              {{ isReconnecting ? 'Переподключиться к матчу' : 'Найти противника' }}
+            </button>
+          </div>
         </div>
 
         <div v-else-if="gameState === 'searching'" class="searching-state">
@@ -278,11 +550,23 @@ onUnmounted(() => {
               <span class="live-dot"></span>
               <span class="live-text">Live Match</span>
             </div>
+
+            <div class="match-score">
+              <span class="score-me">{{ myScore }}</span>
+              <span class="score-divider">:</span>
+              <span class="score-opp">{{ opponentScore }}</span>
+            </div>
+
             <div class="match-hint">Решай быстрее!</div>
           </div>
 
           <div class="task-container">
-            <div v-if="activeTask" class="task-content">
+            <div v-if="isNextTaskTimerActive" class="next-task-overlay">
+              <div class="timer-count">{{ nextTaskTimer }}</div>
+              <div class="timer-text">Следующий раунд...</div>
+            </div>
+
+            <div v-else-if="activeTask" class="task-content">
               <div class="task-tags">
                 <span class="subject-tag">{{ activeTask.subject }}</span>
                 <span class="difficulty-tag">{{ activeTask.difficulty }}</span>
@@ -292,46 +576,62 @@ onUnmounted(() => {
                 <p>{{ activeTask.description }}</p>
               </div>
             </div>
-            <div v-else class="loading-task">Загрузка задачи...</div>
+            <div v-else class="loading-task">Ожидание задачи...</div>
           </div>
 
           <div class="game-controls">
             <div class="emoji-layer">
-            <div 
-              v-for="e in floatingEmojis" 
-              :key="e.id"
-              class="floating-emoji"
-              :class="{ 'from-me': e.source === 'me', 'from-opponent': e.source === 'opponent' }"
-            >
-              {{ e.char }}
-            </div>
-          </div>
-
-          <div class="input-area">
-            <button @click="showEmojiPicker = !showEmojiPicker" class="emoji-btn" >😀</button>
-            
-            <div v-if="showEmojiPicker" class="emoji-picker">
-              <button 
-                v-for="emoji in ['😎', '🔥', '😱', '🤔', '😭', '😂']" 
-                :key="emoji" 
-                @click="sendEmoji(emoji)"
-                class="emoji-option"
+              <div
+                v-for="e in floatingEmojis"
+                :key="e.id"
+                class="floating-emoji"
+                :class="{ 'from-me': e.source === 'me', 'from-opponent': e.source === 'opponent' }"
               >
-                {{ emoji }}
-              </button>
+                {{ e.char }}
+              </div>
             </div>
-          </div>
+
+            <div class="input-area">
+              <button
+                @click="showEmojiPicker = !showEmojiPicker"
+                class="emoji-btn"
+                :disabled="isNextTaskTimerActive"
+              >
+                😀
+              </button>
+
+              <div v-if="showEmojiPicker" class="emoji-picker">
+                <button
+                  v-for="emoji in ['😎', '🔥', '😱', '🤔', '😭', '😂']"
+                  :key="emoji"
+                  @click="sendEmoji(emoji)"
+                  class="emoji-option"
+                >
+                  {{ emoji }}
+                </button>
+              </div>
+            </div>
             <div ref="logContainer" class="game-logs">
               <div v-for="log in logs" :key="log.id" class="log-message">
                 <span v-if="log.type === 'system'" class="log-system">🤖 {{ log.text }}</span>
                 <span v-else-if="log.type === 'error'" class="log-error">❌ {{ log.text }}</span>
-                <span v-else-if="log.type === 'chat'" class="log-user">👤 Оппонент: {{ log.text }}</span>
+                <span v-else-if="log.type === 'chat'" class="log-user"
+                  >👤 Оппонент: {{ log.text }}</span
+                >
                 <span v-else class="log-user">👤 Вы: {{ log.text }}</span>
               </div>
             </div>
             <form @submit.prevent="sendAnswer" class="answer-form">
-              <input v-model="userAnswer" placeholder="Введите ответ..." class="answer-input" autoFocus>
-              <button type="submit" class="submit-answer-btn">Отправить</button>
+              <input
+                v-model="userAnswer"
+                placeholder="Введите ответ..."
+                class="answer-input"
+                autoFocus
+                :disabled="isNextTaskTimerActive"
+              />
+              <button type="submit" class="submit-answer-btn" :disabled="isNextTaskTimerActive">
+                Отправить
+              </button>
             </form>
           </div>
         </div>
@@ -346,33 +646,103 @@ onUnmounted(() => {
             <h1 :class="resultTitleClass">{{ resultTitle }}</h1>
             <p class="result-description">{{ resultDescription }}</p>
           </div>
-          <button @click="connectPvp" class="play-again-btn">Играть снова</button>
+
+          <div class="result-actions">
+            <button @click="connectPvp" class="play-again-btn">Играть снова</button>
+            <div class="result-secondary-actions">
+              <button @click="goToTasks" class="secondary-btn">Решать задачи</button>
+              <button @click="goBackToLobby" class="secondary-btn">Вернуться назад</button>
+            </div>
+          </div>
         </div>
       </div>
 
       <div class="sidebar-section">
-        <div class="stats-card">
-          <h3 class="stats-title">Твои успехи</h3>
-          <div class="stats-grid">
-            <div class="stat-item">
-              <span class="stat-label">Ранг</span>
-              <span class="stat-value rank-value">{{ stats.rank }}</span>
+        <div class="rank-card-vertical" @click="openRankModal">
+          <div class="rank-card-header">
+            <span class="rank-label">ТЕКУЩИЙ РАНГ</span>
+            <span class="rank-info-icon">ℹ️</span>
+          </div>
+
+          <div class="rank-icon-large floating-anim">{{ currentRankObj.emoji }}</div>
+          <div class="rank-name-large">{{ currentRankObj.label }}</div>
+          <div class="rank-elo-large">{{ Math.round(stats.points) }} ELO</div>
+
+          <div class="rank-progress-container">
+            <div class="rank-progress-bar">
+              <div class="rank-progress-fill" :style="{ width: progressToNextRank + '%' }"></div>
             </div>
-            <div class="stat-item">
-              <span class="stat-label">Очки</span>
-              <span class="stat-value points-value">{{ stats.points }}</span>
+            <div class="rank-progress-text" v-if="nextRankObj">
+              До {{ nextRankObj.label }}: {{ Math.round(nextRankObj.min_elo - stats.points) }} очков
             </div>
+            <div class="rank-progress-text" v-else>Максимальный ранг!</div>
           </div>
         </div>
-        <div class="leaderboard-card">
-          <div class="leaderboard-header">🏆 ТОП МАСТЕРОВ</div>
-          <div class="leaderboard-list">
-            <div v-for="(player, index) in leaderboard" :key="player.id" class="leaderboard-item">
-              <span class="player-rank">#{{ index + 1 }}</span>
-              <div class="player-avatar">{{ player.avatar }}</div>
-              <div class="player-info">
-                <p class="player-name">{{ player.name }}</p>
-                <p class="player-points">{{ player.points }} PTS</p>
+      </div>
+    </div>
+
+    <div v-if="gameState === 'idle'" class="history-full-container">
+      <h3 class="history-full-title">История матчей</h3>
+      <div v-if="isHistoryLoading" class="loading-history">Загрузка истории...</div>
+      <div v-else-if="matchHistory.length === 0" class="loading-history">
+        Матчей пока не найдено
+      </div>
+      <div v-else class="history-full-list">
+        <div v-for="match in matchHistory" :key="match.id" class="history-full-item">
+          <div class="history-players">
+            <span class="player-me">{{ match.current_player }}</span>
+            <span class="vs-badge">vs</span>
+            <span class="player-opp">{{ match.opponent }}</span>
+          </div>
+
+          <div class="history-result-text" :class="getResultClass(match.result)">
+            {{ match.result }}
+            <span class="result-icon-small">{{ getResultIcon(match.result) }}</span>
+          </div>
+
+          <div class="history-meta">
+            <span
+              class="history-elo-raw"
+              :class="match.current_player_elo_change > 0 ? 'elo-plus' : 'elo-minus'"
+            >
+              {{ formatEloRaw(match.current_player_elo_change) }} ELO
+            </span>
+            <span class="history-date-full">{{ formatDate(match.created_at) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="showRankModal" class="rank-modal-overlay" @click.self="closeRankModal">
+      <div class="rank-modal-content">
+        <button class="rank-modal-close" @click="closeRankModal">✕</button>
+        <div class="rank-modal-header">
+          <h2>🏆 Путь к Славе</h2>
+          <p>Побеждай в дуэлях, поднимай рейтинг и получай новые звания!</p>
+        </div>
+
+        <div class="rank-road">
+          <div
+            v-for="(rank, index) in [...ELO_RANKS].sort((a, b) => b.min_elo - a.min_elo)"
+            :key="rank.name"
+            class="rank-road-item"
+            :class="{ 'current-user-rank': rank.name === currentRankObj.name }"
+          >
+            <div class="rank-road-left">
+              <div class="rank-road-icon">{{ rank.emoji }}</div>
+            </div>
+            <div class="rank-road-center">
+              <div class="rank-road-line" v-if="index !== ELO_RANKS.length - 1"></div>
+              <div
+                class="rank-road-dot"
+                :class="stats.points >= rank.min_elo ? 'dot-active' : ''"
+              ></div>
+            </div>
+            <div class="rank-road-right">
+              <div class="rank-road-card">
+                <div class="rank-road-title">{{ rank.label }}</div>
+                <div class="rank-road-elo">{{ rank.min_elo }}+ ELO</div>
+                <div v-if="rank.name === currentRankObj.name" class="current-badge">ТЫ ЗДЕСЬ</div>
               </div>
             </div>
           </div>
@@ -385,11 +755,146 @@ onUnmounted(() => {
 <style scoped>
 /* ==================== БАЗОВЫЕ СТИЛИ ==================== */
 
-/* Позиционирование контейнера ввода */
+/* СТИЛИ КНОПКИ РЕКОННЕКТА */
+.reconnect-btn {
+  background-color: #ef4444 !important;
+  box-shadow: 0 6px 12px -3px rgba(239, 68, 68, 0.3) !important;
+  animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+/* СТИЛИ СЧЕТА */
+.match-score {
+  font-size: 20px;
+  font-weight: 800;
+  color: #4f46e5;
+  background-color: white;
+  padding: 4px 12px;
+  border-radius: 8px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.score-divider {
+  color: #94a3b8;
+}
+
+.score-me {
+  color: #22c55e;
+}
+
+.score-opp {
+  color: #ef4444;
+}
+
+:root.dark .match-score {
+  background-color: #1e293b;
+  color: #818cf8;
+}
+
+/* СТИЛИ КНОПОК ПОСЛЕ МАТЧА */
+.result-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.result-secondary-actions {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+.secondary-btn {
+  flex: 1;
+  padding: 12px;
+  background-color: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  color: #475569;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s ease;
+}
+
+.secondary-btn:hover {
+  border-color: #cbd5e1;
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+:root.dark .secondary-btn {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #94a3b8;
+}
+
+:root.dark .secondary-btn:hover {
+  background-color: #334155;
+  color: #f1f5f9;
+}
+
+/* СТИЛИ ДЛЯ ТАЙМЕРА СЛЕДУЮЩЕГО РАУНДА */
+.next-task-overlay {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.3s ease;
+}
+
+.timer-count {
+  font-size: 80px;
+  font-weight: 900;
+  color: #4f46e5;
+  line-height: 1;
+  animation: pulse 1s infinite;
+}
+
+.timer-text {
+  font-size: 18px;
+  color: #64748b;
+  font-weight: 700;
+  margin-top: 12px;
+}
+
+:root.dark .timer-count {
+  color: #818cf8;
+}
+
+:root.dark .timer-text {
+  color: #94a3b8;
+}
+
+/* ОТКЛЮЧЕННЫЕ КНОПКИ */
+.answer-input:disabled,
+.submit-answer-btn:disabled,
+.emoji-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(1);
+}
+
 .input-area {
   display: flex;
   gap: 8px;
-  position: relative; /* Для позиционирования пикера */
+  position: relative;
   align-items: center;
 }
 
@@ -407,7 +912,6 @@ onUnmounted(() => {
   transform: scale(1.1);
 }
 
-/* Выпадающее меню эмодзи */
 .emoji-picker {
   position: absolute;
   bottom: 100%;
@@ -419,7 +923,7 @@ onUnmounted(() => {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 4px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   margin-bottom: 8px;
   z-index: 20;
 }
@@ -444,7 +948,7 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  pointer-events: none; /* Чтобы клики проходили сквозь них */
+  pointer-events: none;
   overflow: hidden;
   z-index: 50;
 }
@@ -452,16 +956,16 @@ onUnmounted(() => {
 .floating-emoji {
   position: absolute;
   font-size: 48px;
-  bottom: 80px; /* Старт над полем ввода */
+  bottom: 80px;
   animation: floatUp 2s ease-out forwards;
 }
 
 .from-me {
-  right: 20px; /* Мои летят справа */
+  right: 20px;
 }
 
 .from-opponent {
-  left: 20px; /* Соперника летят слева */
+  left: 20px;
 }
 
 @keyframes floatUp {
@@ -479,7 +983,7 @@ onUnmounted(() => {
   }
 }
 
-/* Dark mode fixes */
+/* Dark mode fixes for emoji */
 :root.dark .emoji-picker {
   background-color: #1e293b;
   border-color: #334155;
@@ -488,11 +992,13 @@ onUnmounted(() => {
   background-color: #334155;
 }
 
+/* === MAIN LAYOUT === */
 .pvp-container {
   min-height: 100vh;
   background: linear-gradient(135deg, #f8fafc 0%, #f0f9ff 100%);
   padding: 16px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   line-height: 1.5;
 }
 
@@ -511,19 +1017,26 @@ onUnmounted(() => {
   gap: 16px;
 }
 
-/* Состояние ожидания */
+/* Состояние ожидания (IDLE) */
 .idle-state {
   position: relative;
   overflow: hidden;
   background-color: #0f172a;
   border-radius: 16px;
   padding: 24px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* Idle content inside */
+.idle-content {
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: flex-start;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-  min-height: 280px;
 }
 
 .arena-badge {
@@ -583,6 +1096,370 @@ onUnmounted(() => {
 
 .find-opponent-btn:active {
   transform: translateY(0);
+}
+
+/* RANK CARD (Now in Sidebar) */
+.rank-card-vertical {
+  width: 100%;
+  background: white; /* Light theme bg */
+  border: 1px solid #f1f5f9;
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+:root.dark .rank-card-vertical {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.rank-card-vertical:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.rank-card-header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.rank-label {
+  font-size: 10px;
+  font-weight: 800;
+  color: #64748b;
+  letter-spacing: 0.1em;
+}
+
+:root.dark .rank-label {
+  color: #94a3b8;
+}
+
+.rank-info-icon {
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+.rank-icon-large {
+  font-size: 64px;
+  margin-bottom: 8px;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.1));
+}
+
+.floating-anim {
+  animation: floatRank 3s ease-in-out infinite;
+}
+
+@keyframes floatRank {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.rank-name-large {
+  font-size: 20px;
+  font-weight: 900;
+  color: #0f172a;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  letter-spacing: 0.05em;
+}
+
+:root.dark .rank-name-large {
+  color: white;
+}
+
+.rank-elo-large {
+  font-size: 14px;
+  font-weight: 700;
+  color: #4f46e5;
+  margin-bottom: 16px;
+}
+
+:root.dark .rank-elo-large {
+  color: #fbbf24;
+}
+
+.rank-progress-container {
+  width: 100%;
+}
+
+.rank-progress-bar {
+  width: 100%;
+  height: 8px;
+  background-color: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+:root.dark .rank-progress-bar {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.rank-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4f46e5, #ec4899);
+  border-radius: 4px;
+  transition: width 0.5s ease-out;
+}
+
+.rank-progress-text {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+:root.dark .rank-progress-text {
+  color: #94a3b8;
+}
+
+/* === MODAL RANK SYSTEM === */
+.rank-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(15, 23, 42, 0.9);
+  backdrop-filter: blur(8px);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.rank-modal-content {
+  background-color: #ffffff;
+  width: 100%;
+  max-width: 500px;
+  max-height: 80vh;
+  border-radius: 24px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+:root.dark .rank-modal-content {
+  background-color: #1e293b;
+  border: 1px solid #334155;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.rank-modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(0, 0, 0, 0.05);
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: #0f172a;
+  cursor: pointer;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+:root.dark .rank-modal-close {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.rank-modal-close:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+:root.dark .rank-modal-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.rank-modal-header {
+  padding: 24px;
+  text-align: center;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+:root.dark .rank-modal-header {
+  border-bottom: 1px solid #334155;
+  background: #0f172a;
+}
+
+.rank-modal-header h2 {
+  font-size: 24px;
+  color: #0f172a;
+  margin-bottom: 8px;
+  font-weight: 800;
+}
+
+:root.dark .rank-modal-header h2 {
+  color: white;
+}
+
+.rank-modal-header p {
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+:root.dark .rank-modal-header p {
+  color: #94a3b8;
+}
+
+.rank-road {
+  padding: 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Стиль элемента пути славы */
+.rank-road-item {
+  display: flex;
+  height: 80px; /* Фиксированная высота шага */
+}
+
+.rank-road-left {
+  width: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rank-road-icon {
+  font-size: 32px;
+}
+
+.rank-road-center {
+  width: 40px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.rank-road-line {
+  position: absolute;
+  top: 50%;
+  bottom: -50%; /* Линия идет вниз */
+  width: 4px;
+  background-color: #e2e8f0;
+  z-index: 1;
+}
+
+:root.dark .rank-road-line {
+  background-color: #334155;
+}
+
+.rank-road-item:last-child .rank-road-line {
+  display: none; /* У последнего элемента нет линии вниз */
+}
+
+.rank-road-dot {
+  width: 16px;
+  height: 16px;
+  background-color: #e2e8f0;
+  border: 4px solid #ffffff;
+  border-radius: 50%;
+  z-index: 2;
+  margin-top: auto;
+  margin-bottom: auto;
+  transition: all 0.3s ease;
+}
+
+:root.dark .rank-road-dot {
+  background-color: #334155;
+  border-color: #1e293b;
+}
+
+.dot-active {
+  background-color: #22c55e;
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+}
+
+.rank-road-right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding-left: 16px;
+}
+
+.rank-road-card {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 12px 16px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid #e2e8f0;
+  transition: all 0.3s ease;
+}
+
+:root.dark .rank-road-card {
+  background: #334155;
+  border-color: transparent;
+}
+
+.current-user-rank .rank-road-card {
+  border-color: #4f46e5;
+  background: rgba(79, 70, 229, 0.05);
+}
+
+:root.dark .current-user-rank .rank-road-card {
+  background: rgba(79, 70, 229, 0.15);
+}
+
+.rank-road-title {
+  color: #0f172a;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+:root.dark .rank-road-title {
+  color: white;
+}
+
+.rank-road-elo {
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+:root.dark .rank-road-elo {
+  color: #cbd5e1;
+}
+
+.current-badge {
+  font-size: 10px;
+  background: #4f46e5;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 800;
+  margin-left: 8px;
 }
 
 /* Состояние поиска */
@@ -1000,85 +1877,182 @@ onUnmounted(() => {
   color: #0f172a;
 }
 
-.leaderboard-card {
+/* === НОВЫЕ СТИЛИ ДЛЯ ИСТОРИИ (FULL WIDTH) === */
+.history-full-container {
+  margin-top: 24px;
+  max-width: 1000px;
+  margin-left: auto;
+  margin-right: auto;
   background-color: white;
-  overflow: hidden;
-  border-radius: 16px;
+  border-radius: 20px;
+  padding: 24px;
   border: 1px solid #f1f5f9;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
-.leaderboard-header {
-  padding: 16px;
-  background-color: #0f172a;
-  color: white;
+.history-full-title {
+  font-size: 20px;
   font-weight: 800;
-  text-align: center;
-  font-size: 14px;
+  color: #0f172a;
+  margin-bottom: 20px;
 }
 
-.leaderboard-list {
-  padding: 8px;
+.history-full-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.leaderboard-item {
+.history-full-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background-color: #f8fafc;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  transition: transform 0.2s ease;
+}
+
+.history-full-item:hover {
+  transform: translateX(4px);
+  background-color: #f1f5f9;
+}
+
+.history-players {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px;
-  border-radius: 12px;
-  transition: background-color 0.2s ease;
-}
-
-.leaderboard-item:hover {
-  background-color: #f8fafc;
-}
-
-.player-rank {
-  width: 20px;
-  font-size: 12px;
-  font-weight: 800;
-  color: #cbd5e1;
-}
-
-.player-avatar {
-  width: 36px;
-  height: 36px;
-  background-color: #f1f5f9;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-}
-
-.player-info {
+  font-weight: 700;
+  font-size: 15px;
+  color: #0f172a;
   flex: 1;
 }
 
-.player-name {
-  font-size: 13px;
-  font-weight: 700;
-  color: #1f2937;
-  margin-bottom: 2px;
+.player-me {
+  color: #4f46e5;
 }
 
-.player-points {
-  font-size: 9px;
-  font-weight: 800;
-  color: #4f46e5;
+.vs-badge {
+  font-size: 12px;
+  color: #94a3b8;
   text-transform: uppercase;
+  font-weight: 800;
+}
+
+.player-opp {
+  color: #0f172a;
+}
+
+.history-result-text {
+  flex: 1;
+  text-align: center;
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.result-icon-small {
+  font-size: 16px;
+}
+
+.res-text-win {
+  color: #22c55e;
+}
+.res-text-loss {
+  color: #ef4444;
+}
+.res-text-draw {
+  color: #f59e0b;
+}
+.res-text-neutral {
+  color: #64748b;
+}
+
+.history-meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.history-elo-raw {
+  font-weight: 800;
+  font-size: 15px;
+}
+
+.elo-plus {
+  color: #22c55e;
+}
+.elo-minus {
+  color: #ef4444;
+}
+
+.history-date-full {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.loading-history {
+  color: #94a3b8;
+  font-size: 14px;
+  text-align: center;
+  padding: 20px;
+  font-weight: 500;
+}
+
+.load-more-btn {
+  width: 100%;
+  padding: 12px;
+  margin-top: 12px;
+  background-color: #f1f5f9;
+  border: none;
+  border-radius: 12px;
+  color: #475569;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.load-more-btn:hover {
+  background-color: #e2e8f0;
+  color: #0f172a;
 }
 
 /* Анимации */
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 /* ==================== ТЁМНАЯ ТЕМА ==================== */
@@ -1161,8 +2135,7 @@ onUnmounted(() => {
   color: #94a3b8;
 }
 
-:root.dark .stats-card,
-:root.dark .leaderboard-card {
+:root.dark .stats-card {
   background-color: #1e293b;
   border-color: #334155;
   color: #f1f5f9;
@@ -1184,20 +2157,45 @@ onUnmounted(() => {
   color: #f1f5f9;
 }
 
-:root.dark .leaderboard-header {
+/* History dark */
+:root.dark .history-full-container {
+  background-color: #1e293b;
+  border-color: #334155;
+}
+
+:root.dark .history-full-title {
+  color: #f8fafc;
+}
+
+:root.dark .history-full-item {
+  background-color: #0f172a;
+  border-color: #334155;
+}
+
+:root.dark .history-full-item:hover {
   background-color: #334155;
 }
 
-:root.dark .leaderboard-item:hover {
-  background-color: #334155;
+:root.dark .player-me {
+  color: #818cf8;
 }
 
-:root.dark .player-name {
-  color: #e2e8f0;
+:root.dark .player-opp {
+  color: #f1f5f9;
 }
 
-:root.dark .player-avatar {
+:root.dark .history-date-full {
+  color: #64748b;
+}
+
+:root.dark .load-more-btn {
   background-color: #334155;
+  color: #cbd5e1;
+}
+
+:root.dark .load-more-btn:hover {
+  background-color: #475569;
+  color: #f1f5f9;
 }
 
 /* Loading task */
@@ -1220,7 +2218,6 @@ onUnmounted(() => {
 
 /* ==================== АДАПТИВНЫЕ СТИЛИ ==================== */
 
-
 @media (min-width: 321px) and (max-width: 375px) {
   .arena-title {
     font-size: 30px;
@@ -1235,7 +2232,6 @@ onUnmounted(() => {
   }
 }
 
-
 @media (min-width: 376px) and (max-width: 480px) {
   .pvp-container {
     padding: 20px;
@@ -1249,12 +2245,31 @@ onUnmounted(() => {
     font-size: 22px;
   }
 
-  .stats-card,
-  .leaderboard-card {
+  .stats-card {
     padding: 24px;
   }
-}
 
+  .history-full-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .history-meta {
+    align-items: flex-start;
+    flex-direction: row;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .idle-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .rank-card-vertical {
+    margin-top: 16px;
+  }
+}
 
 @media (min-width: 481px) {
   .pvp-container {
@@ -1348,8 +2363,7 @@ onUnmounted(() => {
     gap: 24px;
   }
 
-  .stats-card,
-  .leaderboard-card {
+  .stats-card {
     border-radius: 20px;
     padding: 24px;
   }
@@ -1369,27 +2383,7 @@ onUnmounted(() => {
   .stat-value {
     font-size: 16px;
   }
-
-  .leaderboard-header {
-    padding: 20px;
-    font-size: 16px;
-  }
-
-  .leaderboard-item {
-    padding: 16px;
-  }
-
-  .player-avatar {
-    width: 40px;
-    height: 40px;
-    font-size: 18px;
-  }
-
-  .player-name {
-    font-size: 14px;
-  }
 }
-
 
 @media (min-width: 641px) {
   .pvp-grid {
@@ -1425,13 +2419,13 @@ onUnmounted(() => {
   }
 }
 
-
 @media (min-width: 769px) {
   .pvp-container {
     padding: 32px;
   }
 
-  .pvp-grid {
+  .pvp-grid,
+  .history-full-container {
     max-width: 1200px;
     gap: 32px;
   }
@@ -1503,8 +2497,7 @@ onUnmounted(() => {
     font-size: 14px;
   }
 
-  .stats-card,
-  .leaderboard-card {
+  .stats-card {
     border-radius: 24px;
     padding: 28px;
   }
@@ -1514,13 +2507,13 @@ onUnmounted(() => {
   }
 }
 
-
 @media (min-width: 1025px) {
   .pvp-container {
     padding: 40px;
   }
 
-  .pvp-grid {
+  .pvp-grid,
+  .history-full-container {
     max-width: 1280px;
   }
 
@@ -1567,13 +2560,13 @@ onUnmounted(() => {
   }
 }
 
-
 @media (min-width: 1281px) {
   .pvp-container {
     padding: 48px;
   }
 
-  .pvp-grid {
+  .pvp-grid,
+  .history-full-container {
     max-width: 1400px;
   }
 
@@ -1585,8 +2578,7 @@ onUnmounted(() => {
     font-size: 52px;
   }
 
-  .stats-card,
-  .leaderboard-card {
+  .stats-card {
     padding: 32px;
   }
 
@@ -1603,13 +2595,13 @@ onUnmounted(() => {
   }
 }
 
-
 @media (min-width: 1537px) {
   .pvp-container {
     padding: 64px;
   }
 
-  .pvp-grid {
+  .pvp-grid,
+  .history-full-container {
     max-width: 1600px;
   }
 
@@ -1638,15 +2630,9 @@ onUnmounted(() => {
     font-size: 18px;
   }
 
-  .stats-card,
-  .leaderboard-card {
+  .stats-card {
     padding: 36px;
     border-radius: 28px;
-  }
-
-  .leaderboard-header {
-    padding: 24px;
-    font-size: 18px;
   }
 }
 </style>

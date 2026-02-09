@@ -56,10 +56,7 @@ async def login_user(
             detail="Ваш аккаунт заблокирован за нарушение правил."
         )
 
-    token_payload={
-        "sub": str(user.id),
-        "username": user.username,
-    }
+    token_payload={"sub": str(user.id)}
     access_token = create_access_token(token_payload)
     refresh_token = create_refresh_token(token_payload)
 
@@ -82,7 +79,7 @@ async def refresh_token_endpoint(
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
 
-    payload = {"sub": str(user.id), "username": user.username}
+    payload = {"sub": str(user.id)}
     new_access_token = create_access_token(payload)
     new_refresh_token = create_refresh_token(payload)
 

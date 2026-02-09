@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, PrivateAttr
 from fastapi import WebSocket
 
@@ -16,3 +18,15 @@ class MessageEvent(BaseModel):
     user_id: int
     text: str
     ts: float # timestamp
+
+
+class MatchHistoryItem(BaseModel):
+    current_player: str
+    opponent: str
+    current_player_elo_change: float
+    opponent_elo_change: float
+    result: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

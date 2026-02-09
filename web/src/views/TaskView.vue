@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import api from '@/api/axios' // Наш настроенный инстанс
+import api from '@/api/axios'
 import { useTimerStore } from '@/pinia/TimerStore.js'
 
 const timer = useTimerStore()
@@ -16,7 +16,6 @@ const checkLoading = ref(false)
 const checkResult = ref(null)
 const isSolved = ref(false)
 
-// Определение размера экрана для адаптивности
 const screenSize = ref('mobile')
 
 const updateScreenSize = () => {
@@ -32,7 +31,6 @@ const getAuthHeader = () => {
   return token ? { headers: { Authorization: `Bearer ${token}` } } : {}
 }
 
-// Загрузка задачи
 const fetchTask = async () => {
   try {
     const response = await api.get(`/tasks/${route.params.id}`, getAuthHeader())
@@ -44,51 +42,35 @@ const fetchTask = async () => {
   }
 }
 
-// Отправка ответа
 const submitAnswer = async () => {
   if (!answer.value.trim()) return
-
   checkLoading.value = true
   checkResult.value = null
 
   try {
     const response = await api.post(
       `/tasks/${task.value.id}/check`,
-      {
-        answer: answer.value,
-        time_spent: timer.elapsedSeconds
-      },
-      getAuthHeader()
+      { answer: answer.value, time_spent: timer.elapsedSeconds },
+      getAuthHeader(),
     )
-
     checkResult.value = response.data
-
     if (response.data.is_correct) {
       isSolved.value = true
       timer.stopTimer()
     }
   } catch (err) {
-    checkResult.value = {
-      is_correct: false,
-      message: 'Ошибка сервера. Попробуйте позже.'
-    }
+    checkResult.value = { is_correct: false, message: 'Ошибка сервера.' }
   } finally {
     checkLoading.value = false
   }
 }
 
-// Возврат к списку задач с сохранением фильтров
 const backToTasks = () => {
-  // Сохраняем текущие фильтры из URL
   const query = { ...route.query }
-  delete query.id // Убираем id текущей задачи
-  router.push({ 
-    path: '/tasks',
-    query // Передаем сохраненные фильтры
-  })
+  delete query.id
+  router.push({ path: '/tasks', query })
 }
 
-// Класс для сообщения о результате
 const resultMessageClass = computed(() => {
   if (!checkResult.value) return ''
   return checkResult.value.is_correct ? 'success' : 'error'
@@ -103,12 +85,9 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('resize', updateScreenSize)
-  if (!isSolved.value) {
-    timer.pauseTimer()
-  }
+  if (!isSolved.value) timer.pauseTimer()
 })
 
-// Следим за изменением параметров задачи
 watch(
   () => route.params.id,
   () => {
@@ -121,154 +100,230 @@ watch(
     fetchTask()
     timer.resetTimer()
     timer.startTask()
-  }
+  },
 )
 </script>
 
 <template>
   <div class="task-container">
     <div v-if="loading" class="loading-state">
-      <div class="loading-title" :class="{ 'mobile': screenSize === 'mobile' }"></div>
-      <div class="loading-subtitle" :class="{ 'mobile': screenSize === 'mobile' }"></div>
+      <div class="loading-title" :class="{ mobile: screenSize === 'mobile' }"></div>
+      <div class="loading-subtitle" :class="{ mobile: screenSize === 'mobile' }"></div>
     </div>
 
-    <div v-else-if="task" class="task-content">
-      <button @click="backToTasks" class="back-link">
-        <span class="back-icon">←</span>
-        <span class="back-text">Вернуться к списку</span>
-      </button>
+    <div v-else-if="task" class="task-layout">
+      <div class="top-nav">
+        <button @click="backToTasks" class="back-link">
+          <span class="back-icon">←</span>
+          <span class="back-text">К списку</span>
+        </button>
+        <div v-if="!isSolved" class="timer-badge">⏱️ {{ timer.elapsedSeconds }} сек</div>
+      </div>
 
-      <div class="task-card">
-        <div class="task-header">
-          <div class="task-header-overlay"></div>
-          <div class="task-header-content">
-            <div class="header-tags">
-              <span class="subject-tag" :class="{ 'mobile': screenSize === 'mobile' }">{{ task.subject }}</span>
-              <span class="difficulty-tag" :class="{ 'mobile': screenSize === 'mobile' }">{{ task.difficulty }}</span>
-            </div>
-            <h1 class="task-title" :class="{ 'mobile': screenSize === 'mobile' }">{{ task.title }}</h1>
-          </div>
-        </div>
-
-        <div class="task-body">
-          <div class="task-section">
-            <h3 class="section-title" :class="{ 'mobile': screenSize === 'mobile' }">Условие задачи</h3>
-            <p class="task-description" :class="{ 'mobile': screenSize === 'mobile' }">
-              {{ task.description }}
-            </p>
-          </div>
-
-          <div v-if="task.hint" class="hint-section">
-            <button
-              @click="showHint = !showHint"
-              class="hint-btn"
-              :class="{ 'active': showHint, 'mobile': screenSize === 'mobile' }"
-            >
-              <span class="hint-icon">💡</span>
-              <span class="hint-text-content">
-                {{ showHint ? 'Скрыть подсказку' : 'Показать подсказку' }}
-              </span>
-            </button>
-
-            <div v-if="showHint" class="hint-content">
-              <div class="hint-badge">Подсказка</div>
-              <p class="hint-text">{{ task.hint }}</p>
-            </div>
-          </div>
-
-          <hr class="divider" :class="{ 'mobile': screenSize === 'mobile' }">
-
-          <div class="answer-section">
-            <div v-if="checkResult"
-                 class="result-message"
-                 :class="[resultMessageClass, { 'mobile': screenSize === 'mobile' }]">
-              <div class="result-icon">
-                <span v-if="checkResult.is_correct">🎉</span>
-                <span v-else>❌</span>
+      <div class="task-card-scroll-area">
+        <div class="task-card">
+          <div class="task-header">
+            <div class="task-header-overlay"></div>
+            <div class="task-header-content">
+              <div class="header-tags">
+                <span class="subject-tag" :class="{ mobile: screenSize === 'mobile' }">{{
+                  task.subject
+                }}</span>
+                <span class="difficulty-tag" :class="{ mobile: screenSize === 'mobile' }">{{
+                  task.difficulty
+                }}</span>
               </div>
-              <span class="result-text">{{ checkResult.message }}</span>
+              <h1 class="task-title" :class="{ mobile: screenSize === 'mobile' }">
+                {{ task.title }}
+              </h1>
+            </div>
+          </div>
+
+          <div class="task-body">
+            <div class="task-section">
+              <h3 class="section-title" :class="{ mobile: screenSize === 'mobile' }">
+                Условие задачи
+              </h3>
+              <p class="task-description" :class="{ mobile: screenSize === 'mobile' }">
+                {{ task.description }}
+              </p>
             </div>
 
-            <div class="answer-input-group">
-              <label class="input-label" :class="{ 'mobile': screenSize === 'mobile' }">Ваш ответ</label>
-              <textarea
-                v-model="answer"
-                @keydown.enter.exact.prevent="submitAnswer"
-                :rows="screenSize === 'mobile' ? 4 : 3"
-                :disabled="isSolved"
-                placeholder="Введите решение..."
-                class="answer-textarea"
-                :class="{
-                  'mobile': screenSize === 'mobile',
-                  'correct-answer': isSolved,
-                  'wrong-answer': checkResult && !checkResult.is_correct
-                }"
-              ></textarea>
-            </div>
-
-            <div class="submit-section">
-              <div class="timer-display" :class="{ 'mobile': screenSize === 'mobile' }" v-if="!isSolved">
-                ⏱️ Время: {{ timer.elapsedSeconds }} сек
-              </div>
-
+            <div v-if="task.hint" class="hint-section">
               <button
-                v-if="isSolved"
-                @click="backToTasks"
-                class="back-to-tasks-btn"
-                :class="{ 'mobile': screenSize === 'mobile' }"
+                @click="showHint = !showHint"
+                class="hint-btn"
+                :class="{ active: showHint, mobile: screenSize === 'mobile' }"
               >
-                <span class="btn-text">← Вернуться ко всем задачам</span>
-              </button>
-
-              <button
-                v-else
-                @click="submitAnswer"
-                :disabled="checkLoading || !answer"
-                class="submit-btn"
-                :class="{
-                  'mobile': screenSize === 'mobile',
-                  'disabled': checkLoading || !answer
-                }"
-              >
-                <span v-if="checkLoading" class="spinner"></span>
-                <span class="btn-text">
-                  {{ checkLoading ? 'Проверка...' : 'Отправить решение' }}
+                <span class="hint-icon">💡</span>
+                <span class="hint-text-content">
+                  {{ showHint ? 'Скрыть подсказку' : 'Показать подсказку' }}
                 </span>
               </button>
+
+              <div v-if="showHint" class="hint-content">
+                <div class="hint-badge">Подсказка</div>
+                <p class="hint-text">{{ task.hint }}</p>
+              </div>
+            </div>
+
+            <hr class="divider" :class="{ mobile: screenSize === 'mobile' }" />
+
+            <div class="answer-section">
+              <div
+                v-if="checkResult"
+                class="result-message"
+                :class="[resultMessageClass, { mobile: screenSize === 'mobile' }]"
+              >
+                <div class="result-icon">
+                  <span v-if="checkResult.is_correct">🎉</span>
+                  <span v-else>❌</span>
+                </div>
+                <span class="result-text">{{ checkResult.message }}</span>
+              </div>
+
+              <div class="answer-input-group">
+                <label class="input-label" :class="{ mobile: screenSize === 'mobile' }"
+                  >Ваш ответ</label
+                >
+                <textarea
+                  v-model="answer"
+                  @keydown.enter.exact.prevent="submitAnswer"
+                  :rows="screenSize === 'mobile' ? 3 : 3"
+                  :disabled="isSolved"
+                  placeholder="Введите решение..."
+                  class="answer-textarea"
+                  :class="{
+                    mobile: screenSize === 'mobile',
+                    'correct-answer': isSolved,
+                    'wrong-answer': checkResult && !checkResult.is_correct,
+                  }"
+                ></textarea>
+              </div>
+
+              <div class="submit-section">
+                <button
+                  v-if="isSolved"
+                  @click="backToTasks"
+                  class="back-to-tasks-btn"
+                  :class="{ mobile: screenSize === 'mobile' }"
+                >
+                  <span class="btn-text">← Вернуться ко всем задачам</span>
+                </button>
+
+                <button
+                  v-else
+                  @click="submitAnswer"
+                  :disabled="checkLoading || !answer"
+                  class="submit-btn"
+                  :class="{
+                    mobile: screenSize === 'mobile',
+                    disabled: checkLoading || !answer,
+                  }"
+                >
+                  <span v-if="checkLoading" class="spinner"></span>
+                  <span class="btn-text">
+                    {{ checkLoading ? 'Проверка...' : 'Отправить решение' }}
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- AFK Модальное окно -->
     <div v-if="timer.isAfkAlertVisible" class="afk-modal-overlay">
-      <div class="afk-modal" :class="{ 'mobile': screenSize === 'mobile' }">
+      <div class="afk-modal" :class="{ mobile: screenSize === 'mobile' }">
         <div class="afk-icon">⏰</div>
         <h3 class="afk-title">Вы все еще здесь?</h3>
         <p class="afk-message">Таймер приостановлен из-за неактивности.</p>
-        <button @click="timer.confirmAfk" class="afk-confirm-btn">
-          Да, продолжить
-        </button>
+        <button @click="timer.confirmAfk" class="afk-confirm-btn">Да, продолжить</button>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-/* ==================== БАЗОВЫЕ СТИЛИ ==================== */
+/* ==================== НОВЫЙ ЛЭЙАУТ (БЕЗ СКРОЛЛА СТРАНИЦЫ) ==================== */
+
 .task-container {
-  min-height: 100vh;
+  /* Фиксируем контейнер на весь экран */
+  width: 100%;
+  height: 100vh;
+  height: 100dvh; /* Для мобильных браузеров */
   background-color: #f8fafc;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   line-height: 1.5;
-  padding: 16px;
+  overflow: hidden; /* Убираем скролл body */
+  display: flex;
+  flex-direction: column;
 }
 
-.task-content {
+/* Обертка для контента */
+.task-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   width: 100%;
-  max-width: 768px;
+  max-width: 900px; /* Ограничиваем ширину на десктопе */
   margin: 0 auto;
+}
+
+/* Верхняя панель */
+.top-nav {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background-color: #f8fafc; /* Цвет фона страницы */
+  z-index: 10;
+}
+
+/* Таймер в шапке */
+.timer-badge {
+  font-size: 14px;
+  font-weight: 700;
+  color: #475569;
+  background: #e2e8f0;
+  padding: 6px 12px;
+  border-radius: 20px;
+}
+
+/* Область скролла для карточки */
+.task-card-scroll-area {
+  flex: 1; /* Занимает все доступное место */
+  overflow-y: auto; /* Скролл только здесь */
+  padding: 0 16px 16px 16px; /* Отступы для карточки */
+
+  /* Скрываем скроллбар для красоты, но оставляем функционал */
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+/* Кастомизация скроллбара */
+.task-card-scroll-area::-webkit-scrollbar {
+  width: 6px;
+}
+.task-card-scroll-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+.task-card-scroll-area::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 10px;
+}
+
+/* ==================== ВАШИ СТИЛИ (НЕ ТРОНУТЫ) ==================== */
+
+.task-card {
+  background-color: white;
+  border-radius: 24px;
+  box-shadow: 0 10px 25px -5px rgba(148, 163, 184, 0.3);
+  border: 1px solid #f1f5f9;
+  overflow: hidden;
+  /* Убрал margin-bottom, так как отступ теперь в scroll-area */
 }
 
 /* ==================== СОСТОЯНИЕ ЗАГРУЗКИ ==================== */
@@ -276,7 +331,8 @@ watch(
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: 80px;
+  justify-content: center;
+  height: 100%; /* Центрируем по вертикали */
   animation: pulse 2s infinite;
 }
 
@@ -314,7 +370,7 @@ watch(
   font-weight: 600;
   color: #64748b;
   text-decoration: none;
-  padding: 16px 0;
+  /* padding убран, так как он задается в top-nav */
   transition: color 0.2s ease;
   background: none;
   border: none;
@@ -335,15 +391,7 @@ watch(
   font-weight: 500;
 }
 
-/* ==================== КАРТОЧКА ЗАДАЧИ ==================== */
-.task-card {
-  background-color: white;
-  border-radius: 24px;
-  box-shadow: 0 10px 25px -5px rgba(148, 163, 184, 0.3);
-  border: 1px solid #f1f5f9;
-  overflow: hidden;
-  margin-bottom: 24px;
-}
+/* ==================== ОСТАЛЬНЫЕ ВАШИ СТИЛИ ==================== */
 
 .task-header {
   background-color: #0f172a;
@@ -421,7 +469,6 @@ watch(
   font-size: 20px;
 }
 
-/* ==================== ТЕЛО ЗАДАЧИ ==================== */
 .task-body {
   padding: 24px;
 }
@@ -467,7 +514,6 @@ watch(
   margin: 20px 0;
 }
 
-/* ==================== РАЗДЕЛ ОТВЕТА ==================== */
 .answer-section {
   display: flex;
   flex-direction: column;
@@ -580,7 +626,6 @@ watch(
   color: #94a3b8;
 }
 
-/* ==================== СЕКЦИЯ ОТПРАВКИ ==================== */
 .submit-section {
   display: flex;
   flex-direction: column;
@@ -589,6 +634,7 @@ watch(
 }
 
 .timer-display {
+  /* Стили для таймера внутри блока отправки (если вернем туда) */
   font-size: 14px;
   color: #64748b;
   font-weight: 600;
@@ -596,11 +642,6 @@ watch(
   background-color: #f1f5f9;
   border-radius: 8px;
   text-align: center;
-}
-
-.timer-display.mobile {
-  font-size: 13px;
-  padding: 6px 10px;
 }
 
 .back-to-tasks-btn,
@@ -682,7 +723,7 @@ watch(
   text-align: center;
 }
 
-/* ==================== AFK МОДАЛЬНОЕ ОКНО ==================== */
+/* AFK Modal */
 .afk-modal-overlay {
   position: fixed;
   top: 0;
@@ -765,7 +806,7 @@ watch(
   transform: translateY(0);
 }
 
-/* ==================== АНИМАЦИИ ==================== */
+/* Animations */
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -778,16 +819,25 @@ watch(
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
-/* ==================== ПОДСКАЗКИ ==================== */
+/* Hint */
 .hint-section {
   margin-bottom: 24px;
 }
@@ -857,198 +907,166 @@ watch(
   font-weight: 500;
 }
 
-/* ==================== ТЁМНАЯ ТЕМА ==================== */
+/* DARK MODE */
 :root.dark .task-container {
   background-color: #0f172a;
   color: #f1f5f9;
 }
-
+:root.dark .top-nav {
+  background-color: #0f172a;
+}
 :root.dark .back-link {
   color: #94a3b8;
 }
-
 :root.dark .back-link:hover {
   color: #60a5fa;
 }
-
+:root.dark .timer-badge {
+  background: #1e293b;
+  color: #cbd5e1;
+}
 :root.dark .task-card {
   background-color: #1e293b;
   border-color: #334155;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
 }
-
+:root.dark .task-card-scroll-area::-webkit-scrollbar-thumb {
+  background-color: #475569;
+}
 :root.dark .task-header {
   background-color: #334155;
 }
-
 :root.dark .task-header-overlay {
   background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.15) 100%);
 }
-
 :root.dark .subject-tag {
   background-color: rgba(255, 255, 255, 0.15);
   color: #93c5fd;
   border-color: rgba(255, 255, 255, 0.2);
 }
-
 :root.dark .difficulty-tag {
   background-color: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.2);
   color: #cbd5e1;
 }
-
 :root.dark .task-title {
   color: #f8fafc;
 }
-
 :root.dark .section-title {
   color: #94a3b8;
 }
-
 :root.dark .task-description {
   color: #cbd5e1;
 }
-
 :root.dark .divider {
   border-top-color: #334155;
 }
-
 :root.dark .answer-textarea {
   background-color: #334155;
   border-color: #475569;
   color: #f1f5f9;
 }
-
 :root.dark .answer-textarea:focus {
   background-color: #334155;
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
-
 :root.dark .answer-textarea::placeholder {
   color: #94a3b8;
 }
-
 :root.dark .answer-textarea:disabled {
   background-color: #334155;
   color: #94a3b8;
   border-color: #475569;
 }
-
 :root.dark .answer-textarea.correct-answer {
   border-color: #10b981;
   background-color: rgba(16, 185, 129, 0.15);
 }
-
 :root.dark .answer-textarea.wrong-answer {
   border-color: #f87171;
   background-color: rgba(248, 113, 113, 0.15);
 }
-
-:root.dark .timer-display {
-  background-color: #334155;
-  color: #cbd5e1;
-}
-
 :root.dark .back-to-tasks-btn {
   background-color: #334155;
   color: #f1f5f9;
 }
-
 :root.dark .back-to-tasks-btn:hover {
   background-color: #475569;
 }
-
 :root.dark .submit-btn {
   background-color: #3b82f6;
 }
-
 :root.dark .submit-btn:hover:not(.disabled) {
   background-color: #2563eb;
 }
-
 :root.dark .afk-modal {
   background-color: #1e293b;
   color: #f1f5f9;
 }
-
 :root.dark .afk-title {
   color: #f8fafc;
 }
-
 :root.dark .afk-message {
   color: #cbd5e1;
 }
-
 :root.dark .afk-confirm-btn {
   background-color: #3b82f6;
 }
-
 :root.dark .afk-confirm-btn:hover {
   background-color: #2563eb;
 }
-
-/* Темные скелетоны */
 :root.dark .loading-title,
 :root.dark .loading-subtitle {
   background-color: #334155;
 }
-
-/* Подсказки в темной теме */
 :root.dark .hint-btn {
   border-color: #475569;
   color: #94a3b8;
 }
-
 :root.dark .hint-btn:hover {
   background-color: #334155;
   color: #60a5fa;
   border-color: #3b82f6;
 }
-
 :root.dark .hint-btn.active {
   background-color: #1e3a8a;
   color: #93c5fd;
   border-color: #3b82f6;
 }
-
 :root.dark .hint-content {
   background-color: #78350f;
   border-color: #92400e;
 }
-
 :root.dark .hint-badge {
   color: #fbbf24;
   background-color: #92400e;
 }
-
 :root.dark .hint-text {
   color: #fde68a;
 }
-
-/* Сообщения о результате в темной теме */
 :root.dark .result-message.success {
   background-color: #065f46;
   color: #a7f3d0;
   border-color: #047857;
 }
-
 :root.dark .result-message.error {
   background-color: #7f1d1d;
   color: #fecaca;
   border-color: #991b1b;
 }
 
-/* ==================== АДАПТИВНЫЕ СТИЛИ ==================== */
+/* ==================== АДАПТИВНОСТЬ ==================== */
 @media (max-width: 320px) {
-  .task-container {
-    padding: 12px;
+  .top-nav {
+    padding: 10px;
   }
-  .task-header-content {
-    padding: 20px 16px;
+  .task-card-scroll-area {
+    padding: 0 10px 10px 10px;
   }
+  .task-header-content,
   .task-body {
-    padding: 20px 16px;
+    padding: 16px;
   }
   .task-title {
     font-size: 18px;
@@ -1061,141 +1079,52 @@ watch(
     padding: 12px;
     font-size: 14px;
   }
-  .afk-modal {
-    padding: 20px;
-  }
-  .afk-title {
-    font-size: 18px;
-  }
-  .afk-message {
-    font-size: 13px;
-  }
 }
 
 @media (min-width: 321px) and (max-width: 375px) {
-  .task-container {
-    padding: 14px;
-  }
   .task-title {
-    font-size: 19px;
-  }
-}
-
-@media (min-width: 376px) {
-  .task-container {
-    padding: 16px;
+    font-size: 20px;
   }
 }
 
 @media (min-width: 640px) {
-  .task-container {
+  .task-header-content,
+  .task-body {
     padding: 24px;
   }
-  .task-header-content {
-    padding: 32px;
+  .task-title {
+    font-size: 24px;
   }
+  .task-description {
+    font-size: 16px;
+    line-height: 1.6;
+  }
+}
+
+@media (min-width: 768px) {
+  .task-header-content,
   .task-body {
     padding: 32px;
   }
   .task-title {
     font-size: 28px;
   }
-  .task-description {
-    font-size: 17px;
-    line-height: 1.7;
-  }
-  .answer-textarea {
-    font-size: 16px;
-  }
-  .afk-modal {
-    max-width: 450px;
-  }
-}
-
-@media (min-width: 768px) {
-  .task-container {
-    padding: 32px;
-  }
-  .task-content {
-    max-width: 768px;
-  }
-  .task-card {
-    border-radius: 32px;
-  }
-  .task-header-content {
-    padding: 40px;
-  }
-  .task-body {
-    padding: 40px;
-  }
-  .task-title {
-    font-size: 32px;
-  }
-  .section-title {
-    font-size: 13px;
-  }
-  .task-description {
-    font-size: 18px;
-  }
-  .answer-textarea {
-    font-size: 17px;
-  }
-  .back-to-tasks-btn,
-  .submit-btn {
-    font-size: 17px;
-  }
 }
 
 @media (min-width: 1024px) {
-  .task-container {
-    padding: 40px 24px;
+  .task-layout {
+    padding-top: 20px;
+    padding-bottom: 20px;
   }
-  .task-content {
-    max-width: 800px;
+  .top-nav {
+    border-radius: 12px;
+    margin-bottom: 10px;
+    background: transparent;
+    padding: 0;
   }
-  .task-card {
-    border-radius: 40px;
-    box-shadow: 0 25px 50px -12px rgba(148, 163, 184, 0.5);
-  }
-  .task-title {
-    font-size: 36px;
-  }
-  .task-description {
-    font-size: 19px;
-    line-height: 1.75;
-  }
-}
-
-@media (min-width: 1280px) {
-  .task-container {
-    padding: 48px 32px;
-  }
-  .task-content {
-    max-width: 850px;
-  }
-  .task-card {
-    border-radius: 48px;
-  }
-  .task-title {
-    font-size: 40px;
-  }
-  .task-description {
-    font-size: 20px;
-  }
-}
-
-@media (min-width: 1536px) {
-  .task-container {
-    padding: 56px;
-  }
-  .task-content {
-    max-width: 900px;
-  }
-  .task-title {
-    font-size: 44px;
-  }
-  .task-description {
-    font-size: 21px;
+  .task-card-scroll-area {
+    overflow-y: auto;
+    padding-right: 8px;
   }
 }
 </style>

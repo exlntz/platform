@@ -62,10 +62,10 @@ const radarChartData = computed(() => {
 
   subjectsList.forEach(subj => {
     // 3. Формируем подписи (Labels)
-    labels.push(subj.label) 
+    labels.push(subj.label)
 
     // 4. Ищем данные по Ключу (Key)
-    const stat = statsMap[subj.key] 
+    const stat = statsMap[subj.key]
 
     if (stat) {
       rawSolved.push(stat.correct_count)
@@ -82,7 +82,7 @@ const radarChartData = computed(() => {
     labels: labels, // Динамические лейблы
     datasets: [
       {
-        label: 'Решено задач',
+        label: 'Решено задач по предмету',
         data: rawSolved.map(val => (val / maxSolved) * 100),
         originalData: rawSolved,
         backgroundColor: 'rgba(34, 197, 94, 0.2)',
@@ -131,21 +131,21 @@ const radarChartOptions = {
 // --- BAR CHART (Время) ---
 const barChartData = computed(() => {
   if (!subjectStats.value || subjectStats.value.length === 0) return null
-  
+
   const currentStats = subjectStats.value
   const statsMap = {}
   currentStats.forEach(s => { statsMap[s.subject] = s })
-  
+
   const subjectsList = constants.subjects
   const labels = []
   const timeData = []
-  
+
   subjectsList.forEach(subj => {
     labels.push(subj.label)
     const stat = statsMap[subj.key]
     timeData.push(stat ? Math.round(stat.average_time) : 0)
   })
-  
+
   if (timeData.every(t => t === 0)) return null
 
   // Генерируем массив цветов (циклично), так как количество предметов теперь динамическое
@@ -159,7 +159,7 @@ const barChartData = computed(() => {
     ['rgba(153, 102, 255, 0.6)', 'rgba(153, 102, 255, 1)'],
     ['rgba(255, 159, 64, 0.6)', 'rgba(255, 159, 64, 1)']
   ]
-  
+
   timeData.forEach((_, index) => {
     const colorPair = baseColors[index % baseColors.length]
     bgColors.push(colorPair[0])
@@ -173,7 +173,7 @@ const barChartData = computed(() => {
       data: timeData,
       backgroundColor: bgColors,
       borderColor: borderColors,
-      borderWidth: 1, 
+      borderWidth: 1,
       borderRadius: 6
     }]
   }
@@ -240,9 +240,9 @@ onMounted(() => {
 
       <div v-else class="charts-grid">
         <template v-if="profile && profile.correct_solutions >= 1">
-          
+
           <div class="chart-card">
-            <h3 class="chart-title">Карта навыков</h3>
+            <h3 class="chart-title">Статистика решения задач</h3>
             <div class="chart-wrapper">
               <Radar v-if="radarChartData" :data="radarChartData" :options="radarChartOptions" />
               <div v-else class="no-data-label">Загрузка предметов...</div>

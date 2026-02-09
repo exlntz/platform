@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from datetime import datetime
 
-from app.core.constants import Achievement
+from app.core.constants import Achievement, RankName
 from app.core.models import DifficultyLevel
 from app.schemas.user import UserProfileRead, UserStatsResponse
 
@@ -22,8 +22,7 @@ class UserAdminUpdate(BaseModel):
     username: str | None = Field(None,min_length=3,max_length=40)
     email: EmailStr | None = None
     rating: float | None = None
-    is_admin: bool | None = None
-    is_banned: bool | None = None
+    rank: RankName | None = None
     avatar_url: str | None = None
     achievements: list[Achievement] | None
     xp: int | None = None
@@ -83,3 +82,9 @@ class AdminPvpMatchesHistoryPlayer(BaseModel):
     p2_elo_change: float
     result: str
     created_at: datetime
+
+class BanUserRequest(BaseModel):
+    is_banned: bool
+
+class PromoteUserRequest(BaseModel):
+    is_admin: bool

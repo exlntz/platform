@@ -1,4 +1,6 @@
 import logging
+from random import shuffle
+
 import httpx
 from fastapi import APIRouter,HTTPException,status
 from sqlalchemy import select, exists, func, desc
@@ -162,6 +164,7 @@ async def generate_task_for_user(
 ):
     generated_data: GeneratedTask | None = None  # Сюда положим результат
     success = False
+    shuffle(keys_list)
 
     for key in keys_list:
         if success: break
@@ -214,7 +217,7 @@ async def generate_task_for_user(
     return generated_data
 
 
-@router.post('/check', summary='Проверяет ответ на задачу из песочницы')
+@router.post('/generated_task_check', summary='Проверяет ответ на сгенерированную задачу')
 async def check_sandbox_task(
         user_data: GeneratedTaskCheckRequest,
         session: SessionDep,
