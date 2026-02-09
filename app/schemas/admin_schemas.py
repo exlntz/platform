@@ -23,8 +23,6 @@ class UserAdminUpdate(BaseModel):
     email: EmailStr | None = None
     rating: float | None = None
     rank: RankName | None = None
-    is_admin: bool | None = None
-    is_banned: bool | None = None
     avatar_url: str | None = None
     achievements: list[Achievement] | None
     xp: int | None = None
@@ -84,3 +82,9 @@ class AdminPvpMatchesHistoryPlayer(BaseModel):
     p2_elo_change: float
     result: str
     created_at: datetime
+
+class BanUserRequest(BaseModel):
+    is_banned: bool
+
+class PromoteUserRequest(BaseModel):
+    is_admin: bool

@@ -2,7 +2,8 @@ from pathlib import Path
 from fastapi import APIRouter, UploadFile, File, HTTPException,status
 from app.core.database import SessionDep
 from app.core.dependencies import UserDep
-from app.schemas.user import UserStatsResponse,UserProfileRead
+from app.core.models import UserModel
+from app.schemas.user import UserStatsResponse, UserProfileRead, NewUserName
 import uuid
 from app.schemas.user import EloHistoryPoint
 from app.utils.achievments import check_and_award_achievement
@@ -11,7 +12,8 @@ from PIL import Image, ImageOps
 from pillow_heif import register_heif_opener
 from app.services.user_stats import calculate_user_stats, calculate_elo_history
 from app.services.user_stats import calculate_profile_info
-
+from sqlalchemy import select, func
+from sqlalchemy.exc import IntegrityError
 IS_PROD = os.getenv('VITE_IS_PROD') == 'true'
 
 router = APIRouter(prefix='/profile',tags=['Профиль'])
@@ -112,3 +114,31 @@ async def get_elo_history(
 ) -> list[EloHistoryPoint]:
 
     return await calculate_elo_history(session, current_user.id,limit)
+
+@router.patch('/change_name',summary='Изменить имя')
+async def change_name(
+        session: SessionDep,
+        user: UserDep,
+        data: NewUserName
+):
+    clean_username = data.new_username.strip().lower()
+    if clean_username == user.username:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Новое имя должно отличаться от текущего')
+
+    query = select(UserModel).where(func.lower(UserModel.username) == clean_username)
+    result = await session.execute(query)
+    exists_name = result.scalar_one_or_none()
+
+    if exists_name:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Данное имя уже занято')
+    old_username = user.username
+    user.username = clean_username
+
+    try:
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail="К сожалению, этот никнейм уже заняли в эту секунду")
+
+    return {"message": f"Имя пользователя успешно изменено с {old_username} на {data.new_username}",
+            "new_username": data.new_username}

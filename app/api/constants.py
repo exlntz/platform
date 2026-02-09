@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.core.constants import Subject, Tag, DifficultyLevel, RankName, SUBJECT_TO_TAGS
+from app.core.constants import Subject, Tag, DifficultyLevel, RankName, SUBJECT_TO_TAGS, Achievement
 
 router = APIRouter(prefix='/constants', tags=['Константы'])
 
@@ -9,7 +9,8 @@ async def get_constants():
         "subjects": Subject.to_list(),
         "tags": Tag.to_list(),
         "difficulty": DifficultyLevel.to_list(),
-        "ranks": RankName.to_list()
+        "ranks": RankName.to_list(),
+        "achievements": Achievement.to_list()
     }
 
 
