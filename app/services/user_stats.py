@@ -36,6 +36,7 @@ async def calculate_user_stats(
         .outerjoin(first_success_subquery, AttemptModel.task_id == first_success_subquery.c.task_id)
         .where(
             AttemptModel.user_id == user_id,
+            TaskModel.is_active == True,
             or_(
                 first_success_subquery.c.first_correct_at == None,
                 AttemptModel.created_at <= first_success_subquery.c.first_correct_at
@@ -146,10 +147,10 @@ async def calculate_profile_info(
         avatar_url=current_user.avatar_url,
         all_achievements=formatted_achievements,
         rank=current_user.user_rank,
+        is_admin=current_user.is_admin,
         total_attempts=total,
         correct_solutions=unique_solved,
         success_rate=success_rate,
-
         xp=current_user.xp,
         level=level_data['level'],
         xp_current=level_data['xp_current'],

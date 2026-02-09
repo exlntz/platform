@@ -1,5 +1,5 @@
 import axios from 'axios'
-import router from '@/router'
+// УБРАЛИ: import router from '@/router' — это вызывало ошибку
 import { useNotificationStore } from '@/pinia/NotificationStore'
 
 const api = axios.create({
@@ -33,34 +33,28 @@ api.interceptors.request.use(
   },
   (error) => {
     return Promise.reject(error)
-  }
+  },
 )
 
 // Флаг защиты от спама редиректов
 let isRedirecting = false
 
-// --- 2. ПЕРЕХВАТЧИК ОТВЕТОВ (Обработка ошибок + Refresh + Ачивки) ---
+// --- 2. ПЕРЕХВАТЧИК ОТВЕТОВ ---
 api.interceptors.response.use(
   (response) => {
-    // ✅ СЮДА ДОБАВЛЯЕМ ЛОГИКУ АЧИВОК
-    // Этот код выполняется, если запрос прошел успешно (status 2xx)
     const data = response.data
-    
+
+    // Логика ачивок
     if (data && Array.isArray(data.achievements) && data.achievements.length > 0) {
-      // Инициализируем стор прямо здесь. 
-      // Это безопасно, т.к. в момент ответа Pinia уже точно работает.
       const notify = useNotificationStore()
-      
-      data.achievements.forEach(achievementText => {
-        // Вызываем наш красивый золотой тост
-        notify.show(achievementText, 'achievement') 
+      data.achievements.forEach((achievementText) => {
+        notify.show(achievementText, 'achievement')
       })
     }
-    
+
     return response
   },
   async (error) => {
-    // Логика обработки ошибок (оставляем твою без изменений)
     if (axios.isCancel(error)) {
       return Promise.reject(error)
     }
@@ -103,15 +97,16 @@ api.interceptors.response.use(
 
         try {
           const refreshToken = localStorage.getItem('refresh-token')
-          const response = await axios.post(`/auth/refresh`, {
-             refresh_token: refreshToken
+          // ВАЖНО: Используем axios (чистый), чтобы не зациклить интерцепторы
+          const response = await axios.post(`${api.defaults.baseURL}/auth/refresh`, {
+            refresh_token: refreshToken,
           })
 
           if (response.status === 200 || response.status === 201) {
             const { access_token, refresh_token: newRefreshToken } = response.data
             localStorage.setItem('user-token', access_token)
             if (newRefreshToken) {
-                localStorage.setItem('refresh-token', newRefreshToken)
+              localStorage.setItem('refresh-token', newRefreshToken)
             }
             processQueue(null, access_token)
             originalRequest.headers['Authorization'] = 'Bearer ' + access_token
@@ -129,9 +124,11 @@ api.interceptors.response.use(
         notify.show('Сессия истекла. Войдите снова.', 'error')
         localStorage.removeItem('user-token')
         localStorage.removeItem('refresh-token')
-        router.push('/auth').then(() => {
-          setTimeout(() => { isRedirecting = false }, 1000)
-        })
+
+        // ИЗМЕНЕНИЕ: Используем window.location вместо router.push для разрыва зависимости
+        setTimeout(() => {
+          window.location.href = '/auth'
+        }, 500)
       }
     } else if (status === 403) notify.show('Доступ запрещен', 'warning')
     else if (status === 422) notify.show(`Ошибка данных: ${message}`, 'warning')
@@ -140,7 +137,7 @@ api.interceptors.response.use(
     else if (!status) notify.show('Нет соединения с сервером', 'error')
 
     return Promise.reject(error)
-  }
+  },
 )
 
 export default api

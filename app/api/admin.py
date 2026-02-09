@@ -52,7 +52,7 @@ async def get_all_users(
     return users
 
 
-@router.patch('/users/{user_id}', summary='Изменить информацию о пользователе (для админов)')
+@router.patch('/users/{user_id}/change', summary='Изменить информацию о пользователе (для админов)')
 async def update_user(
         user_id: int,
         update_data: UserAdminUpdate,
@@ -176,7 +176,7 @@ async def set_user_admin_status(
     return {"message": msg, "user_id": user.id, "is_admin": user.is_admin}
 
 
-@router.delete('/users/{user_id}', summary='Удалить пользователя (для админов)')
+@router.delete('/users/{user_id}/delete', summary='Удалить пользователя (для админов)')
 async def delete_user(
         user_id: int,
         session: SessionDep,
@@ -232,12 +232,13 @@ async def get_admin_stats(
     good_time = datetime.now(timezone.utc) - timedelta(hours=24)
 
     total_users = await session.scalar(select(func.count(UserModel.id))) or 0
-    total_tasks = await session.scalar(select(func.count(TaskModel.id))) or 0
+    total_tasks = await session.scalar(select(func.count(TaskModel.id)).where(TaskModel.is_active == True)) or 0
     new_users = await session.scalar(select(func.count(UserModel.id)).where(UserModel.created_at >= good_time)) or 0
     total_pvp_matches = await session.scalar(select(func.count(PvPMatchModel.id))) or 0
     popular_subject_query = (
         select(TaskModel.subject)
         .join(AttemptModel, AttemptModel.task_id == TaskModel.id)
+        .where(TaskModel.is_active == True)
         .group_by(TaskModel.subject)
         .order_by(desc(func.count(TaskModel.id)))
         .limit(1)
@@ -289,7 +290,7 @@ async def export_tasks(
         export_format: str = Query("json", enum=["json", "csv"], alias="format")
 ):
 
-    tasks = (await session.execute(select(TaskModel))).scalars().all()
+    tasks = (await session.execute(select(TaskModel).where(TaskModel.is_active == True))).scalars().all()
 
     data = [TaskAdminRead.model_validate(t).model_dump() for t in tasks]
 
@@ -349,7 +350,7 @@ async def import_tasks(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Неверная структура данных: ожидался список задач')
 
     incoming_titles = [item.get("title") for item in data if item.get("title")]
-    query = select(TaskModel).where(TaskModel.title.in_(incoming_titles))
+    query = select(TaskModel).where(TaskModel.title.in_(incoming_titles),TaskModel.is_active == True)
     result = await session.execute(query)
     existing_tasks = {t.title: t for t in result.scalars().all()}
 
@@ -393,7 +394,7 @@ async def import_tasks(
     return {"message": "Импорт завершен", "created": created_count, "updated": updated_count}
 
 
-@router.get('/tasks/{task_id}', summary='Получить полную задачу с ответом (для админов)')
+@router.get('/tasks/{task_id}/get', summary='Получить полную задачу с ответом (для админов)')
 async def get_admin_task_details(
         task_id: int,
         session: SessionDep,
@@ -401,22 +402,24 @@ async def get_admin_task_details(
 ) -> TaskAdminRead:
     task = await session.get(TaskModel, task_id)
 
-    if not task:
-        raise HTTPException(status_code=404, detail='Задача не найдена')
+    if not task or task.is_active == False:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Задача не найдена')
 
     return TaskAdminRead.model_validate(task)
 
 
-@router.delete('/tasks/{task_id}', summary='Удалить задачу (для админов)')
+@router.delete("/tasks/{task_id}/delete",summary='Удалить задачу (для админов)')
 async def delete_task(
         task_id: int,
         session: SessionDep,
         admin: AdminDep
 ):
-    task = await session.get(TaskModel, task_id)
 
-    if not task:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Задача не найдена')
+    task = await session.get(TaskModel, task_id)
+    if not task or task.is_active == False:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Задача не найдена")
+
+    task.is_active = False
 
     await log_admin_action(
         session=session,
@@ -426,13 +429,13 @@ async def delete_task(
         details=f"Deleted task: '{task.title}' (Subject: {task.subject})"
     )
 
-    await session.delete(task)
+    session.add(task)
     await session.commit()
 
     return {'message': f'Задача #{task_id} успешно удалена'}
 
 
-@router.patch('/tasks/{task_id}', summary='Редактировать задачу (для админов)')
+@router.patch('/tasks/{task_id}/change', summary='Редактировать задачу (для админов)')
 async def update_task(
         task_id: int,
         update_data: TaskAdminUpdate,
@@ -441,7 +444,7 @@ async def update_task(
 ) -> TaskRead:
     task = await session.get(TaskModel, task_id)
 
-    if not task:
+    if not task or task.is_active == False:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Задача не найдена")
 
     data = update_data.model_dump(exclude_unset=True)
@@ -485,6 +488,7 @@ async def get_most_popular_subject(
     query = (
         select(TaskModel.subject)
         .join(AttemptModel, AttemptModel.task_id == TaskModel.id)
+        .where(TaskModel.is_active == True)
         .group_by(TaskModel.subject)
         .order_by(desc(func.count(distinct(AttemptModel.user_id))))
         .limit(1)

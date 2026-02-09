@@ -44,10 +44,10 @@ class UserProfileRead(BaseModel):
     avatar_url: str | None = None
     all_achievements: list[str]
     rank: RankName
+    is_admin: bool
     total_attempts: int
     correct_solutions: int
     success_rate: float
-
     xp: int
     level: int
     xp_current: int

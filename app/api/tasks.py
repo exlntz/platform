@@ -29,7 +29,7 @@ async def get_tasks(
 
 ) -> list[TaskRead]:
 
-    query= select(TaskModel)
+    query= select(TaskModel).where(TaskModel.is_active == True)
 
     if subject:
         query=query.where(TaskModel.subject == subject)
@@ -92,7 +92,7 @@ async def check_task_answer(
     new_badges = []
     task = await session.get(TaskModel, task_id)
 
-    if task is None:
+    if not task or task.is_active == False:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail='Задача не найдена')
 
     correct_format_answer = format_answer(str(task.correct_answer))
@@ -265,7 +265,7 @@ async def get_task_by_id(
         task_id: int,
         session: SessionDep
 ) -> TaskRead:
-    query = select(TaskModel).where(TaskModel.id == task_id)
+    query = select(TaskModel).where(TaskModel.id == task_id, TaskModel.is_active == True)
     result = await session.execute(query)
     task = result.scalar_one_or_none()
 

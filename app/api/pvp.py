@@ -231,7 +231,7 @@ async def start_match(player1: QueueEntry, player2: QueueEntry):
         await ws2.send_text(f"match started")
         # выбираем рандомные задачи
         async with new_session() as session:
-            query = select(TaskModel).order_by(func.random()).limit(numtasks)
+            query = select(TaskModel).where(TaskModel.is_active == True).order_by(func.random()).limit(numtasks)
             res = await session.execute(query)
             tasks = res.all()
 

@@ -34,6 +34,7 @@ class TaskModel(Model):
     difficulty: Mapped[DifficultyLevel] = mapped_column(SQLEnum(DifficultyLevel, native_enum=False), index=True)
     tags: Mapped[list[Tag]] = mapped_column(JSONB, default_factory=list)
     hint: Mapped[str | None] = mapped_column(Text, default=None)
+    is_active: Mapped[bool] = mapped_column(default=True,server_default="true")
 
 Index(
     'ix_tasks_fts',
