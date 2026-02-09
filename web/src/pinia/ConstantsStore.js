@@ -1,65 +1,64 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import api from '@/api/axios'
 
 export const useConstantsStore = defineStore('constants', () => {
-  // Инициализируем как пустые массивы, чтобы не было ошибок "undefined"
+  // Состояние
   const subjects = ref([])
   const tags = ref([])
-  const difficulty = ref([])
+  const difficulties = ref([])
   const achievements = ref([])
-
+  
   const loading = ref(false)
   const isLoaded = ref(false)
+  const error = ref(null)
 
+  // Инициализация данных одним запросом (как требует бэкенд)
   const fetchConstants = async () => {
     if (loading.value || isLoaded.value) return
 
     loading.value = true
+    error.value = null
+    
     try {
-      // Запрашиваем все константы параллельно
-      const [subjRes, tagsRes, diffRes, achRes] = await Promise.all([
-        api.get('/constants/subjects'),
-        api.get('/constants/tags'),
-        api.get('/constants/difficulty'),
-        api.get('/constants/achievements'),
-      ])
-
-      subjects.value = subjRes.data || []
-      tags.value = tagsRes.data || []
-      difficulty.value = diffRes.data || []
-      achievements.value = achRes.data || []
+      // Бэкенд возвращает всё сразу в GET /constants/
+      const { data } = await api.get('/constants/')
+      
+      subjects.value = data.subjects || []
+      tags.value = data.tags || []
+      difficulties.value = data.difficulties || []
+      achievements.value = data.constant_achievements || []
 
       isLoaded.value = true
     } catch (err) {
-      console.error('Ошибка загрузки констант:', err)
+      error.value = err.message || 'Ошибка при загрузке констант'
+      console.error('Constants fetch error:', err)
     } finally {
       loading.value = false
     }
   }
 
-  // Безопасные геттеры (проверяют наличие массива)
-  const getSubjectLabel = (key) => {
-    if (!subjects.value || !key) return key
-    const found = subjects.value.find((s) => s.key === key)
+  // Геттеры для быстрого поиска меток (Labels)
+  // Используем замыкание, чтобы возвращать функцию поиска
+  const getLabelByKey = (list) => (key) => {
+    if (!list.value.length || !key) return key
+    const found = list.value.find(item => item.key === key)
     return found ? found.label : key
   }
 
-  const getDifficultyLabel = (key) => {
-    if (!difficulty.value || !key) return key
-    const found = difficulty.value.find((d) => d.key === key)
-    return found ? found.label : key
-  }
+  const getSubjectLabel = computed(() => getLabelByKey(subjects))
+  const getDifficultyLabel = computed(() => getLabelByKey(difficulties))
 
   return {
     subjects,
     tags,
-    difficulty,
+    difficulties,
     achievements,
     loading,
     isLoaded,
+    error,
     fetchConstants,
     getSubjectLabel,
-    getDifficultyLabel,
+    getDifficultyLabel
   }
 })
