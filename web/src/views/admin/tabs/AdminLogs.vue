@@ -8,6 +8,20 @@ const notify = useNotificationStore()
 const loading = ref(false)
 const logs = ref([])
 
+// --- МОДАЛЬНОЕ ОКНО ---
+const showLogModal = ref(false)
+const selectedLog = ref(null)
+
+const openLogDetails = (log) => {
+  selectedLog.value = log
+  showLogModal.value = true
+}
+
+const closeLogModal = () => {
+  showLogModal.value = false
+  selectedLog.value = null
+}
+
 const getBadgeClass = (action) => {
   const act = action.toLowerCase()
   if (act.includes('delete') || act.includes('ban')) return 'hard'
@@ -88,8 +102,23 @@ onMounted(() => {
                 }}</span>
               </td>
               <td class="user-id">{{ log.target_id ? '#' + log.target_id : '-' }}</td>
-              <td class="task-cell" style="max-width: 300px">
-                <p class="task-description" :title="log.details">{{ log.details }}</p>
+              <td class="task-cell">
+                <div class="log-details-wrapper">
+                  <p class="task-description text-truncate">
+                    {{
+                      log.details
+                        ? log.details.substring(0, 50) + (log.details.length > 50 ? '...' : '')
+                        : '-'
+                    }}
+                  </p>
+                  <button
+                    v-if="log.details && log.details.length > 10"
+                    @click="openLogDetails(log)"
+                    class="action-btn secondary small-btn"
+                  >
+                    👁 Подробнее
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -98,6 +127,55 @@ onMounted(() => {
       <div v-if="!loading && logs.length === 0" class="empty-table">
         <div class="empty-icon">📝</div>
         <p class="empty-title">Логов пока нет</p>
+      </div>
+    </div>
+
+    <div v-if="showLogModal && selectedLog" class="modal-overlay" @click.self="closeLogModal">
+      <div class="log-modal">
+        <div class="modal-header">
+          <h2>Детали события #{{ selectedLog.id }}</h2>
+          <button @click="closeLogModal" class="close-modal">✕</button>
+        </div>
+
+        <div class="log-info-grid">
+          <div class="info-group">
+            <label>Дата и время</label>
+            <p>{{ formatDate(selectedLog.created_at) }}</p>
+          </div>
+
+          <div class="info-group">
+            <label>Администратор</label>
+            <div class="user-cell-mini">
+              <div class="user-avatar small">
+                {{ selectedLog.admin_username?.charAt(0).toUpperCase() }}
+              </div>
+              <span>{{ selectedLog.admin_username }} (ID: {{ selectedLog.admin_id }})</span>
+            </div>
+          </div>
+
+          <div class="info-group">
+            <label>Действие</label>
+            <span class="difficulty-badge" :class="getBadgeClass(selectedLog.action)">
+              {{ selectedLog.action }}
+            </span>
+          </div>
+
+          <div class="info-group">
+            <label>Целевой объект (ID)</label>
+            <p class="user-id big">{{ selectedLog.target_id ? '#' + selectedLog.target_id : 'Нет' }}</p>
+          </div>
+        </div>
+
+        <div class="info-group full-width">
+          <label>Полные детали</label>
+          <div class="code-block">
+            {{ selectedLog.details || 'Нет дополнительных деталей' }}
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button @click="closeLogModal" class="cancel-btn full-width">Закрыть</button>
+        </div>
       </div>
     </div>
   </div>
@@ -295,6 +373,174 @@ onMounted(() => {
   font-size: 13px;
 }
 
+/* ================== НОВЫЕ СТИЛИ ДЛЯ КНОПКИ И МОДАЛКИ ================== */
+
+.log-details-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.text-truncate {
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.action-btn {
+  padding: 6px 12px;
+  background-color: #f1f5f9;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 900;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  white-space: nowrap;
+}
+.action-btn:hover {
+  background-color: #e2e8f0;
+}
+.small-btn {
+  padding: 4px 8px;
+  font-size: 10px;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background-color: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(8px);
+}
+.log-modal {
+  background-color: white;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 550px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25);
+  padding: 24px;
+  border: 1px solid #f1f5f9;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: fadeInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f8fafc;
+}
+.modal-header h2 {
+  font-size: 18px;
+  font-weight: 900;
+  color: #0f172a;
+  line-height: 1.2;
+}
+.close-modal {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background-color: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.close-modal:hover {
+  background-color: #e2e8f0;
+  color: #475569;
+}
+
+.log-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.info-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.info-group label {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: #94a3b8;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+.info-group p {
+  font-size: 14px;
+  color: #334155;
+  font-weight: 500;
+}
+.user-cell-mini {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+.user-avatar.small {
+  width: 24px;
+  height: 24px;
+  font-size: 10px;
+  border-radius: 6px;
+}
+.full-width {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+.code-block {
+  background-color: #f8fafc;
+  padding: 12px;
+  border-radius: 8px;
+  font-family: monospace;
+  font-size: 12px;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 300px;
+  overflow-y: auto;
+  line-height: 1.5;
+}
+.form-actions {
+  padding-top: 16px;
+}
+.cancel-btn {
+  padding: 12px;
+  background-color: #f1f5f9;
+  color: #64748b;
+  font-weight: 900;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  font-size: 13px;
+}
+.cancel-btn:hover {
+  background-color: #e2e8f0;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* Dark Mode */
 :root.dark .table-wrapper {
   background-color: #1e293b;
@@ -330,6 +576,44 @@ onMounted(() => {
   color: #cbd5e1;
 }
 :root.dark .refresh-btn:hover {
+  background-color: #475569;
+}
+
+/* Dark Mode - Modal specific */
+:root.dark .log-modal {
+  background-color: #1e293b;
+  border-color: #334155;
+}
+:root.dark .modal-header {
+  border-bottom-color: #334155;
+}
+:root.dark .modal-header h2 {
+  color: #f8fafc;
+}
+:root.dark .close-modal {
+  background-color: #334155;
+  color: #94a3b8;
+}
+:root.dark .close-modal:hover {
+  background-color: #475569;
+  color: #cbd5e1;
+}
+:root.dark .info-group p,
+:root.dark .user-cell-mini {
+  color: #f1f5f9;
+}
+:root.dark .code-block {
+  background-color: #0f172a;
+  border-color: #334155;
+  color: #cbd5e1;
+}
+:root.dark .action-btn,
+:root.dark .cancel-btn {
+  background-color: #334155;
+  color: #cbd5e1;
+}
+:root.dark .action-btn:hover,
+:root.dark .cancel-btn:hover {
   background-color: #475569;
 }
 

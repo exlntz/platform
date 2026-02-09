@@ -46,7 +46,7 @@ export default {
       }
 
       if (this.regPassword !== this.regPasswordRepeat) {
-        notify.show('Пароли не совпадают');
+        notify.show('Пароли не совпадают', 'error');
         return;
       }
 
