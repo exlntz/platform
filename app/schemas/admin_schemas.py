@@ -40,9 +40,9 @@ class TaskAdminUpdate(BaseModel):
 class AdminDashboardStats(BaseModel):
     total_users: int
     total_tasks: int
-    average_rating: float
     new_users_24h: int
     most_popular_subject: str
+    total_pvp_matches: int
 
 
 class EloPoint(BaseModel):

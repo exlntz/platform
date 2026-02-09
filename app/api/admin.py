@@ -233,11 +233,8 @@ async def get_admin_stats(
 
     total_users = await session.scalar(select(func.count(UserModel.id))) or 0
     total_tasks = await session.scalar(select(func.count(TaskModel.id))) or 0
-
-    avg_rating = round(await session.scalar(select(func.avg(UserModel.rating))) or 0,1)
-
     new_users = await session.scalar(select(func.count(UserModel.id)).where(UserModel.created_at >= good_time)) or 0
-
+    total_pvp_matches = await session.scalar(select(func.count(PvPMatchModel.id))) or 0
     popular_subject_query = (
         select(TaskModel.subject)
         .join(AttemptModel, AttemptModel.task_id == TaskModel.id)
@@ -253,9 +250,9 @@ async def get_admin_stats(
     return AdminDashboardStats(
         total_users=total_users,
         total_tasks=total_tasks,
-        average_rating=avg_rating,
         new_users_24h=new_users,
-        most_popular_subject=popular_subject
+        most_popular_subject=popular_subject,
+        total_pvp_matches=total_pvp_matches
     )
 
 
