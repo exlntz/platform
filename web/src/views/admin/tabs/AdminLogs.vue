@@ -2,16 +2,15 @@
 import { ref, onMounted } from 'vue'
 import api from '@/api/axios.js'
 import { useNotificationStore } from '@/pinia/NotificationStore.js'
-import { useDateFormatter } from '@/composables/useDateFormatter' // <--- Импортируем
+import { useDateFormatter } from '@/composables/useDateFormatter' 
 
-const { formatDate } = useDateFormatter() // <--- Достаем функцию
+const { formatDate } = useDateFormatter() 
 
 const notify = useNotificationStore()
 
 const loading = ref(false)
 const logs = ref([])
 
-// --- МОДАЛЬНОЕ ОКНО ---
 const showLogModal = ref(false)
 const selectedLog = ref(null)
 

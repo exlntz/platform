@@ -1,10 +1,10 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import api from '@/api/axios' // Наш настроенный инстанс
+import api from '@/api/axios' 
 import { useNotificationStore } from '@/pinia/NotificationStore'
 import { useConfirm } from '@/composables/useConfirm'
-import { nextTick } from 'vue' // Не забудь импортировать nextTick
+import { nextTick } from 'vue' 
 
 
 const { confirm } = useConfirm()
@@ -16,11 +16,10 @@ const error = ref(null)
 const fileInput = ref(null)
 const isEditingName = ref(false)
 const nameModel = ref('')
-const nameInputRef = ref(null) // Ссылка на DOM-элемент инпута
+const nameInputRef = ref(null) 
 
 
 
-// --- ЛОГИКА АВАТАРКИ ---
 const triggerAvatarUpload = () => {
   fileInput.value.click()
 }
@@ -30,20 +29,15 @@ const handleFileChange = async (event) => {
   if (!file) return
 
   const formData = new FormData()
-  // Важно: проверь, как бэкенд ждет поле. Обычно это 'file' или 'avatar'.
-  // Оставляю 'file', как было у тебя.
   formData.append('file', file)
 
   try {
-    // ИСПРАВЛЕНИЕ: Используем api вместо axios
-    // Токен подставится сам через interceptor в axios.js
     const response = await api.post('/profile/avatar', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     })
 
-    // Обновляем аватарку в интерфейсе сразу после загрузки
     if (profile.value && profile.value.user) {
       profile.value.user.avatar_url = response.data.url
     }
@@ -53,7 +47,7 @@ const handleFileChange = async (event) => {
   }
 }
 
-// --- API ---
+
 const fetchProfile = async () => {
   loading.value = true
   try {
@@ -63,13 +57,11 @@ const fetchProfile = async () => {
       return
     }
 
-    // ИСПРАВЛЕНИЕ: Убрали headers, так как api сам их ставит
-    // Выполняем запросы параллельно для ускорения
     const [profileRes] = await Promise.all([api.get('/profile/')])
 
     profile.value = {
       user: profileRes.data,
-      stats: profileRes.data, // Общая статистика из профиля
+      stats: profileRes.data, 
     }
   } catch (err) {
     console.error('Ошибка профиля:', err)
@@ -90,12 +82,11 @@ const logout = async () => {
     isDanger: false
   })
 
-  if (!isConfirmed) return // Если нажали "Отмена", просто выходим из функции
+  if (!isConfirmed) return 
 
-  // Код ниже выполнится ТОЛЬКО если нажали "Да"
   localStorage.removeItem('user-token')
-  localStorage.removeItem('refresh-token') // Не забываем чистить и рефреш
-  router.push('/auth') // Лучше на /auth, а не на /
+  localStorage.removeItem('refresh-token') 
+  router.push('/auth') 
 }
 
 const formatDate = (dateString) => {
@@ -107,54 +98,48 @@ const formatDate = (dateString) => {
 }
 
 
-// Функция старта редактирования
 const startEditingName = () => {
-  nameModel.value = profile.value.user.username // Копируем текущее имя
+  nameModel.value = profile.value.user.username 
   isEditingName.value = true
   
-  // Фокус на инпут после того, как он появится в DOM
   nextTick(() => {
     nameInputRef.value?.focus()
   })
 }
 
-// Функция отмены
+
 const cancelEditingName = () => {
   isEditingName.value = false
   nameModel.value = ''
 }
 
-// Функция сохранения (та самая, которую ты просил)
+
 const saveNewName = async () => {
   const newName = nameModel.value.trim()
   
-  // 1. Валидация на фронте
+
   if (!newName) {
     notify.show('Никнейм не может быть пустым', 'warning')
     return
   }
   if (newName === profile.value.user.username) {
-    cancelEditingName() // Если имя не изменилось, просто закрываем
+    cancelEditingName()
     return
   }
 
   try {
-    loading.value = true // Можно включить общий лоадер или локальный
+    loading.value = true 
     
-    // 2. Отправка запроса
-    // Важно: уточни, какой ключ ждет бэкенд (обычно 'username' или 'name')
     await api.patch('/profile/change_name', { 
       "new_username": newName
     })
 
-    // 3. Обновляем данные локально (оптимистичный UI)
     profile.value.user.username = newName
     notify.show('Никнейм успешно изменен!', 'success')
     isEditingName.value = false
     
   } catch (err) {
     console.error(err)
-    // Выводим ошибку с бэкенда или дефолтную
     const msg = err.response?.data?.detail || 'Не удалось сменить имя'
     notify.show(msg, 'error')
   } finally {

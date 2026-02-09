@@ -1,5 +1,5 @@
 <script>
-import api from '@/api/axios' // Наш настроенный инстанс
+import api from '@/api/axios' 
 
 export default {
   name: 'AuthView',

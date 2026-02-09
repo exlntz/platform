@@ -3,21 +3,18 @@ import { ref, computed, onMounted, watch } from 'vue'
 import api from '@/api/axios.js'
 import { useConstantsStore } from '@/pinia/ConstantsStore.js'
 import { useNotificationStore } from '@/pinia/NotificationStore.js'
-// 1. Импортируем хук подтверждения
 import { useConfirm } from '@/composables/useConfirm'
 
 const { confirm } = useConfirm()
 const notify = useNotificationStore()
 const constants = useConstantsStore()
 
-// --- Переменная loading для работы импорта ---
 const loading = ref(false)
 const tasks = ref([])
 const showTaskModal = ref(false)
 const isEditMode = ref(false)
-const showExportMenu = ref(false) // Меню выбора формата экспорта
+const showExportMenu = ref(false) 
 
-// Храним теги, доступные для выбранного предмета
 const availableTags = ref([])
 
 const taskForm = ref({
@@ -66,7 +63,6 @@ const sortBy = (key) => {
   }
 }
 
-// --- API ЗАПРОСЫ ---
 
 const fetchTasks = async () => {
   loading.value = true
@@ -80,7 +76,6 @@ const fetchTasks = async () => {
   }
 }
 
-// Получение тегов для конкретного предмета
 const fetchTagsForSubject = async (subject) => {
   if (!subject) {
     availableTags.value = []
@@ -95,7 +90,6 @@ const fetchTagsForSubject = async (subject) => {
   }
 }
 
-// --- МОДАЛЬНОЕ ОКНО И ФОРМЫ ---
 
 const openCreateModal = () => {
   isEditMode.value = false
@@ -103,13 +97,13 @@ const openCreateModal = () => {
   taskForm.value = {
     title: '',
     description: '',
-    subject: '', // Пустой по умолчанию, чтобы пользователь выбрал
+    subject: '', 
     tags: [],
     difficulty: 'EASY',
     correct_answer: '',
     hint: '',
   }
-  availableTags.value = [] // Сброс тегов
+  availableTags.value = [] 
   showTaskModal.value = true
 }
 
@@ -117,10 +111,8 @@ const openEditModal = async (task) => {
   isEditMode.value = true
   currentEditId.value = task.id
 
-  // Предзаполняем форму (что есть в списке)
   taskForm.value = { ...task, tags: task.tags || [] }
 
-  // Сразу грузим теги для текущего предмета
   if (task.subject) {
     await fetchTagsForSubject(task.subject)
   }
@@ -128,7 +120,6 @@ const openEditModal = async (task) => {
   showTaskModal.value = true
 
   try {
-    // Подгружаем полные данные (включая правильный ответ) через новый эндпоинт
     const { data } = await api.get(`/admin/tasks/${task.id}/get`)
     taskForm.value = { ...data, tags: data.tags || [] }
   } catch (e) {
@@ -155,22 +146,18 @@ const saveTask = async () => {
   }
 }
 
-// 2. Обновленная функция удаления с использованием ConfirmModal
 const deleteTask = async (taskId) => {
-  // Вызываем модалку подтверждения
   const isConfirmed = await confirm({
     title: 'Удалить задачу?',
     message: `Вы уверены, что хотите удалить задачу #${taskId}? Это действие нельзя будет отменить.`,
     confirmText: 'Удалить',
     cancelText: 'Отмена',
-    isDanger: true, // Красная кнопка
+    isDanger: true, 
   })
 
-  // Если нажали "Отмена" - выходим
   if (!isConfirmed) return
 
   try {
-    // Используем эндпоинт удаления с /delete (как во втором коде)
     await api.delete(`/admin/tasks/${taskId}/delete`)
     tasks.value = tasks.value.filter((t) => t.id !== taskId)
     notify.show('Задача удалена')
@@ -180,7 +167,6 @@ const deleteTask = async (taskId) => {
   }
 }
 
-// --- ИМПОРТ / ЭКСПОРТ ---
 
 const triggerImport = () => fileInput.value.click()
 
@@ -238,7 +224,6 @@ const exportTasks = async (format) => {
   }
 }
 
-// --- ТЕГИ ---
 
 const toggleTag = (tagKey) => {
   const index = taskForm.value.tags.indexOf(tagKey)
@@ -246,12 +231,10 @@ const toggleTag = (tagKey) => {
   else taskForm.value.tags.splice(index, 1)
 }
 
-// Сброс тегов при ручном изменении предмета
 const onSubjectChange = () => {
   taskForm.value.tags = []
 }
 
-// Следим за изменением предмета в форме, чтобы подгружать теги
 watch(
   () => taskForm.value.subject,
   (newSubject) => {
@@ -263,7 +246,6 @@ watch(
   },
 )
 
-// Закрытие меню экспорта при клике вне
 onMounted(() => {
   fetchTasks()
   if (constants.subjects.length === 0) constants.fetchConstants()

@@ -1,5 +1,5 @@
 <script>
-import api from '@/api/axios' // Наш настроенный инстанс
+import api from '@/api/axios' 
 import router from '../router/index.js'
 import { useNotificationStore } from '@/pinia/NotificationStore'
 const notify = useNotificationStore()
@@ -19,7 +19,6 @@ export default {
   },
   computed: {
     isFormValid() {
-      // Проверка всех полей формы
       return (
         this.regUsername.trim() !== '' &&
         this.regEmail.trim() !== '' &&
@@ -33,13 +32,11 @@ export default {
   },
   methods: {
     isValidEmail(email) {
-      // Простая проверка email
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       return emailRegex.test(email);
     },
 
     async register() {
-      // Проверка перед отправкой
       if (!this.isFormValid) {
         notify.show('Пожалуйста, заполните все поля корректно');
         return;
@@ -80,7 +77,6 @@ export default {
 <template>
   <div class="register-container">
     <div class="register-card">
-      <!-- Заголовок -->
       <div class="register-header">
         <router-link to="/auth" class="back-link">
           <span class="back-icon">←</span>
@@ -95,7 +91,6 @@ export default {
         <p class="register-subtitle">Создайте аккаунт, чтобы начать решать задачи</p>
       </div>
 
-      <!-- Форма -->
       <form class="register-form" @submit.prevent="register">
         <div class="form-fields">
           <div class="form-group">
@@ -196,14 +191,12 @@ export default {
             <span class="loading-text" v-if="loading">Создание аккаунта...</span>
           </button>
 
-          <!-- Сообщение о невалидной форме -->
           <div v-if="!isFormValid && !loading" class="validation-message">
             <p>Заполните все поля правильно для регистрации</p>
           </div>
         </div>
       </form>
 
-      <!-- Футер -->
       <div class="register-footer">
         <p class="footer-text">
           Уже есть профиль?
