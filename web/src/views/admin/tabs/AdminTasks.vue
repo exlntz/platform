@@ -108,7 +108,7 @@ const deleteTask = async (id) => {
     message: 'Это действие нельзя будет отменить. Вы уверены?',
     confirmText: 'Удалить',
     cancelText: 'Отмена',
-    isDanger: true 
+    isDanger: true
   })
   if (!isConfirmed) return
   try {

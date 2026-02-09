@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from datetime import datetime
-
+from app.core.constants import Tag
 from app.core.constants import Achievement, RankName
 from app.core.models import DifficultyLevel
 from app.schemas.user import UserProfileRead, UserStatsResponse
@@ -32,9 +32,10 @@ class TaskAdminUpdate(BaseModel):
     title: str | None = None
     description: str | None = None
     subject: str | None = None
-    theme: str | None = None
+    tags: list[Tag] | None = None
     difficulty: DifficultyLevel | None = None
     correct_answer: str | None = None
+    hint: str | None = None
 
 
 class AdminDashboardStats(BaseModel):
