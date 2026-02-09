@@ -18,12 +18,13 @@ class BaseStrEnum(str, Enum):
 
 
 class Subject(BaseStrEnum):
+    ENGLISH = "ENGLISH"
     PYTHON = "PYTHON"
     MATH = "MATH"
     INF = "INF"
     RUSS = "RUSS"
-    ENGLISH = "ENGLISH"
     PHYS = "PHYS"
+
 
     @property
     def label(self):
@@ -32,8 +33,8 @@ class Subject(BaseStrEnum):
             Subject.MATH: "Математика",
             Subject.INF: "Информатика",
             Subject.RUSS: "Русский язык",
-            Subject.ENGLISH: "Английский язык",
-            Subject.PHYS: "Физика"
+            Subject.PHYS: "Физика",
+            Subject.ENGLISH: "Англ. язык"
         }
         return labels[self]
 
