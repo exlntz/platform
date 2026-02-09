@@ -27,7 +27,7 @@ export const useConstantsStore = defineStore('constants', () => {
       subjects.value = data.subjects || []
       tags.value = data.tags || []
       difficulties.value = data.difficulties || []
-      achievements.value = data.achievements || []
+      achievements.value = data.constant_achievements || []
 
       isLoaded.value = true
     } catch (err) {
