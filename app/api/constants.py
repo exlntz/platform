@@ -10,7 +10,7 @@ async def get_constants():
         "tags": Tag.to_list(),
         "difficulty": DifficultyLevel.to_list(),
         "ranks": RankName.to_list(),
-        "achievements": Achievement.to_list()
+        "constant_achievements": Achievement.to_list()
     }
 
 
