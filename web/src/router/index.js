@@ -7,6 +7,7 @@ import AdminDashboard from '@/views/admin/tabs/AdminDashboard.vue'
 import AdminUsers from '@/views/admin/tabs/AdminUsers.vue'
 import AdminTasks from '@/views/admin/tabs/AdminTasks.vue'
 import AdminLogs from '@/views/admin/tabs/AdminLogs.vue'
+import AdminPvp from '@/views/admin/tabs/AdminPvp.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -91,6 +92,11 @@ const router = createRouter({
           path: 'logs',
           name: 'AdminLogs',
           component: AdminLogs,
+        },
+        {
+          path: 'pvp',
+          name: 'AdminPvp',
+          component: AdminPvp,
         },
       ],
     },

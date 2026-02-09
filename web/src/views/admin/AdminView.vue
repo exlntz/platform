@@ -61,6 +61,13 @@ const isActive = (pathPart) => {
           <span class="nav-icon">📝</span> <span class="nav-text">Задачи</span>
         </button>
         <button
+          @click="navigateTo('/admin/pvp')"
+          class="nav-btn"
+          :class="{ active: isActive('pvp') }"
+        >
+          <span class="nav-icon">⚔️</span> <span class="nav-text">PvP Матчи</span>
+        </button>
+        <button
           @click="navigateTo('/admin/logs')"
           class="nav-btn"
           :class="{ active: isActive('logs') }"
