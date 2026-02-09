@@ -4,6 +4,7 @@ import { ref, onMounted, watch, computed } from 'vue'
 import { useTimerRunner } from '@/pinia/TimerRunner.js'
 import { useConstantsStore } from '@/pinia/ConstantsStore.js' // <--- Импортируем
 import ToastContainer from '@/components/ToastContainer.vue' // <-- Импорт
+import ConfirmModal from '@/components/ConfirmModal.vue'
 // runs once for entire SPA
 
 const constantsStore = useConstantsStore() // <--- Инициализируем
@@ -285,7 +286,7 @@ const closeMenu = () => {
   </header>
 
   <main class="min-h-screen bg-slate-50 dark:bg-gray-900 transition-colors duration-300">
-    <ToastContainer /> <RouterView />
+    <ToastContainer /> <ConfirmModal /> <RouterView />
   </main>
 </template>
 

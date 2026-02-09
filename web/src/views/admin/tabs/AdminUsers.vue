@@ -3,7 +3,9 @@ import { ref, onMounted } from 'vue'
 import api from '@/api/axios.js'
 import { useConstantsStore } from '@/pinia/ConstantsStore.js'
 import { useNotificationStore } from '@/pinia/NotificationStore.js'
+import { useConfirm } from '@/composables/useConfirm'
 
+const { confirm } = useConfirm()
 const notify = useNotificationStore()
 const constants = useConstantsStore()
 
@@ -143,7 +145,7 @@ const saveUserChanges = async () => {
 
   try {
     await api.patch(`/admin/users/${userForm.value.id}`, payload)
-    notify.show('Пользователь обновлен!')
+    notify.show('Пользователь обновлен!', 'succes')
     isUserEditMode.value = false
     fetchUsers()
   } catch (err) {
@@ -188,11 +190,28 @@ const toggleUserStatus = async (field) => {
 }
 
 const deleteUser = async (user) => {
-  if (!confirm(`Вы уверены, что хотите безвозвратно удалить пользователя ${user.username}?`)) return
+  // 1. Ждем, что ответит админ
+  const isConfirmed = await confirm({
+    title: 'Удаление пользователя',
+    message: `Вы уверены, что хотите безвозвратно удалить пользователя ${user.username}? Это действие нельзя отменить.`,
+    confirmText: 'Удалить',
+    cancelText: 'Отмена',
+    isDanger: true // 🔥 Красная кнопка для опасного действия
+  })
+
+  // 2. Если передумал — выходим
+  if (!isConfirmed) return
+
+  // 3. Если подтвердил — сносим
   try {
     await api.delete(`/admin/users/${user.id}`)
+    
+    // Обновляем список локально, чтобы не дергать API лишний раз
     users.value = users.value.filter((u) => u.id !== user.id)
+    
+    // Закрываем модалку деталей юзера, если она была открыта
     showUserDetailsModal.value = false
+    notify.show(`Пользователь ${user.username} удален`, 'success')
   } catch (err) {
     console.error('API Error:', err)
     notify.show('Ошибка: ' + (err.response?.data?.detail || err.message))

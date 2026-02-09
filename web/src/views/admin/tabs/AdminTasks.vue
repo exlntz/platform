@@ -3,7 +3,9 @@ import { ref, computed, onMounted } from 'vue'
 import api from '@/api/axios.js'
 import { useConstantsStore } from '@/pinia/ConstantsStore.js'
 import { useNotificationStore } from '@/pinia/NotificationStore.js'
+import { useConfirm } from '@/composables/useConfirm'
 
+const { confirm } = useConfirm()
 const notify = useNotificationStore()
 const constants = useConstantsStore()
 
@@ -61,7 +63,7 @@ const fetchTasks = async () => {
     const response = await api.get('/tasks/')
     tasks.value = response.data
   } catch (err) {
-    notify.show('Ошибка загрузки задач')
+    notify.show('Ошибка загрузки задач', 'error')
   }
 }
 
@@ -95,17 +97,26 @@ const saveTask = async () => {
     showTaskModal.value = false
     fetchTasks()
   } catch (err) {
-    notify.show('Ошибка сохранения')
+    notify.show('Ошибка сохранения', 'error')
   }
 }
 
 const deleteTask = async (id) => {
-  if (!confirm('Удалить задачу?')) return
+  // 1. Вызываем нашу красивую модалку и ждем ответа
+  const isConfirmed = await confirm({
+    title: 'Удалить задачу?',
+    message: 'Это действие нельзя будет отменить. Вы уверены?',
+    confirmText: 'Удалить',
+    cancelText: 'Отмена',
+    isDanger: true 
+  })
+  if (!isConfirmed) return
   try {
     await api.delete(`/admin/tasks/${id}`)
     tasks.value = tasks.value.filter((t) => t.id !== id)
+    notify.show('Задача удалена', 'success')
   } catch (err) {
-    notify.show('Ошибка удаления')
+    notify.show('Ошибка удаления', 'error')
   }
 }
 
@@ -117,10 +128,10 @@ const handleImport = async (e) => {
   fd.append('file', file)
   try {
     await api.post('/admin/tasks/import', fd)
-    notify.show('Импорт успешен')
+    notify.show('Импорт успешен', 'succes')
     fetchTasks()
   } catch (err) {
-    notify.show('Ошибка импорта')
+    notify.show('Ошибка импорта', 'error')
   }
 }
 

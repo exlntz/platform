@@ -278,7 +278,7 @@ const isReconnecting = ref(false)
 const connectPvp = () => {
   const token = localStorage.getItem('user-token')
   if (!token) {
-    notify.show('Сначала войдите!')
+    notify.show('Сначала войдите!', 'error')
     router.push('/auth')
     return
   }

@@ -3,6 +3,9 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api/axios' // Наш настроенный инстанс
 import { useNotificationStore } from '@/pinia/NotificationStore'
+import { useConfirm } from '@/composables/useConfirm'
+
+const { confirm } = useConfirm()
 const notify = useNotificationStore()
 
 
@@ -78,12 +81,21 @@ const fetchProfile = async () => {
   }
 }
 
-const logout = () => {
-  if (confirm('Вы уверены, что хотите выйти?')) {
-    localStorage.removeItem('user-token')
-    localStorage.removeItem('refresh-token') // Не забываем чистить и рефреш
-    router.push('/auth') // Лучше на /auth, а не на /
-  }
+const logout = async () => {
+  const isConfirmed = await confirm({
+    title: 'Выход из аккаунта',
+    message: 'Вы уверены, что хотите выйти?',
+    confirmText: 'Выйти',
+    cancelText: 'Отмена',
+    isDanger: false
+  })
+
+  if (!isConfirmed) return // Если нажали "Отмена", просто выходим из функции
+
+  // Код ниже выполнится ТОЛЬКО если нажали "Да"
+  localStorage.removeItem('user-token')
+  localStorage.removeItem('refresh-token') // Не забываем чистить и рефреш
+  router.push('/auth') // Лучше на /auth, а не на /
 }
 
 const formatDate = (dateString) => {
