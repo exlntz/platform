@@ -1,17 +1,25 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import api from '@/api/axios.js'
 import { useConstantsStore } from '@/pinia/ConstantsStore.js'
 import { useNotificationStore } from '@/pinia/NotificationStore.js'
+// 1. Импортируем хук подтверждения
 import { useConfirm } from '@/composables/useConfirm'
 
 const { confirm } = useConfirm()
 const notify = useNotificationStore()
 const constants = useConstantsStore()
 
+// --- Переменная loading для работы импорта ---
+const loading = ref(false)
 const tasks = ref([])
 const showTaskModal = ref(false)
 const isEditMode = ref(false)
+const showExportMenu = ref(false) // Меню выбора формата экспорта
+
+// Храним теги, доступные для выбранного предмета
+const availableTags = ref([])
+
 const taskForm = ref({
   title: '',
   description: '',
@@ -58,82 +66,179 @@ const sortBy = (key) => {
   }
 }
 
+// --- API ЗАПРОСЫ ---
+
 const fetchTasks = async () => {
+  loading.value = true
   try {
     const response = await api.get('/tasks/')
     tasks.value = response.data
   } catch (err) {
-    notify.show('Ошибка загрузки задач', 'error')
+    notify.show('Ошибка загрузки задач')
+  } finally {
+    loading.value = false
   }
 }
 
+// Получение тегов для конкретного предмета
+const fetchTagsForSubject = async (subject) => {
+  if (!subject) {
+    availableTags.value = []
+    return
+  }
+  try {
+    const response = await api.get('/constants/tags_for_subject', { params: { subject } })
+    availableTags.value = response.data
+  } catch (err) {
+    console.error('Не удалось загрузить теги:', err)
+    availableTags.value = []
+  }
+}
+
+// --- МОДАЛЬНОЕ ОКНО И ФОРМЫ ---
+
 const openCreateModal = () => {
   isEditMode.value = false
+  currentEditId.value = null
   taskForm.value = {
     title: '',
     description: '',
-    subject: 'MATH',
+    subject: '', // Пустой по умолчанию, чтобы пользователь выбрал
     tags: [],
     difficulty: 'EASY',
     correct_answer: '',
     hint: '',
   }
+  availableTags.value = [] // Сброс тегов
   showTaskModal.value = true
 }
 
 const openEditModal = async (task) => {
   isEditMode.value = true
   currentEditId.value = task.id
-  taskForm.value = { ...task }
+
+  // Предзаполняем форму (что есть в списке)
+  taskForm.value = { ...task, tags: task.tags || [] }
+
+  // Сразу грузим теги для текущего предмета
+  if (task.subject) {
+    await fetchTagsForSubject(task.subject)
+  }
+
   showTaskModal.value = true
+
+  try {
+    // Подгружаем полные данные (включая правильный ответ) через новый эндпоинт
+    const { data } = await api.get(`/admin/tasks/${task.id}/get`)
+    taskForm.value = { ...data, tags: data.tags || [] }
+  } catch (e) {
+    console.error('API Error:', e)
+    notify.show('Ошибка загрузки деталей задачи')
+  }
 }
 
 const saveTask = async () => {
   try {
-    const url = isEditMode.value ? `/admin/tasks/${currentEditId.value}` : '/admin/tasks/create'
+    const url = isEditMode.value
+      ? `/admin/tasks/${currentEditId.value}/change`
+      : '/admin/tasks/create'
     const method = isEditMode.value ? 'patch' : 'post'
+
     await api[method](url, taskForm.value)
-    notify.show('Сохранено')
+
+    notify.show(isEditMode.value ? 'Задача обновлена!' : 'Задача создана!')
     showTaskModal.value = false
     fetchTasks()
   } catch (err) {
-    notify.show('Ошибка сохранения', 'error')
+    console.error(err)
+    notify.show('Ошибка сохранения: ' + (err.response?.data?.detail || err.message))
   }
 }
 
-const deleteTask = async (id) => {
-  // 1. Вызываем нашу красивую модалку и ждем ответа
+// 2. Обновленная функция удаления с использованием ConfirmModal
+const deleteTask = async (taskId) => {
+  // Вызываем модалку подтверждения
   const isConfirmed = await confirm({
     title: 'Удалить задачу?',
-    message: 'Это действие нельзя будет отменить. Вы уверены?',
+    message: `Вы уверены, что хотите удалить задачу #${taskId}? Это действие нельзя будет отменить.`,
     confirmText: 'Удалить',
     cancelText: 'Отмена',
-    isDanger: true
+    isDanger: true, // Красная кнопка
   })
+
+  // Если нажали "Отмена" - выходим
   if (!isConfirmed) return
+
   try {
-    await api.delete(`/admin/tasks/${id}`)
-    tasks.value = tasks.value.filter((t) => t.id !== id)
-    notify.show('Задача удалена', 'success')
+    // Используем эндпоинт удаления с /delete (как во втором коде)
+    await api.delete(`/admin/tasks/${taskId}/delete`)
+    tasks.value = tasks.value.filter((t) => t.id !== taskId)
+    notify.show('Задача удалена')
   } catch (err) {
-    notify.show('Ошибка удаления', 'error')
+    console.error(err)
+    notify.show('Ошибка удаления: ' + (err.response?.data?.detail || err.message))
   }
 }
 
+// --- ИМПОРТ / ЭКСПОРТ ---
+
 const triggerImport = () => fileInput.value.click()
-const handleImport = async (e) => {
-  const file = e.target.files[0]
+
+const handleImport = async (event) => {
+  const file = event.target.files[0]
   if (!file) return
-  const fd = new FormData()
-  fd.append('file', file)
+
+  const formData = new FormData()
+  formData.append('file', file)
+
   try {
-    await api.post('/admin/tasks/import', fd)
-    notify.show('Импорт успешен', 'succes')
+    loading.value = true
+    const response = await api.post('/admin/tasks/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    notify.show(
+      `Импорт завершен!\nСоздано: ${response.data.created}\nОбновлено: ${response.data.updated}`,
+    )
     fetchTasks()
   } catch (err) {
-    notify.show('Ошибка импорта', 'error')
+    console.error('API Error:', err)
+    notify.show('Ошибка импорта: ' + (err.response?.data?.detail || err.message))
+  } finally {
+    loading.value = false
+    event.target.value = ''
   }
 }
+
+const toggleExportMenu = () => {
+  showExportMenu.value = !showExportMenu.value
+}
+
+const exportTasks = async (format) => {
+  showExportMenu.value = false
+  try {
+    const response = await api.get('/admin/tasks/export', {
+      params: { format: format },
+      responseType: 'blob',
+    })
+
+    const url = window.URL.createObjectURL(new Blob([response.data]))
+    const link = document.createElement('a')
+    link.href = url
+    const extension = format === 'csv' ? 'csv' : 'json'
+    link.setAttribute(
+      'download',
+      `tasks_export_${new Date().toISOString().slice(0, 10)}.${extension}`,
+    )
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+  } catch (err) {
+    console.error('API Error:', err)
+    notify.show('Ошибка экспорта')
+  }
+}
+
+// --- ТЕГИ ---
 
 const toggleTag = (tagKey) => {
   const index = taskForm.value.tags.indexOf(tagKey)
@@ -141,9 +246,33 @@ const toggleTag = (tagKey) => {
   else taskForm.value.tags.splice(index, 1)
 }
 
+// Сброс тегов при ручном изменении предмета
+const onSubjectChange = () => {
+  taskForm.value.tags = []
+}
+
+// Следим за изменением предмета в форме, чтобы подгружать теги
+watch(
+  () => taskForm.value.subject,
+  (newSubject) => {
+    if (newSubject) {
+      fetchTagsForSubject(newSubject)
+    } else {
+      availableTags.value = []
+    }
+  },
+)
+
+// Закрытие меню экспорта при клике вне
 onMounted(() => {
   fetchTasks()
   if (constants.subjects.length === 0) constants.fetchConstants()
+
+  window.addEventListener('click', (e) => {
+    if (!e.target.closest('.export-wrapper')) {
+      showExportMenu.value = false
+    }
+  })
 })
 </script>
 
@@ -156,11 +285,20 @@ onMounted(() => {
           type="file"
           ref="fileInput"
           class="file-upload"
-          accept=".json"
+          accept=".json,.csv"
           @change="handleImport"
         />
-        <button @click="triggerImport" class="icon-btn">📥</button>
-        <button @click="exportTasks" class="export-btn" title="Экспорт задач">📤</button>
+
+        <button @click="triggerImport" class="action-text-btn import-btn">📥 Импорт</button>
+
+        <div class="export-wrapper">
+          <button @click="toggleExportMenu" class="action-text-btn export-btn">📤 Экспорт</button>
+          <div v-if="showExportMenu" class="export-menu">
+            <button @click="exportTasks('json')" class="export-item">JSON</button>
+            <button @click="exportTasks('csv')" class="export-item">CSV</button>
+          </div>
+        </div>
+
         <button @click="openCreateModal" class="create-btn">
           <span class="plus-icon">+</span> Создать
         </button>
@@ -215,8 +353,8 @@ onMounted(() => {
               }}</span>
             </td>
             <td class="answer-cell">
-              <code class="answer-code">{{ task.correct_answer || '***' }}</code
-              ><span class="answer-placeholder">***</span>
+              <code class="answer-code">{{ task.correct_answer || '***' }}</code>
+              <span class="answer-placeholder">***</span>
             </td>
             <td class="task-actions-cell">
               <button
@@ -249,7 +387,13 @@ onMounted(() => {
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">Предмет</label>
-              <select v-model="taskForm.subject" required class="form-select">
+              <select
+                v-model="taskForm.subject"
+                required
+                class="form-select"
+                @change="onSubjectChange"
+              >
+                <option value="" disabled>Выберите предмет</option>
                 <option v-for="s in constants.subjects" :key="s.key" :value="s.key">
                   {{ s.label }}
                 </option>
@@ -265,32 +409,37 @@ onMounted(() => {
             </div>
           </div>
           <div class="form-group">
-            <label class="form-label">Название</label
-            ><input v-model="taskForm.title" required class="form-input" />
+            <label class="form-label">Название</label>
+            <input v-model="taskForm.title" required class="form-input" />
           </div>
+
           <div class="form-group">
             <label class="form-label">Теги</label>
-            <div class="tags-selector">
+            <div class="tags-selector" v-if="availableTags.length > 0">
               <button
                 type="button"
-                v-for="tag in constants.tags"
+                v-for="tag in availableTags"
                 :key="tag.key"
                 @click="toggleTag(tag.key)"
                 class="tag-choice-btn"
                 :class="{ active: taskForm.tags.includes(tag.key) }"
               >
-                {{ tag.label
-                }}<span v-if="taskForm.tags.includes(tag.key)" class="tag-check">✓</span>
+                {{ tag.label }}
+                <span v-if="taskForm.tags.includes(tag.key)" class="tag-check">✓</span>
               </button>
             </div>
+            <div v-else class="no-tags-hint">
+              {{ taskForm.subject ? 'Нет тегов для этого предмета' : 'Сначала выберите предмет' }}
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Подсказка</label>
+            <textarea v-model="taskForm.hint" rows="2" class="form-textarea"></textarea>
           </div>
           <div class="form-group">
-            <label class="form-label">Подсказка</label
-            ><textarea v-model="taskForm.hint" rows="2" class="form-textarea"></textarea>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Условие</label
-            ><textarea
+            <label class="form-label">Условие</label>
+            <textarea
               v-model="taskForm.description"
               required
               rows="4"
@@ -298,8 +447,8 @@ onMounted(() => {
             ></textarea>
           </div>
           <div class="form-group">
-            <label class="form-label">Ответ</label
-            ><input v-model="taskForm.correct_answer" required class="form-input answer-field" />
+            <label class="form-label">Ответ</label>
+            <input v-model="taskForm.correct_answer" required class="form-input answer-field" />
           </div>
           <div class="form-submit">
             <button type="submit" class="submit-btn">
@@ -355,48 +504,89 @@ onMounted(() => {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  align-items: center;
 }
 .file-upload {
   display: none;
 }
-.import-btn,
-.export-btn {
-  padding: 8px;
+
+/* Action Text Buttons (Import/Export) */
+.action-text-btn {
+  padding: 8px 16px;
   background-color: white;
   border: 1px solid #e2e8f0;
   color: #475569;
-  border-radius: 10px;
-  font-size: 14px;
+  border-radius: 8px;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   display: flex;
   align-items: center;
-  justify-content: center;
-  min-width: 40px;
-  min-height: 40px;
+  gap: 6px;
 }
-:root.dark .import-btn,
-:root.dark .export-btn {
+.action-text-btn:hover {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+:root.dark .action-text-btn {
   background-color: #334155;
   border-color: #475569;
   color: #cbd5e1;
 }
-.import-btn:hover,
-.export-btn:hover {
-  background-color: #f8fafc;
-}
-:root.dark .import-btn:hover,
-:root.dark .export-btn:hover {
+:root.dark .action-text-btn:hover {
   background-color: #475569;
+  color: white;
+}
+
+/* Export Menu Wrapper */
+.export-wrapper {
+  position: relative;
+}
+.export-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background-color: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  z-index: 50;
+  min-width: 100px;
+}
+:root.dark .export-menu {
+  background-color: #1e293b;
+  border-color: #475569;
+}
+.export-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 16px;
+  background: none;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+}
+.export-item:hover {
+  background-color: #f1f5f9;
+}
+:root.dark .export-item {
+  color: #cbd5e1;
+}
+:root.dark .export-item:hover {
+  background-color: #334155;
 }
 
 .create-btn {
   padding: 8px 16px;
   background-color: #4f46e5;
   color: white;
-  border-radius: 10px;
+  border-radius: 8px;
   font-size: 13px;
   font-weight: 700;
   border: none;
@@ -674,7 +864,7 @@ onMounted(() => {
   background-color: white;
   border-radius: 20px;
   width: 100%;
-  max-width: 100%;
+  max-width: 600px;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25);
   padding: 24px;
   border: 1px solid #f1f5f9;
@@ -743,7 +933,7 @@ onMounted(() => {
 }
 .form-row {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
 .form-group {
@@ -852,7 +1042,6 @@ onMounted(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 4px;
 }
 .tag-choice-btn {
   padding: 6px 12px;
@@ -896,10 +1085,10 @@ onMounted(() => {
 .tag-check {
   font-weight: 900;
 }
-.form-hint {
-  font-size: 11px;
+.no-tags-hint {
+  font-size: 12px;
   color: #94a3b8;
-  margin-top: 6px;
+  font-style: italic;
 }
 
 /* Animations */
