@@ -24,7 +24,7 @@ class UserAdminUpdate(BaseModel):
     rating: float | None = None
     rank: RankName | None = None
     avatar_url: str | None = None
-    achievements: list[Achievement] | None
+    achievements: list[Achievement] | None = None
     xp: int | None = None
 
 

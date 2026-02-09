@@ -36,44 +36,6 @@ const filters = reactive({
 const availableTags = shallowRef([])
 const tagsLoading = ref(false)
 
-// --- Dropdown States ---
-const dropdownOpen = reactive({
-  subject: false,
-  difficulty: false,
-  tags: false
-})
-
-// Закрытие dropdown при клике вне
-const closeAllDropdowns = () => {
-  dropdownOpen.subject = false
-  dropdownOpen.difficulty = false
-  dropdownOpen.tags = false
-}
-
-// Переключение конкретного dropdown
-const toggleDropdown = (dropdownName) => {
-  // Закрываем все другие dropdown
-  for (const key in dropdownOpen) {
-    if (key !== dropdownName) {
-      dropdownOpen[key] = false
-    }
-  }
-  // Переключаем текущий
-  dropdownOpen[dropdownName] = !dropdownOpen[dropdownName]
-}
-
-// Выбор опции в dropdown
-const selectOption = (dropdownName, value) => {
-  if (dropdownName === 'subject') {
-    filters.subject = value
-  } else if (dropdownName === 'difficulty') {
-    filters.difficulty = value
-  } else if (dropdownName === 'tags') {
-    filters.tags = value
-  }
-  dropdownOpen[dropdownName] = false
-}
-
 // --- Pagination State ---
 const pagination = reactive({
   page: Number(route.query.page) || 1,
@@ -341,7 +303,6 @@ const resetFilters = () => {
   filters.tags = ''
   availableTags.value = constantsStore.tags
   pagination.page = 1
-  closeAllDropdowns()
   fetchTasks()
 }
 
@@ -406,13 +367,6 @@ watch(
 onMounted(async () => {
   updateScreenSize()
   window.addEventListener('resize', updateScreenSize)
-  
-  // Закрытие dropdown при клике вне
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('.dropdown-container')) {
-      closeAllDropdowns()
-    }
-  })
 
   if (!constantsStore.isLoaded) {
     await constantsStore.fetchConstants()
@@ -428,7 +382,6 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener('resize', updateScreenSize)
-  document.removeEventListener('click', closeAllDropdowns)
   if (abortController) abortController.abort()
   clearTimeout(searchTimeout)
 })
@@ -600,114 +553,51 @@ onUnmounted(() => {
         <!-- Фильтры - всегда отдельная строка -->
         <div class="filters-row">
           <div class="filter-group">
-            <!-- Предмет Dropdown -->
-            <div class="dropdown-container subject-wrapper">
-              <button 
-                @click.stop="toggleDropdown('subject')" 
-                class="dropdown-btn"
-                :class="{ 
-                  'dropdown-btn-active': dropdownOpen.subject,
-                  'compact': screenSize === 'mobile'
-                }"
-              >
-                <span class="dropdown-btn-text">
-                  {{ filters.subject ? getSubjectLabel(filters.subject) : 'Все предметы' }}
-                </span>
-                <span class="dropdown-arrow" :class="{ 'rotated': dropdownOpen.subject }">▼</span>
-              </button>
-              
-              <div v-if="dropdownOpen.subject" class="dropdown-menu">
-                <div 
-                  @click="selectOption('subject', '')"
-                  class="dropdown-item"
-                  :class="{ 'dropdown-item-active': filters.subject === '' }"
-                >
-                  Все предметы
-                </div>
-                <div 
-                  v-for="subj in constantsStore.subjects" 
-                  :key="subj.key"
-                  @click="selectOption('subject', subj.key)"
-                  class="dropdown-item"
-                  :class="{ 'dropdown-item-active': filters.subject === subj.key }"
-                >
-                  {{ subj.label }}
-                </div>
-              </div>
-            </div>
-
-            <!-- Теги Dropdown -->
-            <div class="dropdown-container tag-wrapper">
-              <button 
-                @click.stop="toggleDropdown('tags')" 
-                class="dropdown-btn"
-                :class="{ 
-                  'dropdown-btn-active': dropdownOpen.tags,
-                  'compact': screenSize === 'mobile'
-                }"
-                :disabled="tagsLoading || constantsStore.loading"
-              >
-                <span class="dropdown-btn-text">
-                  {{ tagsLoading ? 'Загрузка...' : (filters.tags ? (availableTags.find(t => t.key === filters.tags)?.label || filters.tags) : 'Все темы') }}
-                </span>
-                <span class="dropdown-arrow" :class="{ 'rotated': dropdownOpen.tags }">▼</span>
-              </button>
-              
-              <div v-if="dropdownOpen.tags && !tagsLoading" class="dropdown-menu">
-                <div 
-                  @click="selectOption('tags', '')"
-                  class="dropdown-item"
-                  :class="{ 'dropdown-item-active': filters.tags === '' }"
-                >
-                  Все темы
-                </div>
-                <div 
-                  v-for="tag in availableTags" 
-                  :key="tag.key || tag"
-                  @click="selectOption('tags', tag.key || tag)"
-                  class="dropdown-item"
-                  :class="{ 'dropdown-item-active': filters.tags === (tag.key || tag) }"
-                >
-                  {{ tag.label || tag }}
-                </div>
-              </div>
-            </div>
-
-            <!-- Сложность Dropdown -->
-            <div class="dropdown-container difficulty-wrapper">
-              <button 
-                @click.stop="toggleDropdown('difficulty')" 
-                class="dropdown-btn"
-                :class="{ 
-                  'dropdown-btn-active': dropdownOpen.difficulty,
-                  'compact': screenSize === 'mobile'
-                }"
+            <div class="select-wrapper subject-wrapper">
+              <select
+                v-model="filters.subject"
+                class="filter-select"
+                :class="{ compact: screenSize === 'mobile' }"
                 :disabled="constantsStore.loading"
               >
-                <span class="dropdown-btn-text">
-                  {{ filters.difficulty ? getDifficultyLabel(filters.difficulty) : 'Сложность' }}
-                </span>
-                <span class="dropdown-arrow" :class="{ 'rotated': dropdownOpen.difficulty }">▼</span>
-              </button>
-              
-              <div v-if="dropdownOpen.difficulty" class="dropdown-menu">
-                <div 
-                  @click="selectOption('difficulty', '')"
-                  class="dropdown-item"
-                  :class="{ 'dropdown-item-active': filters.difficulty === '' }"
-                >
-                  Сложность
-                </div>
-                <div 
-                  v-for="diff in constantsStore.difficulty" 
-                  :key="diff.key"
-                  @click="selectOption('difficulty', diff.key)"
-                  class="dropdown-item"
-                  :class="{ 'dropdown-item-active': filters.difficulty === diff.key }"
-                >
+                <option value="">Все предметы</option>
+                <option v-for="subj in constantsStore.subjects" :key="subj.key" :value="subj.key">
+                  {{ subj.label }}
+                </option>
+              </select>
+              <div class="select-arrow">▼</div>
+            </div>
+
+            <div class="select-wrapper tag-wrapper">
+              <select
+                v-model="filters.tags"
+                class="filter-select"
+                :class="{ compact: screenSize === 'mobile' }"
+                :disabled="tagsLoading || constantsStore.loading"
+              >
+                <option value="">
+                  {{ tagsLoading ? 'Загрузка...' : 'Все темы' }}
+                </option>
+                <option v-for="tag in availableTags" :key="tag.key || tag" :value="tag.key || tag">
+                  {{ tag.label || tag }}
+                </option>
+              </select>
+              <div class="select-arrow">▼</div>
+            </div>
+
+            <div class="select-wrapper difficulty-wrapper">
+              <select
+                v-model="filters.difficulty"
+                class="filter-select"
+                :class="{ compact: screenSize === 'mobile' }"
+                :disabled="constantsStore.loading"
+              >
+                <option value="">Сложность</option>
+                <option v-for="diff in constantsStore.difficulty" :key="diff.key" :value="diff.key">
                   {{ diff.label }}
-                </div>
-              </div>
+                </option>
+              </select>
+              <div class="select-arrow">▼</div>
             </div>
 
             <button
@@ -850,9 +740,6 @@ onUnmounted(() => {
   --bg-tag: #334155; /* Тёмные теги */
   --bg-subject-tag: #334155; /* Фон тега предмета */
   --bg-counter: #1e293b; /* Фон счетчика */
-  --bg-dropdown: #1e293b; /* Фон dropdown */
-  --bg-dropdown-hover: #334155; /* Фон dropdown при наведении */
-  --bg-dropdown-active: #475569; /* Фон активного элемента */
 
   --text-primary: #f8fafc; /* Светлый текст */
   --text-secondary: #cbd5e1; /* Светлый вторичный текст */
@@ -866,7 +753,6 @@ onUnmounted(() => {
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3); /* Тёмные тени */
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
   --shadow-hover: 0 10px 15px -3px rgba(59, 130, 246, 0.2);
-  --shadow-dropdown: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
 
   --accent-color: #60a5fa; /* Акцентный цвет для тёмной темы */
   --accent-hover: #3b82f6;
@@ -889,9 +775,6 @@ onUnmounted(() => {
   --bg-tag: #f1f5f9;
   --bg-subject-tag: #f1f5f9;
   --bg-counter: #ffffff;
-  --bg-dropdown: #ffffff;
-  --bg-dropdown-hover: #f8fafc;
-  --bg-dropdown-active: #f1f5f9;
 
   --text-primary: #0f172a;
   --text-secondary: #64748b;
@@ -905,7 +788,6 @@ onUnmounted(() => {
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   --shadow-hover: 0 10px 15px -3px rgba(79, 70, 229, 0.1);
-  --shadow-dropdown: 0 10px 15px -3px rgba(148, 163, 184, 0.2);
 
   --accent-color: #4f46e5;
   --accent-hover: #4338ca;
@@ -1077,8 +959,7 @@ onUnmounted(() => {
   width: 100%;
 }
 
-/* ==================== DROPDOWN STYLES ==================== */
-.dropdown-container {
+.select-wrapper {
   position: relative;
   flex: 1;
   min-width: 140px;
@@ -1100,13 +981,11 @@ onUnmounted(() => {
   }
 }
 
-.dropdown-btn {
+.filter-select {
   appearance: none;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: block;
   width: 100%;
-  padding: 12px 16px;
+  padding: 12px 36px 12px 16px;
   border: 2px solid var(--border-light);
   border-radius: 12px;
   background-color: var(--bg-input);
@@ -1120,93 +999,36 @@ onUnmounted(() => {
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
-  font-family: inherit;
 }
 
-.dropdown-btn.compact {
-  padding: 10px 12px;
+.filter-select.compact {
+  padding: 10px 32px 10px 12px;
   font-size: 13px;
 }
 
-.dropdown-btn:hover {
+.filter-select:hover {
   border-color: var(--border-medium);
-  background-color: var(--btn-hover-bg);
 }
 
-.dropdown-btn:focus,
-.dropdown-btn-active {
+.filter-select:focus {
   border-color: var(--accent-color);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
-:global(.light) .dropdown-btn:focus,
-:global(.light) .dropdown-btn-active {
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-}
-
-.dropdown-btn:disabled {
+.filter-select:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   background-color: var(--bg-tag);
 }
 
-.dropdown-btn-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-  text-align: left;
-}
-
-.dropdown-arrow {
-  color: var(--text-secondary);
-  font-size: 10px;
-  margin-left: 8px;
-  transition: transform 0.2s ease;
-  flex-shrink: 0;
-}
-
-.dropdown-arrow.rotated {
-  transform: rotate(180deg);
-}
-
-.dropdown-menu {
+.select-arrow {
+  pointer-events: none;
   position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  background-color: var(--bg-dropdown);
-  border: 2px solid var(--border-light);
-  border-radius: 12px;
-  box-shadow: var(--shadow-dropdown);
-  z-index: 100;
-  max-height: 300px;
-  overflow-y: auto;
-  animation: dropdownFadeIn 0.2s ease-out;
-}
-
-.dropdown-item {
-  padding: 12px 16px;
-  color: var(--text-primary);
-  font-weight: 500;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  border-bottom: 1px solid var(--border-light);
-}
-
-.dropdown-item:last-child {
-  border-bottom: none;
-}
-
-.dropdown-item:hover {
-  background-color: var(--bg-dropdown-hover);
-}
-
-.dropdown-item-active {
-  background-color: var(--bg-dropdown-active);
-  color: var(--accent-color);
-  font-weight: 600;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  color: var(--text-secondary);
+  font-size: 12px;
 }
 
 .reset-btn {
@@ -1747,17 +1569,6 @@ onUnmounted(() => {
   }
 }
 
-@keyframes dropdownFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-5px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 @keyframes pulse {
   0%,
   100% {
@@ -1792,8 +1603,8 @@ onUnmounted(() => {
     font-size: 16px;
     left: 10px;
   }
-  .dropdown-btn {
-    padding: 10px 12px;
+  .filter-select {
+    padding: 10px 32px 10px 12px;
     font-size: 13px;
   }
   .reset-btn.compact {
@@ -1825,7 +1636,7 @@ onUnmounted(() => {
   .title {
     font-size: 23px;
   }
-  .dropdown-container {
+  .filter-select {
     min-width: 100px;
   }
 }
@@ -1861,7 +1672,7 @@ onUnmounted(() => {
     font-size: 20px;
     left: 14px;
   }
-  .dropdown-btn {
+  .filter-select {
     font-size: 15px;
   }
   .error-state {
