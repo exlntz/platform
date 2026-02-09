@@ -32,16 +32,47 @@ const filters = reactive({
   tags: route.query.tags || '', // Храним выбранный тег
 })
 
-// Dropdown состояния
-const dropdowns = reactive({
-  subject: false,
-  tags: false,
-  difficulty: false
-})
-
 // Состояние для списка доступных тегов (зависит от предмета)
 const availableTags = shallowRef([])
 const tagsLoading = ref(false)
+
+// --- Dropdown States ---
+const dropdownOpen = reactive({
+  subject: false,
+  difficulty: false,
+  tags: false
+})
+
+// Закрытие dropdown при клике вне
+const closeAllDropdowns = () => {
+  dropdownOpen.subject = false
+  dropdownOpen.difficulty = false
+  dropdownOpen.tags = false
+}
+
+// Переключение конкретного dropdown
+const toggleDropdown = (dropdownName) => {
+  // Закрываем все другие dropdown
+  for (const key in dropdownOpen) {
+    if (key !== dropdownName) {
+      dropdownOpen[key] = false
+    }
+  }
+  // Переключаем текущий
+  dropdownOpen[dropdownName] = !dropdownOpen[dropdownName]
+}
+
+// Выбор опции в dropdown
+const selectOption = (dropdownName, value) => {
+  if (dropdownName === 'subject') {
+    filters.subject = value
+  } else if (dropdownName === 'difficulty') {
+    filters.difficulty = value
+  } else if (dropdownName === 'tags') {
+    filters.tags = value
+  }
+  dropdownOpen[dropdownName] = false
+}
 
 // --- Pagination State ---
 const pagination = reactive({
@@ -54,6 +85,7 @@ const showAiMenu = ref(false)
 
 const openAiMenu = () => {
   showAiMenu.value = true
+  console.log('AI Menu Opened') // Для проверки
 }
 
 // --- State (AI Mode Settings) ---
@@ -77,6 +109,7 @@ const generateAiTask = async () => {
   aiShowHint.value = false
 
   try {
+    // 1. Делаем запрос к твоему эндпоинту
     const response = await api.get('/tasks/generate', {
       params: {
         subject: aiSubject.value,
@@ -85,11 +118,13 @@ const generateAiTask = async () => {
       headers: { Authorization: `Bearer ${localStorage.getItem('user-token')}` },
     })
 
+    // 2. Получаем задачу и переключаем режим
     aiTask.value = response.data
     showAiMenu.value = false // Закрываем меню
     isAiMode.value = true // Включаем режим задачи
   } catch (err) {
     console.error('AI Generation Error:', err)
+    // Здесь можно добавить красивый тост с ошибкой
     alert('ИИ устал или нет связи. Попробуйте позже.')
   } finally {
     aiLoading.value = false
@@ -99,6 +134,7 @@ const generateAiTask = async () => {
 const exitAiMode = () => {
   isAiMode.value = false
   aiTask.value = null
+  // Возвращаемся к списку задач
 }
 
 // --- Функция проверки ответа ---
@@ -168,8 +204,7 @@ const getDifficultyColorClass = (diffKey) => {
 
   const map = {
     EASY: 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:bg-emerald-200/40 dark:text-emerald-300 dark:border-emerald-800',
-    MEDIUM:
-      'text-amber-700 bg-amber-50 border-amber-200 dark:bg-amber-200/40 dark:text-amber-300 dark:border-amber-800',
+    MEDIUM: 'text-amber-700 bg-amber-50 border-amber-200 dark:bg-amber-200/40 dark:text-amber-300 dark:border-amber-800',
     HARD: 'text-rose-700 bg-rose-50 border-rose-200 dark:bg-rose-200/40 dark:text-rose-300 dark:border-rose-800',
   }
   return (
@@ -186,11 +221,12 @@ const getSubjectLabel = (subjKey) => {
 }
 
 const navigateToTask = (id) => {
+  // Сохраняем текущие фильтры в URL при переходе
   const query = { ...route.query }
-  delete query.id
+  delete query.id // Убираем id текущей задачи, если есть
   router.push({
     path: `/tasks/${id}`,
-    query,
+    query, // Передаем текущие фильтры
   })
 }
 
@@ -220,29 +256,6 @@ const updateAvailableTags = async () => {
   } finally {
     tagsLoading.value = false
   }
-}
-
-// --- Dropdown Helpers ---
-const toggleDropdown = (dropdownName) => {
-  Object.keys(dropdowns).forEach(key => {
-    if (key !== dropdownName) {
-      dropdowns[key] = false
-    }
-  })
-  dropdowns[dropdownName] = !dropdowns[dropdownName]
-}
-
-const closeAllDropdowns = () => {
-  Object.keys(dropdowns).forEach(key => {
-    dropdowns[key] = false
-  })
-}
-
-const selectFilter = (type, value) => {
-  filters[type] = value
-  dropdowns[type] = false
-  pagination.page = 1
-  fetchTasks()
 }
 
 // --- Fetch Actions ---
@@ -307,7 +320,7 @@ const updateUrl = () => {
 
   router.replace({
     query,
-    hash: route.hash,
+    hash: route.hash, // Сохраняем якорь если есть
   })
 }
 
@@ -347,6 +360,7 @@ const paginatedTasks = computed(() => {
 watch(
   () => route.query,
   (newQuery) => {
+    // Синхронизируем фильтры с URL при изменении роута (например, при возврате назад)
     filters.search = newQuery.search || ''
     filters.subject = newQuery.subject || ''
     filters.difficulty = newQuery.difficulty || ''
@@ -393,8 +407,9 @@ onMounted(async () => {
   updateScreenSize()
   window.addEventListener('resize', updateScreenSize)
   
+  // Закрытие dropdown при клике вне
   document.addEventListener('click', (e) => {
-    if (!e.target.closest('.dropdown-container') && !e.target.closest('.filter-dropdown-trigger')) {
+    if (!e.target.closest('.dropdown-container')) {
       closeAllDropdowns()
     }
   })
@@ -406,6 +421,9 @@ onMounted(async () => {
   await updateAvailableTags()
 
   await fetchTasks()
+  
+  // Убрали принудительное включение тёмной темы
+  // Теперь тема определяется системными настройками или переключателем
 })
 
 onUnmounted(() => {
@@ -418,7 +436,6 @@ onUnmounted(() => {
 
 <template>
   <div class="tasks-container">
-    <!-- AI Menu Overlay -->
     <div v-if="showAiMenu" class="ai-menu-overlay" @click.self="closeAiMenu">
       <div class="ai-menu-card">
         <div class="ai-menu-header">
@@ -464,71 +481,79 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- AI Task View -->
     <div v-if="isAiMode" class="ai-task-view">
       <div class="task-content">
-        <button @click="exitAiMode" class="back-link">← Вернуться к списку</button>
+        <button @click="exitAiMode" class="ai-back-btn">← Вернуться к списку задач</button>
 
         <div v-if="aiLoading && !aiTask" class="loading-placeholder">
           <div class="spinner-large"></div>
           <p>Нейросеть придумывает задачу...</p>
         </div>
 
-        <div v-else-if="aiTask" class="task-card-full">
-          <div class="task-header-full">
-            <div class="task-header-overlay"></div>
-            <div class="task-header-content-full">
-              <div class="header-tags">
-                <span class="subject-tag-full">{{ getSubjectLabel(aiTask.subject) }}</span>
-                <span class="difficulty-tag-full">{{ getDifficultyLabel(aiTask.difficulty) }}</span>
-                <span class="ai-badge">🤖 AI Generated</span>
-              </div>
-              <h1 class="task-title-full">{{ aiTask.title }}</h1>
+        <div v-else-if="aiTask" class="ai-task-card">
+          <div class="ai-task-accent"></div>
+
+          <div class="ai-task-header">
+            <div class="ai-tags-row">
+              <span class="ai-subject-tag">
+                {{ getSubjectLabel(aiTask.subject) }}
+              </span>
+
+              <span class="ai-difficulty-badge" :class="getDifficultyColorClass(aiTask.difficulty)">
+                {{ getDifficultyLabel(aiTask.difficulty) }}
+              </span>
+              
+              <span class="ai-badge">🤖 AI</span>
             </div>
+
+            <h1 class="ai-task-title">
+              {{ aiTask.title }}
+            </h1>
           </div>
 
-          <div class="task-body-full">
-            <p class="task-description-full">{{ aiTask.description }}</p>
+          <div class="ai-task-body">
+            <p class="ai-task-description">{{ aiTask.description }}</p>
 
-            <div v-if="aiTask.hint" class="hint-section">
-              <button @click="aiShowHint = !aiShowHint" class="hint-btn">
-                {{ aiShowHint ? 'Скрыть подсказку' : '💡 Показать подсказку' }}
+            <div v-if="aiTask.hint" class="ai-hint-section">
+              <button @click="aiShowHint = !aiShowHint" class="ai-hint-btn">
+                {{ aiShowHint ? '▲ Скрыть подсказку' : '▼ Показать подсказку' }}
               </button>
-              <div v-if="aiShowHint" class="hint-box">{{ aiTask.hint }}</div>
+              <div v-if="aiShowHint" class="ai-hint-box">{{ aiTask.hint }}</div>
             </div>
 
-            <div class="answer-section">
+            <div class="ai-answer-section">
               <textarea
                 v-model="aiAnswer"
                 :disabled="aiIsSolved"
                 placeholder="Введите ваш ответ..."
-                class="ai-textarea"
-                :class="{ correct: aiIsSolved, wrong: aiCheckResult && !aiCheckResult.is_correct }"
+                class="ai-answer-textarea"
+                :class="{ 
+                  'ai-answer-correct': aiIsSolved, 
+                  'ai-answer-wrong': aiCheckResult && !aiCheckResult.is_correct 
+                }"
+                rows="4"
               ></textarea>
 
-              <div
-                v-if="aiCheckResult"
-                class="result-msg"
-                :class="aiCheckResult.is_correct ? 'success' : 'error'"
-              >
+              <div v-if="aiCheckResult" class="ai-result-message" 
+                :class="aiCheckResult.is_correct ? 'ai-result-success' : 'ai-result-error'">
                 {{ aiCheckResult.message }}
               </div>
 
-              <div class="ai-actions-footer">
+              <div class="ai-actions">
                 <button
                   v-if="aiIsSolved"
                   @click="openAiMenu"
-                  class="ai-generate-btn"
-                  style="background: var(--accent-color)"
+                  class="ai-generate-another-btn"
                 >
-                  Сгенерировать еще одну
+                  Сгенерировать еще
                 </button>
                 <button
                   v-else
                   @click="submitAiAnswer"
-                  :disabled="aiCheckLoading"
+                  :disabled="aiCheckLoading || !aiAnswer.trim()"
                   class="ai-submit-btn"
                 >
+                  <span v-if="aiCheckLoading" class="ai-btn-spinner"></span>
                   {{ aiCheckLoading ? 'Проверка...' : 'Отправить ответ' }}
                 </button>
               </div>
@@ -538,7 +563,6 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- Main Tasks View -->
     <div v-else class="tasks-content">
       <div class="tasks-header">
         <div class="header-text">
@@ -565,113 +589,121 @@ onUnmounted(() => {
       </div>
 
       <div class="filters-container">
-        <!-- Поиск -->
+        <!-- Поиск - всегда отдельная строка -->
         <div class="search-row">
           <div class="search-group">
             <div class="search-icon">🔍</div>
-            <input
-              v-model="filters.search"
-              type="text"
-              placeholder="Поиск..."
-              class="search-input"
-            />
+            <input v-model="filters.search" type="text" placeholder="Поиск..." class="search-input" />
           </div>
         </div>
 
-        <!-- Фильтры с dropdown -->
+        <!-- Фильтры - всегда отдельная строка -->
         <div class="filters-row">
           <div class="filter-group">
-            <!-- Subject Dropdown -->
-            <div class="dropdown-container">
-              <button
-                @click.stop="toggleDropdown('subject')"
-                class="filter-dropdown-trigger"
-                :class="{ 'active': dropdowns.subject }"
+            <!-- Предмет Dropdown -->
+            <div class="dropdown-container subject-wrapper">
+              <button 
+                @click.stop="toggleDropdown('subject')" 
+                class="dropdown-btn"
+                :class="{ 
+                  'dropdown-btn-active': dropdownOpen.subject,
+                  'compact': screenSize === 'mobile'
+                }"
               >
-                <span class="filter-label">
+                <span class="dropdown-btn-text">
                   {{ filters.subject ? getSubjectLabel(filters.subject) : 'Все предметы' }}
                 </span>
-                <span class="dropdown-arrow">▼</span>
+                <span class="dropdown-arrow" :class="{ 'rotated': dropdownOpen.subject }">▼</span>
               </button>
-              <div v-if="dropdowns.subject" class="dropdown-menu">
-                <div
-                  @click="selectFilter('subject', '')"
+              
+              <div v-if="dropdownOpen.subject" class="dropdown-menu">
+                <div 
+                  @click="selectOption('subject', '')"
                   class="dropdown-item"
-                  :class="{ 'selected': !filters.subject }"
+                  :class="{ 'dropdown-item-active': filters.subject === '' }"
                 >
                   Все предметы
                 </div>
-                <div
-                  v-for="subj in constantsStore.subjects"
+                <div 
+                  v-for="subj in constantsStore.subjects" 
                   :key="subj.key"
-                  @click="selectFilter('subject', subj.key)"
+                  @click="selectOption('subject', subj.key)"
                   class="dropdown-item"
-                  :class="{ 'selected': filters.subject === subj.key }"
+                  :class="{ 'dropdown-item-active': filters.subject === subj.key }"
                 >
                   {{ subj.label }}
                 </div>
               </div>
             </div>
 
-            <!-- Tags Dropdown -->
-            <div class="dropdown-container">
-              <button
-                @click.stop="toggleDropdown('tags')"
-                class="filter-dropdown-trigger"
-                :class="{ 'active': dropdowns.tags }"
+            <!-- Теги Dropdown -->
+            <div class="dropdown-container tag-wrapper">
+              <button 
+                @click.stop="toggleDropdown('tags')" 
+                class="dropdown-btn"
+                :class="{ 
+                  'dropdown-btn-active': dropdownOpen.tags,
+                  'compact': screenSize === 'mobile'
+                }"
                 :disabled="tagsLoading || constantsStore.loading"
               >
-                <span class="filter-label">
-                  {{ filters.tags ? (availableTags.find(t => t.key === filters.tags)?.label || filters.tags) : (tagsLoading ? 'Загрузка...' : 'Все темы') }}
+                <span class="dropdown-btn-text">
+                  {{ tagsLoading ? 'Загрузка...' : (filters.tags ? (availableTags.find(t => t.key === filters.tags)?.label || filters.tags) : 'Все темы') }}
                 </span>
-                <span class="dropdown-arrow">▼</span>
+                <span class="dropdown-arrow" :class="{ 'rotated': dropdownOpen.tags }">▼</span>
               </button>
-              <div v-if="dropdowns.tags" class="dropdown-menu">
-                <div
-                  @click="selectFilter('tags', '')"
+              
+              <div v-if="dropdownOpen.tags && !tagsLoading" class="dropdown-menu">
+                <div 
+                  @click="selectOption('tags', '')"
                   class="dropdown-item"
-                  :class="{ 'selected': !filters.tags }"
+                  :class="{ 'dropdown-item-active': filters.tags === '' }"
                 >
-                  {{ tagsLoading ? 'Загрузка...' : 'Все темы' }}
+                  Все темы
                 </div>
-                <div
-                  v-for="tag in availableTags"
+                <div 
+                  v-for="tag in availableTags" 
                   :key="tag.key || tag"
-                  @click="selectFilter('tags', tag.key || tag)"
+                  @click="selectOption('tags', tag.key || tag)"
                   class="dropdown-item"
-                  :class="{ 'selected': filters.tags === (tag.key || tag) }"
+                  :class="{ 'dropdown-item-active': filters.tags === (tag.key || tag) }"
                 >
                   {{ tag.label || tag }}
                 </div>
               </div>
             </div>
 
-            <!-- Difficulty Dropdown -->
-            <div class="dropdown-container">
-              <button
-                @click.stop="toggleDropdown('difficulty')"
-                class="filter-dropdown-trigger"
-                :class="{ 'active': dropdowns.difficulty }"
+            <!-- Сложность Dropdown -->
+            <div class="dropdown-container difficulty-wrapper">
+              <button 
+                @click.stop="toggleDropdown('difficulty')" 
+                class="dropdown-btn"
+                :class="{ 
+                  'dropdown-btn-active': dropdownOpen.difficulty,
+                  'compact': screenSize === 'mobile'
+                }"
+                :disabled="constantsStore.loading"
               >
-                <span class="filter-label">
+                <span class="dropdown-btn-text">
                   {{ filters.difficulty ? getDifficultyLabel(filters.difficulty) : 'Сложность' }}
                 </span>
-                <span class="dropdown-arrow">▼</span>
+                <span class="dropdown-arrow" :class="{ 'rotated': dropdownOpen.difficulty }">▼</span>
               </button>
-              <div v-if="dropdowns.difficulty" class="dropdown-menu">
-                <div
-                  @click="selectFilter('difficulty', '')"
+              
+              <div v-if="dropdownOpen.difficulty" class="dropdown-menu">
+                <div 
+                  @click="selectOption('difficulty', '')"
                   class="dropdown-item"
-                  :class="{ 'selected': !filters.difficulty }"
+                  :class="{ 'dropdown-item-active': filters.difficulty === '' }"
                 >
                   Сложность
                 </div>
-                <div
-                  v-for="diff in constantsStore.difficulty"
+                <div 
+                  v-for="diff in constantsStore.difficulty" 
                   :key="diff.key"
-                  @click="selectFilter('difficulty', diff.key)"
+                  @click="selectOption('difficulty', diff.key)"
                   class="dropdown-item"
-                  :class="{ 'selected': filters.difficulty === diff.key }"
+                  :class="{ 'dropdown-item-active': filters.difficulty === diff.key }"
                 >
                   {{ diff.label }}
                 </div>
@@ -811,29 +843,30 @@ onUnmounted(() => {
 <style scoped>
 /* ==================== THEME CONFIGURATION ==================== */
 .tasks-container {
-  /* LIGHT THEME (Default) */
+  /* СВЕТЛАЯ ТЕМА ПО УМОЛЧАНИЮ */
   --bg-page: #f8fafc;
   --bg-card: #ffffff;
   --bg-input: #f8fafc;
   --bg-tag: #f1f5f9;
-  --bg-subject-tag: #f1f5f9; /* Фон тега предмета */
-  --bg-counter: #ffffff; /* Фон счетчика */
+  --bg-subject-tag: #f1f5f9;
+  --bg-counter: #ffffff;
   --bg-dropdown: #ffffff;
   --bg-dropdown-hover: #f8fafc;
+  --bg-dropdown-active: #f1f5f9;
 
   --text-primary: #0f172a;
   --text-secondary: #64748b;
   --text-tertiary: #94a3b8;
-  --text-subject: #64748b; /* Цвет текста тега предмета */
-  --text-counter: #64748b; /* Цвет текста счетчика */
+  --text-subject: #64748b;
+  --text-counter: #64748b;
 
   --border-light: #e2e8f0;
   --border-medium: #cbd5e1;
 
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
   --shadow-hover: 0 10px 15px -3px rgba(79, 70, 229, 0.1);
+  --shadow-dropdown: 0 10px 15px -3px rgba(148, 163, 184, 0.2);
 
   --accent-color: #4f46e5;
   --accent-hover: #4338ca;
@@ -843,35 +876,35 @@ onUnmounted(() => {
   --btn-border: #e2e8f0;
   --btn-hover-bg: #f8fafc;
 
-  /* Светлые цвета скелетонов */
   --skeleton-base: #f1f5f9;
   --skeleton-highlight: #e2e8f0;
 }
 
-/* ==================== DARK THEME VARIABLES ==================== */
+/* ТЁМНАЯ ТЕМА */
 :global(.dark) .tasks-container {
   --bg-page: #0f172a;
   --bg-card: #1e293b;
   --bg-input: #334155;
   --bg-tag: #334155;
-  --bg-subject-tag: #334155; /* Темный фон для тега предмета */
-  --bg-counter: #1e293b; /* Темный фон для счетчика */
+  --bg-subject-tag: #334155;
+  --bg-counter: #1e293b;
   --bg-dropdown: #1e293b;
   --bg-dropdown-hover: #334155;
+  --bg-dropdown-active: #475569;
 
   --text-primary: #f8fafc;
   --text-secondary: #cbd5e1;
   --text-tertiary: #94a3b8;
-  --text-subject: #cbd5e1; /* Светлый текст для тега предмета в темной теме */
-  --text-counter: #cbd5e1; /* Светлый текст для счетчика в темной теме */
+  --text-subject: #cbd5e1;
+  --text-counter: #cbd5e1;
 
   --border-light: #334155;
   --border-medium: #475569;
 
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
   --shadow-hover: 0 10px 15px -3px rgba(59, 130, 246, 0.2);
+  --shadow-dropdown: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
 
   --accent-color: #60a5fa;
   --accent-hover: #3b82f6;
@@ -881,112 +914,8 @@ onUnmounted(() => {
   --btn-border: #334155;
   --btn-hover-bg: #334155;
 
-  /* ТЕМНЫЕ скелетоны */
   --skeleton-base: #1e293b;
   --skeleton-highlight: #334155;
-}
-
-/* ==================== EXPLICIT DARK THEME OVERRIDES (как в первом файле) ==================== */
-:root.dark .tasks-container {
-  background-color: #0f172a;
-  color: #f1f5f9;
-}
-
-:root.dark .filters-container {
-  background-color: #1e293b;
-  border-color: #334155;
-}
-
-:root.dark .search-input,
-:root.dark .filter-select {
-  background-color: #334155;
-  border-color: #475569;
-  color: #f1f5f9;
-}
-
-:root.dark .task-card {
-  background-color: #1e293b;
-  border-color: #334155;
-}
-
-:root.dark .task-card:hover {
-  background-color: #1e293b;
-  border-color: #3b82f6;
-  box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.2);
-}
-
-:root.dark .task-title {
-  color: #f1f5f9;
-}
-
-:root.dark .task-title:hover {
-  color: #60a5fa;
-}
-
-:root.dark .task-description {
-  color: #cbd5e1;
-}
-
-:root.dark .reset-btn {
-  background-color: #1e293b;
-  border-color: #334155;
-  color: #cbd5e1;
-}
-
-:root.dark .reset-btn:hover {
-  background-color: #334155;
-  border-color: #475569;
-  color: #f87171;
-}
-
-/* Темные скелетоны */
-:root.dark .task-card-skeleton {
-  background-color: #1e293b;
-  border-color: #334155;
-}
-
-:root.dark .skeleton-tag,
-:root.dark .skeleton-difficulty,
-:root.dark .skeleton-title,
-:root.dark .skeleton-line,
-:root.dark .skeleton-tags,
-:root.dark .skeleton-button {
-  background-color: #334155;
-}
-
-:root.dark .loading-title,
-:root.dark .loading-subtitle {
-  background-color: #334155;
-}
-
-/* Темный счетчик задач */
-:root.dark .counter-badge {
-  background-color: #1e293b;
-  border-color: #334155;
-  color: #cbd5e1;
-}
-
-/* Темный тег предмета */
-:root.dark .subject-tag {
-  background-color: #334155;
-  color: #cbd5e1;
-  border-color: #475569;
-}
-
-/* Убрать синюю/красную рамку у всего окна в тёмной теме */
-:global(.dark) {
-  outline: none !important;
-  border-color: inherit !important;
-}
-
-:global(.dark) *:focus {
-  outline: none !important;
-  box-shadow: none !important;
-}
-
-:global(.dark) body {
-  border: none !important;
-  outline: none !important;
 }
 
 /* ==================== BASIC LAYOUT ==================== */
@@ -996,7 +925,9 @@ onUnmounted(() => {
   color: var(--text-primary);
   font-family: 'Inter', sans-serif;
   line-height: 1.5;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
 }
 
 .tasks-content {
@@ -1018,7 +949,6 @@ onUnmounted(() => {
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
-/* Убрать красную рамку в тёмной теме */
 :global(.dark) .tasks-container button:focus,
 :global(.dark) .tasks-container input:focus,
 :global(.dark) .tasks-container select:focus,
@@ -1086,7 +1016,7 @@ onUnmounted(() => {
   margin-bottom: 24px;
 }
 
-/* Поиск */
+/* Поиск - всегда отдельная строка */
 .search-row {
   width: 100%;
 }
@@ -1130,11 +1060,15 @@ onUnmounted(() => {
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
+:global(.dark) .search-input:focus {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
 .search-input::placeholder {
   color: var(--text-tertiary);
 }
 
-/* Фильтры с dropdown */
+/* Фильтры - всегда отдельная строка */
 .filters-row {
   width: 100%;
 }
@@ -1146,7 +1080,7 @@ onUnmounted(() => {
   width: 100%;
 }
 
-/* Dropdown Styles */
+/* ==================== DROPDOWN STYLES ==================== */
 .dropdown-container {
   position: relative;
   flex: 1;
@@ -1155,21 +1089,22 @@ onUnmounted(() => {
 }
 
 @media (min-width: 1024px) {
-  .dropdown-container:nth-child(1) {
+  .subject-wrapper {
     flex-basis: 200px;
     max-width: 220px;
   }
-  .dropdown-container:nth-child(2) {
+  .tag-wrapper {
     flex-basis: 180px;
     max-width: 200px;
   }
-  .dropdown-container:nth-child(3) {
+  .difficulty-wrapper {
     flex-basis: 150px;
     max-width: 170px;
   }
 }
 
-.filter-dropdown-trigger {
+.dropdown-btn {
+  appearance: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1188,44 +1123,53 @@ onUnmounted(() => {
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
-  text-align: left;
+  font-family: inherit;
 }
 
-.filter-dropdown-trigger.compact {
+.dropdown-btn.compact {
   padding: 10px 12px;
   font-size: 13px;
 }
 
-.filter-dropdown-trigger:hover {
+.dropdown-btn:hover {
   border-color: var(--border-medium);
+  background-color: var(--btn-hover-bg);
 }
 
-.filter-dropdown-trigger:focus,
-.filter-dropdown-trigger.active {
+.dropdown-btn:focus,
+.dropdown-btn-active {
   border-color: var(--accent-color);
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
-.filter-dropdown-trigger:disabled {
+:global(.dark) .dropdown-btn:focus,
+:global(.dark) .dropdown-btn-active {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.dropdown-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   background-color: var(--bg-tag);
 }
 
-.filter-label {
-  flex: 1;
+.dropdown-btn-text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+  text-align: left;
 }
 
 .dropdown-arrow {
+  color: var(--text-secondary);
   font-size: 10px;
   margin-left: 8px;
   transition: transform 0.2s ease;
+  flex-shrink: 0;
 }
 
-.filter-dropdown-trigger.active .dropdown-arrow {
+.dropdown-arrow.rotated {
   transform: rotate(180deg);
 }
 
@@ -1234,23 +1178,23 @@ onUnmounted(() => {
   top: calc(100% + 4px);
   left: 0;
   right: 0;
-  max-height: 300px;
-  overflow-y: auto;
   background-color: var(--bg-dropdown);
   border: 2px solid var(--border-light);
   border-radius: 12px;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-dropdown);
   z-index: 100;
-  animation: fadeIn 0.2s ease-out;
+  max-height: 300px;
+  overflow-y: auto;
+  animation: dropdownFadeIn 0.2s ease-out;
 }
 
 .dropdown-item {
   padding: 12px 16px;
-  cursor: pointer;
-  font-size: 14px;
+  color: var(--text-primary);
   font-weight: 500;
-  color: var(--text-secondary);
-  transition: all 0.2s ease;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
   border-bottom: 1px solid var(--border-light);
 }
 
@@ -1260,12 +1204,11 @@ onUnmounted(() => {
 
 .dropdown-item:hover {
   background-color: var(--bg-dropdown-hover);
-  color: var(--text-primary);
 }
 
-.dropdown-item.selected {
-  background-color: var(--accent-color);
-  color: white;
+.dropdown-item-active {
+  background-color: var(--bg-dropdown-active);
+  color: var(--accent-color);
   font-weight: 600;
 }
 
@@ -1298,6 +1241,10 @@ onUnmounted(() => {
   color: #ef4444;
   background-color: var(--bg-input);
   border-color: #fecaca;
+}
+
+:global(.dark) .reset-btn:hover {
+  border-color: #7f1d1d;
 }
 
 /* ==================== ERROR STATE ==================== */
@@ -1359,7 +1306,7 @@ onUnmounted(() => {
 :global(.dark) .retry-btn {
   border-color: #7f1d1d;
   color: #fca5a5;
-  background-color: #1e293b;
+  background-color: var(--bg-card);
 }
 
 .retry-btn:hover {
@@ -1732,11 +1679,6 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
-/* FIX: ТЕМНАЯ РАМКА ДЛЯ ТЕГОВ В ТЕМНОЙ ТЕМЕ */
-:global(.dark) .tag {
-  border-color: #475569;
-}
-
 .tag.mobile {
   font-size: 9px;
   padding: 3px 6px;
@@ -1754,14 +1696,13 @@ onUnmounted(() => {
   border-radius: 12px;
   border: none;
   cursor: pointer;
-  box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.1);
+  box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.1);
   transition: all 0.2s ease;
   flex-shrink: 0;
 }
 
 :global(.dark) .solve-btn {
   background-color: #334155;
-  color: var(--text-primary);
   border: 1px solid #475569;
 }
 
@@ -1780,8 +1721,7 @@ onUnmounted(() => {
 }
 
 :global(.dark) .task-card:hover .solve-btn {
-  background-color: #3b82f6;
-  border-color: transparent;
+  box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.2);
 }
 
 .solve-btn:active {
@@ -1797,11 +1737,230 @@ onUnmounted(() => {
   transform: translateX(4px);
 }
 
+/* ==================== ANIMATIONS ==================== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* ==================== RESPONSIVE ==================== */
+
+@media (max-width: 320px) {
+  .tasks-content {
+    padding: 12px;
+  }
+  .title {
+    font-size: 22px;
+  }
+  .description {
+    font-size: 13px;
+  }
+  .filters-container {
+    padding: 16px;
+    gap: 12px;
+  }
+  .search-input {
+    padding: 10px 10px 10px 36px;
+    font-size: 14px;
+  }
+  .search-icon {
+    font-size: 16px;
+    left: 10px;
+  }
+  .dropdown-btn {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+  .reset-btn.compact {
+    min-width: 56px;
+    padding: 0 8px;
+    font-size: 12px;
+  }
+  .task-card-skeleton,
+  .task-card {
+    padding: 16px;
+  }
+  .empty-icon {
+    width: 64px;
+    height: 64px;
+    font-size: 28px;
+  }
+  .empty-title {
+    font-size: 18px;
+  }
+  .empty-description {
+    font-size: 13px;
+  }
+}
+
+@media (min-width: 321px) and (max-width: 375px) {
+  .tasks-content {
+    padding: 14px;
+  }
+  .title {
+    font-size: 23px;
+  }
+  .dropdown-container {
+    min-width: 100px;
+  }
+}
+
+@media (min-width: 376px) {
+  .tasks-content {
+    padding: 16px;
+  }
+  .title {
+    font-size: 24px;
+  }
+}
+
+@media (min-width: 640px) {
+  .tasks-content {
+    padding: 24px;
+  }
+  .title {
+    font-size: 28px;
+  }
+  .description {
+    font-size: 15px;
+  }
+  .filters-container {
+    padding: 20px;
+    border-radius: 20px;
+  }
+  .search-input {
+    padding: 14px 14px 14px 44px;
+    font-size: 16px;
+  }
+  .search-icon {
+    font-size: 20px;
+    left: 14px;
+  }
+  .dropdown-btn {
+    font-size: 15px;
+  }
+  .error-state {
+    padding: 32px;
+  }
+  .empty-icon {
+    width: 96px;
+    height: 96px;
+    font-size: 36px;
+  }
+  .empty-title {
+    font-size: 22px;
+  }
+  .empty-description {
+    font-size: 15px;
+  }
+  .task-card-skeleton,
+  .task-card {
+    padding: 24px;
+    border-radius: 24px;
+  }
+}
+
+@media (min-width: 768px) {
+  .tasks-header {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+  }
+  .tasks-counter {
+    display: block;
+  }
+  .title {
+    font-size: 32px;
+  }
+  .description {
+    font-size: 16px;
+  }
+  .tasks-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .tasks-content {
+    padding: 32px 40px;
+  }
+  .title {
+    font-size: 36px;
+  }
+  .filters-container {
+    padding: 24px;
+  }
+  .tasks-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1280px) {
+  .tasks-content {
+    padding: 40px;
+    max-width: 1280px;
+  }
+  .title {
+    font-size: 40px;
+  }
+  .description {
+    font-size: 17px;
+  }
+  .tasks-grid {
+    gap: 32px;
+  }
+}
+
+@media (min-width: 1536px) {
+  .tasks-content {
+    max-width: 1440px;
+    padding: 48px;
+  }
+  .title {
+    font-size: 44px;
+  }
+  .description {
+    font-size: 18px;
+  }
+  .tasks-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
 /* ==================== AI BUTTON STYLES ==================== */
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 16px; /* Расстояние между счетчиком и кнопкой */
 }
 
 .ai-mode-btn {
@@ -1809,7 +1968,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); /* Красивый градиент */
   color: white;
   border-radius: 9999px;
   font-weight: 700;
@@ -1817,7 +1976,7 @@ onUnmounted(() => {
   border: none;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 10px rgba(124, 58, 237, 0.3);
+  box-shadow: 0 4px 10px rgba(124, 58, 237, 0.3); /* Легкая тень */
 }
 
 .ai-mode-btn:hover {
@@ -1829,29 +1988,33 @@ onUnmounted(() => {
   font-size: 16px;
 }
 
+/* Адаптив для хедера, чтобы кнопка не прилипала */
 @media (min-width: 768px) {
   .header-actions {
-    margin-left: auto;
+    margin-left: auto; /* Прижимает блок вправо */
   }
 }
 
-/* ==================== AI MENU STYLES ==================== */
+/* ==================== AI MENU STYLES (MODAL FIXED) ==================== */
+
+/* Затемнение фона */
 .ai-menu-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(15, 23, 42, 0.7);
+  background-color: rgba(15, 23, 42, 0.8); /* Чуть темнее для контраста */
   backdrop-filter: blur(4px);
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 2000;
+  z-index: 2000; /* Поднял выше, чтобы перекрывать хедеры */
   padding: 20px;
   animation: fadeIn 0.2s ease-out;
 }
 
+/* Карточка меню */
 .ai-menu-card {
   background-color: white;
   border-radius: 24px;
@@ -1862,9 +2025,16 @@ onUnmounted(() => {
   border: 1px solid #f1f5f9;
   position: relative;
   animation: slideUp 0.3s ease-out;
-  box-sizing: border-box;
+  box-sizing: border-box; /* Важно, чтобы паддинги не ломали ширину */
 }
 
+:global(.dark) .ai-menu-card {
+  background-color: #1e293b;
+  border-color: #334155;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+/* Хедер */
 .ai-menu-header {
   display: flex;
   align-items: center;
@@ -1885,6 +2055,11 @@ onUnmounted(() => {
   letter-spacing: -0.025em;
 }
 
+:global(.dark) .ai-menu-header h2 {
+  color: #f1f5f9;
+}
+
+/* Кнопка закрытия */
 .close-btn {
   background: none;
   border: none;
@@ -1898,12 +2073,20 @@ onUnmounted(() => {
   border-radius: 8px;
   transition: all 0.2s ease;
 }
-
 .close-btn:hover {
   color: #ef4444;
   background-color: #fef2f2;
 }
 
+:global(.dark) .close-btn {
+  color: #94a3b8;
+}
+:global(.dark) .close-btn:hover {
+  color: #fca5a5;
+  background-color: #7f1d1d;
+}
+
+/* Описание */
 .ai-desc {
   color: #64748b;
   margin-bottom: 24px;
@@ -1912,6 +2095,11 @@ onUnmounted(() => {
   font-weight: 500;
 }
 
+:global(.dark) .ai-desc {
+  color: #cbd5e1;
+}
+
+/* Форма */
 .ai-form {
   display: flex;
   flex-direction: column;
@@ -1928,14 +2116,18 @@ onUnmounted(() => {
   letter-spacing: 0.05em;
 }
 
+:global(.dark) .form-group label {
+  color: #94a3b8;
+}
+
+/* Селект */
 .select-wrapper-ai {
   position: relative;
 }
 
-/* Вернули стрелочки к предметам в AI меню */
 .ai-select {
   width: 100%;
-  padding: 14px 40px 14px 16px;
+  padding: 14px 16px;
   border-radius: 12px;
   border: 2px solid #e2e8f0;
   background-color: #f8fafc;
@@ -1943,10 +2135,16 @@ onUnmounted(() => {
   font-weight: 600;
   font-size: 15px;
   outline: none;
-  appearance: none;
+  appearance: none; /* Убирает стандартную стрелку браузера */
   cursor: pointer;
   transition: all 0.2s ease;
   font-family: inherit;
+}
+
+:global(.dark) .ai-select {
+  border-color: #475569;
+  background-color: #334155;
+  color: #f1f5f9;
 }
 
 .ai-select:focus {
@@ -1955,16 +2153,13 @@ onUnmounted(() => {
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
-.select-arrow {
-  position: absolute;
-  right: 16px;
-  top: 50%;
-  transform: translateY(-50%);
-  pointer-events: none;
-  font-size: 12px;
-  color: #64748b;
+:global(.dark) .ai-select:focus {
+  border-color: #3b82f6;
+  background-color: #334155;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
+/* Кнопка генерации */
 .ai-generate-btn {
   width: 100%;
   padding: 16px;
@@ -1985,10 +2180,20 @@ onUnmounted(() => {
   font-family: inherit;
 }
 
+:global(.dark) .ai-generate-btn {
+  background-color: #3b82f6;
+  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.1);
+}
+
 .ai-generate-btn:hover:not(:disabled) {
   background-color: #4338ca;
   transform: translateY(-1px);
   box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.1);
+}
+
+:global(.dark) .ai-generate-btn:hover:not(:disabled) {
+  background-color: #2563eb;
+  box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.1);
 }
 
 .ai-generate-btn:active:not(:disabled) {
@@ -2001,6 +2206,7 @@ onUnmounted(() => {
   background-color: #6366f1;
 }
 
+/* Лоадер */
 .spinner {
   width: 20px;
   height: 20px;
@@ -2010,191 +2216,264 @@ onUnmounted(() => {
   animation: spin 1s linear infinite;
 }
 
-/* ==================== AI TASK VIEW ==================== */
-.ai-task-view {
-  min-height: 100vh;
-  background-color: var(--bg-page);
-  font-family: inherit;
-  line-height: 1.5;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: 0;
-  position: static;
+/* Анимации */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
-.task-content {
-  width: 100%;
-  max-width: 768px;
+/* ==================== AI TASK VIEW (Consistent with regular tasks) ==================== */
+
+.ai-task-view {
+  max-width: 1280px;
   margin: 0 auto;
   padding: 16px;
 }
 
-.back-link {
+@media (min-width: 640px) {
+  .ai-task-view {
+    padding: 24px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .ai-task-view {
+    padding: 32px 40px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .ai-task-view {
+    padding: 40px;
+  }
+}
+
+/* Кнопка назад - сделаем её как в обычном режиме */
+.ai-back-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
-  font-weight: 600;
   color: var(--text-secondary);
-  text-decoration: none;
-  padding: 16px 0;
-  transition: color 0.2s ease;
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 20px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
   background: none;
   border: none;
   cursor: pointer;
-  font-family: inherit;
-  margin-bottom: 16px;
 }
 
-.back-link:hover {
+.ai-back-btn:hover {
   color: var(--accent-color);
-}
-
-.task-card-full {
-  background-color: var(--bg-card);
-  border-radius: 24px;
-  box-shadow: var(--shadow-md);
-  border: 1px solid var(--border-light);
-  overflow: hidden;
-  margin-bottom: 24px;
-}
-
-.task-header-full {
   background-color: var(--bg-input);
-  padding: 0;
-  color: var(--text-primary);
+}
+
+/* Карточка AI задачи - идентична обычным карточкам */
+.ai-task-card {
+  background-color: var(--bg-card);
+  border-radius: 20px;
+  border: 1px solid var(--border-light);
+  padding: 20px;
   position: relative;
   overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
 }
 
-.task-header-overlay {
+@media (min-width: 640px) {
+  .ai-task-card {
+    padding: 24px;
+    border-radius: 24px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .ai-task-card {
+    padding: 32px;
+    border-radius: 28px;
+  }
+}
+
+.ai-task-accent {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, rgba(79, 70, 229, 0.1) 0%, rgba(124, 58, 237, 0.1) 100%);
-  z-index: 1;
+  height: 2px;
+  background: linear-gradient(to right, #4f46e5, #ec4899, #f59e0b);
+  opacity: 1;
 }
 
-.task-header-content-full {
-  position: relative;
-  z-index: 10;
-  padding: 24px;
+/* Хедер AI задачи */
+.ai-task-header {
+  margin-bottom: 20px;
 }
 
-.header-tags {
+.ai-tags-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 16px;
-  flex-wrap: wrap;
   align-items: center;
 }
 
-.subject-tag-full {
+.ai-subject-tag {
+  display: inline-flex;
+  align-items: center;
   padding: 6px 12px;
   background-color: var(--bg-subject-tag);
+  color: var(--text-subject);
   border-radius: 8px;
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--text-subject);
-  border: 1px solid var(--border-light);
 }
 
-.difficulty-tag-full {
+.ai-difficulty-badge {
+  display: inline-flex;
+  align-items: center;
   padding: 6px 12px;
   border-radius: 8px;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border: 1px solid var(--border-light);
-  background-color: var(--bg-tag);
-  color: var(--text-secondary);
+  letter-spacing: 0.1em;
+  border: 2px solid;
 }
 
 .ai-badge {
+  display: inline-flex;
+  align-items: center;
   padding: 6px 12px;
-  background-color: rgba(245, 158, 11, 0.2);
-  border: 1px solid rgba(245, 158, 11, 0.4);
-  color: #f59e0b;
+  background: linear-gradient(135deg, #f59e0b 0%, #ec4899 100%);
+  color: white;
   border-radius: 8px;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.1em;
+  border: 2px solid rgba(255, 255, 255, 0.2);
 }
 
-.task-title-full {
+:global(.dark) .ai-badge {
+  background: linear-gradient(135deg, #d97706 0%, #db2777 100%);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.ai-task-title {
   font-size: 24px;
-  font-weight: 900;
-  letter-spacing: -0.025em;
+  font-weight: 700;
+  color: var(--text-primary);
   line-height: 1.3;
   margin: 0;
+}
+
+@media (min-width: 640px) {
+  .ai-task-title {
+    font-size: 28px;
+  }
+}
+
+@media (min-width: 768px) {
+  .ai-task-title {
+    font-size: 32px;
+  }
+}
+
+/* Тело AI задачи */
+.ai-task-body {
+  margin-top: 24px;
+}
+
+.ai-task-description {
   color: var(--text-primary);
-}
-
-.task-body-full {
-  padding: 24px;
-}
-
-.task-description-full {
   font-size: 16px;
-  color: var(--text-secondary);
   font-weight: 500;
   line-height: 1.6;
   white-space: pre-wrap;
   margin-bottom: 24px;
+  padding: 16px;
+  background-color: var(--bg-input);
+  border-radius: 12px;
+  border: 1px solid var(--border-light);
 }
 
-.hint-section {
+@media (min-width: 640px) {
+  .ai-task-description {
+    font-size: 17px;
+    padding: 20px;
+  }
+}
+
+/* Подсказки */
+.ai-hint-section {
   margin-bottom: 24px;
 }
 
-.hint-btn {
+.ai-hint-btn {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: none;
+  background: var(--bg-input);
   border: 1px solid var(--border-light);
-  padding: 8px 16px;
-  border-radius: 12px;
+  padding: 10px 16px;
+  border-radius: 10px;
   cursor: pointer;
   color: var(--text-secondary);
   font-weight: 600;
-  font-size: 13px;
+  font-size: 14px;
   transition: all 0.2s ease;
   width: 100%;
-  font-family: inherit;
 }
 
-.hint-btn:hover {
-  background-color: var(--bg-input);
+.ai-hint-btn:hover {
+  background-color: var(--btn-hover-bg);
   color: var(--accent-color);
   border-color: var(--accent-color);
 }
 
-.hint-box {
+.ai-hint-box {
   margin-top: 12px;
-  background-color: #fffbeb;
-  border: 1px solid #fcd34d;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-light);
   border-radius: 12px;
   padding: 16px;
-  color: #92400e;
+  color: var(--text-primary);
   font-size: 14px;
   font-weight: 500;
+  line-height: 1.5;
 }
 
-.answer-section {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+/* Поле ответа */
+.ai-answer-section {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border-light);
 }
 
-.ai-textarea {
+.ai-answer-textarea {
   width: 100%;
   background-color: var(--bg-input);
   border: 2px solid var(--border-light);
@@ -2206,162 +2485,161 @@ onUnmounted(() => {
   outline: none;
   transition: all 0.2s ease;
   resize: vertical;
-  min-height: 100px;
+  min-height: 120px;
   font-family: inherit;
+  margin-bottom: 16px;
 }
 
-.ai-textarea:focus {
+.ai-answer-textarea:focus {
   border-color: var(--accent-color);
   background-color: var(--bg-card);
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
-.ai-textarea:disabled {
-  background-color: var(--bg-input);
-  color: var(--text-tertiary);
-  border-color: var(--border-light);
+:global(.dark) .ai-answer-textarea:focus {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.ai-answer-textarea:disabled {
+  opacity: 0.7;
   cursor: not-allowed;
 }
 
-.ai-textarea.correct {
+.ai-answer-correct {
   border-color: #10b981;
   background-color: rgba(16, 185, 129, 0.05);
 }
 
-.ai-textarea.wrong {
-  border-color: #f87171;
-  background-color: rgba(248, 113, 113, 0.05);
+:global(.dark) .ai-answer-correct {
+  background-color: rgba(16, 185, 129, 0.15);
 }
 
-.result-msg {
-  padding: 16px;
-  border-radius: 12px;
+.ai-answer-wrong {
+  border-color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.05);
+}
+
+:global(.dark) .ai-answer-wrong {
+  background-color: rgba(239, 68, 68, 0.15);
+}
+
+/* Результат проверки */
+.ai-result-message {
+  padding: 12px 16px;
+  border-radius: 10px;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
+  margin-bottom: 16px;
   display: flex;
   align-items: center;
-  animation: fadeInUp 0.4s ease-out;
+  animation: fadeInUp 0.3s ease-out;
 }
 
-.result-msg.success {
-  background-color: #d1fae5;
-  color: #065f46;
-  border: 1px solid #a7f3d0;
+.ai-result-success {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #047857;
+  border: 1px solid rgba(16, 185, 129, 0.2);
 }
 
-.result-msg.error {
-  background-color: #fee2e2;
-  color: #991b1b;
-  border: 1px solid #fecaca;
+:global(.dark) .ai-result-success {
+  background-color: rgba(16, 185, 129, 0.2);
+  color: #a7f3d0;
+  border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
-.ai-actions-footer {
+.ai-result-error {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+:global(.dark) .ai-result-error {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+/* Кнопки действий */
+.ai-actions {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding-top: 8px;
+  gap: 12px;
+  justify-content: flex-end;
 }
 
 .ai-submit-btn,
-.ai-generate-btn {
-  width: 100%;
-  padding: 16px;
+.ai-generate-another-btn {
+  padding: 12px 24px;
   border-radius: 12px;
   font-weight: 700;
-  font-size: 16px;
+  font-size: 15px;
   border: none;
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
-  justify-content: center;
   align-items: center;
-  gap: 12px;
-  font-family: inherit;
+  justify-content: center;
+  gap: 8px;
+  min-width: 160px;
 }
 
-.ai-submit-btn,
-.ai-generate-btn {
+.ai-submit-btn {
   background-color: var(--accent-color);
   color: white;
-  box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.1);
 }
 
-.ai-submit-btn:hover:not(:disabled),
-.ai-generate-btn:hover:not(:disabled) {
+.ai-submit-btn:hover:not(:disabled) {
   background-color: var(--accent-hover);
   transform: translateY(-1px);
-  box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.1);
-}
-
-.ai-submit-btn:active,
-.ai-generate-btn:active {
-  transform: translateY(0);
+  box-shadow: var(--shadow-md);
 }
 
 .ai-submit-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  box-shadow: none;
-  transform: none;
 }
 
+.ai-generate-another-btn {
+  background-color: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border-light);
+}
+
+.ai-generate-another-btn:hover {
+  background-color: var(--btn-hover-bg);
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+
+.ai-btn-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Лоадер для AI генерации */
 .loading-placeholder {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 300px;
-  color: var(--text-tertiary);
-  animation: pulse 2s infinite;
+  padding: 80px 20px;
+  color: var(--text-secondary);
 }
 
 .spinner-large {
   width: 48px;
   height: 48px;
-  margin-bottom: 16px;
-  border: 4px solid var(--border-light);
+  margin-bottom: 20px;
+  border: 3px solid var(--border-light);
   border-top-color: var(--accent-color);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
 
-/* ==================== ANIMATIONS ==================== */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
+/* Анимации */
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -2373,484 +2651,31 @@ onUnmounted(() => {
   }
 }
 
-/* ==================== DARK THEME OVERRIDES (как в первом файле) ==================== */
-
-:root.dark .ai-menu-card {
-  background-color: #1e293b;
-  border-color: #334155;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-}
-
-:root.dark .ai-menu-header h2 {
-  color: #f1f5f9;
-}
-
-:root.dark .close-btn {
-  color: #94a3b8;
-}
-
-:root.dark .close-btn:hover {
-  color: #fca5a5;
-  background-color: #7f1d1d;
-}
-
-:root.dark .ai-desc {
-  color: #cbd5e1;
-}
-
-:root.dark .form-group label {
-  color: #94a3b8;
-}
-
-/* AI меню - тёмная тема с стрелочками */
-:root.dark .ai-select {
-  background-color: #334155;
-  border-color: #475569;
-  color: #f1f5f9;
-}
-
-:root.dark .ai-select:focus {
-  border-color: #3b82f6;
-  background-color: #334155;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
-}
-
-:root.dark .select-arrow {
-  color: #94a3b8;
-}
-
-:root.dark .ai-generate-btn {
-  background-color: #3b82f6;
-}
-
-:root.dark .ai-generate-btn:hover:not(:disabled) {
-  background-color: #2563eb;
-}
-
-/* AI Task View Dark Theme */
-:root.dark .ai-task-view {
-  background-color: #0f172a;
-  color: #f1f5f9;
-}
-
-:root.dark .task-card-full {
-  background-color: #1e293b;
-  border-color: #334155;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
-}
-
-:root.dark .task-header-full {
-  background-color: #334155;
-}
-
-:root.dark .task-header-overlay {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.15) 100%);
-}
-
-:root.dark .task-title-full {
-  color: #f8fafc;
-}
-
-:root.dark .task-description-full {
-  color: #cbd5e1;
-}
-
-:root.dark .subject-tag-full {
-  background-color: rgba(255, 255, 255, 0.15);
-  color: #93c5fd;
-  border-color: rgba(255, 255, 255, 0.2);
-}
-
-:root.dark .difficulty-tag-full {
-  background-color: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.2);
-  color: #cbd5e1;
-}
-
-:root.dark .ai-badge {
-  background-color: rgba(245, 158, 11, 0.15);
-  border-color: rgba(245, 158, 11, 0.3);
-  color: #fbbf24;
-}
-
-/* Подсказки Dark */
-:root.dark .hint-btn {
-  border-color: #475569;
-  color: #94a3b8;
-}
-
-:root.dark .hint-btn:hover {
-  background-color: #334155;
-  color: #60a5fa;
-  border-color: #3b82f6;
-}
-
-:root.dark .hint-box {
-  background-color: #78350f;
-  color: #fde68a;
-  border-color: #92400e;
-}
-
-/* Инпуты Dark */
-:root.dark .ai-textarea {
-  background-color: #334155;
-  border-color: #475569;
-  color: #f1f5f9;
-}
-
-:root.dark .ai-textarea:focus {
-  background-color: #334155;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
-}
-
-:root.dark .ai-textarea:disabled {
-  background-color: #334155;
-  color: #94a3b8;
-  border-color: #475569;
-}
-
-:root.dark .ai-textarea.correct {
-  border-color: #10b981;
-  background-color: rgba(16, 185, 129, 0.15);
-}
-
-:root.dark .ai-textarea.wrong {
-  border-color: #f87171;
-  background-color: rgba(248, 113, 113, 0.15);
-}
-
-/* Результат Dark */
-:root.dark .result-msg.success {
-  background-color: #065f46;
-  color: #a7f3d0;
-  border-color: #047857;
-}
-
-:root.dark .result-msg.error {
-  background-color: #7f1d1d;
-  color: #fecaca;
-  border-color: #991b1b;
-}
-
-/* Кнопки Dark */
-:root.dark .ai-submit-btn,
-:root.dark .ai-generate-btn {
-  background-color: #3b82f6;
-}
-
-:root.dark .ai-submit-btn:hover:not(:disabled),
-:root.dark .ai-generate-btn:hover:not(:disabled) {
-  background-color: #2563eb;
-}
-
-/* Спиннер в темной теме */
-:root.dark .spinner-large {
-  border-color: rgba(255, 255, 255, 0.1);
-  border-top-color: #60a5fa;
-}
-
-/* Dropdown Dark Theme */
-:root.dark .dropdown-item.selected {
-  background-color: #3b82f6;
-}
-
-/* Убрать синюю/красную рамку у всего окна в тёмной теме */
-:root.dark *:focus {
-  outline: none !important;
-  box-shadow: none !important;
-}
-
-:root.dark .tasks-container button:focus,
-:root.dark .tasks-container input:focus,
-:root.dark .tasks-container select:focus,
-:root.dark .tasks-container textarea:focus {
-  outline: none !important;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2) !important;
-}
-
-/* ==================== RESPONSIVE ==================== */
-
-@media (max-width: 320px) {
-  .tasks-content {
-    padding: 12px;
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
-  
-  .title {
-    font-size: 22px;
-  }
-  
-  .description {
-    font-size: 13px;
-  }
-  
-  .filters-container {
-    padding: 16px;
-    gap: 12px;
-  }
-  
-  .filter-dropdown-trigger {
-    padding: 10px 12px;
-    font-size: 13px;
-  }
-  
-  .dropdown-item {
-    padding: 10px 12px;
-    font-size: 13px;
-  }
-  
-  .reset-btn.compact {
-    min-width: 56px;
-    padding: 0 8px;
-    font-size: 12px;
-  }
-  
-  .task-content {
-    padding: 12px;
-  }
-  
-  .task-title-full {
+}
+
+/* Адаптивность */
+@media (max-width: 640px) {
+  .ai-task-title {
     font-size: 20px;
   }
   
-  .task-description-full {
-    font-size: 14px;
-  }
-}
-
-@media (min-width: 321px) and (max-width: 375px) {
-  .tasks-content {
-    padding: 14px;
-  }
-  
-  .title {
-    font-size: 23px;
-  }
-  
-  .filter-dropdown-trigger {
-    min-width: 100px;
-  }
-}
-
-@media (min-width: 376px) {
-  .tasks-content {
-    padding: 16px;
-  }
-  
-  .title {
-    font-size: 24px;
-  }
-}
-
-@media (min-width: 640px) {
-  .tasks-content {
-    padding: 24px;
-  }
-  
-  .title {
-    font-size: 28px;
-  }
-  
-  .description {
+  .ai-task-description {
     font-size: 15px;
+    padding: 12px;
   }
   
-  .filters-container {
-    padding: 20px;
-    border-radius: 20px;
-  }
-  
-  .search-input {
-    padding: 14px 14px 14px 44px;
-    font-size: 16px;
-  }
-  
-  .search-icon {
-    font-size: 20px;
-    left: 14px;
-  }
-  
-  .filter-dropdown-trigger {
-    font-size: 15px;
-  }
-  
-  .task-content {
-    padding: 24px;
-  }
-  
-  .task-title-full {
-    font-size: 28px;
-  }
-  
-  .task-description-full {
-    font-size: 17px;
-  }
-  
-  .hint-btn {
-    width: auto;
-    display: inline-flex;
-  }
-  
-  .ai-actions-footer {
-    flex-direction: row;
-    justify-content: flex-end;
+  .ai-actions {
+    flex-direction: column;
   }
   
   .ai-submit-btn,
-  .ai-generate-btn {
-    width: auto;
-    padding: 14px 32px;
-  }
-}
-
-@media (min-width: 768px) {
-  .tasks-header {
-    flex-direction: row;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 24px;
-  }
-  
-  .tasks-counter {
-    display: block;
-  }
-  
-  .title {
-    font-size: 32px;
-  }
-  
-  .description {
-    font-size: 16px;
-  }
-  
-  .tasks-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 24px;
-  }
-  
-  .task-content {
-    padding: 32px;
-  }
-  
-  .task-card-full {
-    border-radius: 32px;
-  }
-  
-  .task-header-content-full {
-    padding: 40px;
-  }
-  
-  .task-body-full {
-    padding: 40px;
-  }
-  
-  .task-title-full {
-    font-size: 32px;
-  }
-  
-  .task-description-full {
-    font-size: 18px;
-  }
-}
-
-@media (min-width: 1024px) {
-  .tasks-content {
-    padding: 32px 40px;
-  }
-  
-  .title {
-    font-size: 36px;
-  }
-  
-  .filters-container {
-    padding: 24px;
-  }
-  
-  .tasks-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-  
-  .task-content {
-    max-width: 800px;
-  }
-  
-  .task-card-full {
-    border-radius: 40px;
-    box-shadow: 0 25px 50px -12px rgba(148, 163, 184, 0.5);
-  }
-  
-  .task-title-full {
-    font-size: 36px;
-  }
-  
-  .task-description-full {
-    font-size: 19px;
-  }
-}
-
-@media (min-width: 1280px) {
-  .tasks-content {
-    padding: 40px;
-    max-width: 1280px;
-  }
-  
-  .title {
-    font-size: 40px;
-  }
-  
-  .description {
-    font-size: 17px;
-  }
-  
-  .tasks-grid {
-    gap: 32px;
-  }
-  
-  .task-content {
-    max-width: 850px;
-  }
-  
-  .task-card-full {
-    border-radius: 48px;
-  }
-  
-  .task-title-full {
-    font-size: 40px;
-  }
-  
-  .task-description-full {
-    font-size: 20px;
-  }
-}
-
-@media (min-width: 1536px) {
-  .tasks-content {
-    max-width: 1440px;
-    padding: 48px;
-  }
-  
-  .title {
-    font-size: 44px;
-  }
-  
-  .description {
-    font-size: 18px;
-  }
-  
-  .tasks-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-  
-  .task-content {
-    max-width: 900px;
-  }
-  
-  .task-title-full {
-    font-size: 44px;
-  }
-  
-  .task-description-full {
-    font-size: 21px;
+  .ai-generate-another-btn {
+    width: 100%;
+    min-width: auto;
   }
 }
 </style>
