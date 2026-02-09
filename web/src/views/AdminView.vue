@@ -2,6 +2,8 @@
 import { ref, onMounted, computed, reactive } from 'vue'
 import api from '@/api/axios'
 import { useConstantsStore } from '@/pinia/ConstantsStore.js'
+import { useNotificationStore } from '@/pinia/NotificationStore'
+const notify = useNotificationStore()
 
 const constants = useConstantsStore()
 
@@ -126,7 +128,7 @@ const handleApiError = (err) => {
     accessDenied.value = true
   } else {
     console.error('API Error:', err)
-    // alert('Ошибка: ' + (err.response?.data?.detail || err.message))
+    notify.show('Ошибка: ' + (err.response?.data?.detail || err.message))
   }
 }
 
@@ -230,68 +232,21 @@ const openUserDetails = async (user) => {
   }
 }
 
-// Переключение режима редактирования в досье
-const toggleUserEditMode = () => {
-    isUserEditMode.value = !isUserEditMode.value
-}
+const updateUserAction = async (userId, data, successMessage = null) => {
+  try {
+    await api.patch(`/admin/users/${userId}`, data)
+    if (successMessage) notify.show(successMessage)
 
-// Вспомогательная: смена ранга обновляет рейтинг
-const onRankChange = () => {
-    const minRating = RANKS_INFO[userForm.value.rank]
-    if (minRating !== undefined) {
-        userForm.value.rating = minRating
-    }
-}
+    // Обновляем список пользователей
+    await fetchUsers()
 
-// Вспомогательная: тоггл достижений
-const toggleAchievement = (achKey) => {
-    if (!isUserEditMode.value) return
-    const idx = userForm.value.achievements.indexOf(achKey)
-    if (idx === -1) userForm.value.achievements.push(achKey)
-    else userForm.value.achievements.splice(idx, 1)
-}
-
-// СОХРАНЕНИЕ ИЗМЕНЕНИЙ ПОЛЬЗОВАТЕЛЯ (ИСПРАВЛЕНО 422)
-const saveUserChanges = async () => {
-    // Формируем чистый payload, без id и дат
-    const payload = {
-        username: userForm.value.username,
-        email: userForm.value.email,
-        rating: Number(userForm.value.rating),
-        rank: userForm.value.rank,
-        xp: Number(userForm.value.xp),
-        is_admin: Boolean(userForm.value.is_admin),
-        is_banned: Boolean(userForm.value.is_banned),
-        avatar_url: userForm.value.avatar_url || "",
-        achievements: userForm.value.achievements || []
+    // Если открыто досье, обновляем и его локально
+    if (selectedUser.value && selectedUser.value.id === userId) {
+       selectedUser.value = { ...selectedUser.value, ...data }
     }
 
-    try {
-        await api.patch(`/admin/users/${userForm.value.id}`, payload)
-        alert('Пользователь обновлен!')
-        isUserEditMode.value = false
-        fetchUsers() // Обновляем таблицу
-    } catch (err) {
-        handleApiError(err)
-    }
-}
-
-// Быстрые действия (бан/админ) внутри досье
-const toggleUserStatus = async (field) => {
-    const newVal = !userForm.value[field]
-    userForm.value[field] = newVal // Оптимистичное обновление интерфейса
-
-    // Формируем мини-пейлод только с измененным полем
-    const payload = {}
-    payload[field] = newVal
-
-    try {
-        await api.patch(`/admin/users/${userForm.value.id}`, payload)
-        fetchUsers() // Синхрон с таблицей
-    } catch (err) {
-        userForm.value[field] = !newVal // Откат при ошибке
-        handleApiError(err)
-    }
+    showUserEditModal.value = false
+  } catch (err) { handleApiError(err) }
 }
 
 const deleteUser = async (user) => {
@@ -339,7 +294,8 @@ const saveTask = async () => {
     const finalUrl = isEditMode.value ? `/admin/tasks/${currentEditId.value}` : '/admin/tasks/create'
     const method = isEditMode.value ? 'patch' : 'post'
     await api[method](finalUrl, taskForm.value)
-    alert(isEditMode.value ? 'Задача обновлена!' : 'Задача создана!')
+
+    notify.show(isEditMode.value ? 'Задача обновлена!' : 'Задача создана!')
     showTaskModal.value = false
     fetchTasks()
     fetchStats()
@@ -377,7 +333,7 @@ const handleImport = async (event) => {
     const response = await api.post('/admin/tasks/import', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
-    alert(`Импорт завершен!\nСоздано: ${response.data.created}\nОбновлено: ${response.data.updated}`)
+    notify.show(`Импорт завершен!\nСоздано: ${response.data.created}\nОбновлено: ${response.data.updated}`)
     fetchTasks(); fetchStats()
   } catch (err) { handleApiError(err) }
   finally { loading.value = false; event.target.value = '' }
