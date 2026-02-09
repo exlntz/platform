@@ -4,19 +4,19 @@ import { useRouter } from 'vue-router'
 import api from '@/api/axios' // Наш настроенный инстанс
 import { useNotificationStore } from '@/pinia/NotificationStore'
 import { useConfirm } from '@/composables/useConfirm'
+import { nextTick } from 'vue' // Не забудь импортировать nextTick
+
 
 const { confirm } = useConfirm()
 const notify = useNotificationStore()
-
-
 const router = useRouter()
 const loading = ref(true)
 const profile = ref(null)
 const error = ref(null)
 const fileInput = ref(null)
-
-
-
+const isEditingName = ref(false)
+const nameModel = ref('')
+const nameInputRef = ref(null) // Ссылка на DOM-элемент инпута
 
 
 
@@ -106,6 +106,63 @@ const formatDate = (dateString) => {
   })
 }
 
+
+// Функция старта редактирования
+const startEditingName = () => {
+  nameModel.value = profile.value.user.username // Копируем текущее имя
+  isEditingName.value = true
+  
+  // Фокус на инпут после того, как он появится в DOM
+  nextTick(() => {
+    nameInputRef.value?.focus()
+  })
+}
+
+// Функция отмены
+const cancelEditingName = () => {
+  isEditingName.value = false
+  nameModel.value = ''
+}
+
+// Функция сохранения (та самая, которую ты просил)
+const saveNewName = async () => {
+  const newName = nameModel.value.trim()
+  
+  // 1. Валидация на фронте
+  if (!newName) {
+    notify.show('Никнейм не может быть пустым', 'warning')
+    return
+  }
+  if (newName === profile.value.user.username) {
+    cancelEditingName() // Если имя не изменилось, просто закрываем
+    return
+  }
+
+  try {
+    loading.value = true // Можно включить общий лоадер или локальный
+    
+    // 2. Отправка запроса
+    // Важно: уточни, какой ключ ждет бэкенд (обычно 'username' или 'name')
+    await api.patch('/profile/change_name', { 
+      "new_username": newName
+    })
+
+    // 3. Обновляем данные локально (оптимистичный UI)
+    profile.value.user.username = newName
+    notify.show('Никнейм успешно изменен!', 'success')
+    isEditingName.value = false
+    
+  } catch (err) {
+    console.error(err)
+    // Выводим ошибку с бэкенда или дефолтную
+    const msg = err.response?.data?.detail || 'Не удалось сменить имя'
+    notify.show(msg, 'error')
+  } finally {
+    loading.value = false
+  }
+}
+
+
 onMounted(() => {
   fetchProfile()
 })
@@ -154,7 +211,55 @@ onMounted(() => {
 
           <div class="profile-details">
             <div class="name-section">
-              <h1 class="username">{{ profile.user.username }}</h1>
+              <div class="flex items-center gap-3 min-h-[40px]">
+              <template v-if="!isEditingName">
+                <h1 class="username">
+                  {{ profile?.user?.username }}
+                </h1>
+                
+                <button 
+                  @click="startEditingName"
+                  class="p-1 text-gray-400 hover:text-indigo-600 transition-colors"
+                  title="Изменить никнейм"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                </button>
+              </template>
+
+              <template v-else>
+                <div class="flex items-center gap-2">
+                  <input
+                    ref="nameInputRef"
+                    v-model="nameModel"
+                    @keyup.enter="saveNewName"
+                    @keyup.esc="cancelEditingName"
+                    type="text"
+                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white px-3 py-1"
+                    placeholder="Новый ник"
+                  />
+                  
+                  <button 
+                    @click="saveNewName"
+                    class="rounded-md bg-green-100 p-1 text-green-600 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                  </button>
+                  
+                  <button 
+                    @click="cancelEditingName"
+                    class="rounded-md bg-red-100 p-1 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
+              </template>
+            </div>
               <span class="rank-badge" >
                 {{ profile.user.rank }}
               </span>
