@@ -86,10 +86,8 @@ onMounted(() => {
           <thead>
             <tr class="table-head">
               <th>ID</th>
-              <th class="user-column">Игрок 1</th>
-              <th class="user-column">Игрок 2</th>
+              <th class="user-column">Игроки</th>
               <th>Результат</th>
-              <th>ELO (P1 / P2)</th>
               <th class="date-column">Дата</th>
             </tr>
           </thead>
