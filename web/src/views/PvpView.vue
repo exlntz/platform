@@ -3,10 +3,14 @@ import { ref, onUnmounted, nextTick, computed, onMounted, watch } from 'vue'
 import api from '@/api/axios'
 import { useRouter } from 'vue-router'
 import { useNotificationStore } from '@/pinia/NotificationStore'
+
+import { useDateFormatter } from '@/composables/useDateFormatter' 
+
+const { formatDate } = useDateFormatter() 
 const notify = useNotificationStore()
 const router = useRouter()
 
-// --- КОНСТАНТЫ ВИЗУАЛА ---
+
 const RANK_VISUALS = {
   LEGEND: { emoji: '🐲', color: 'from-purple-500 to-pink-500' },
   SENSEI: { emoji: '🥋', color: 'from-red-500 to-orange-500' },
@@ -16,7 +20,7 @@ const RANK_VISUALS = {
   BRONZE: { emoji: '🥉', color: 'from-amber-700 to-amber-900' },
 }
 
-// --- СОСТОЯНИЕ ---
+
 const ELO_RANKS = ref([])
 const socket = ref(null)
 const gameState = ref('idle')
@@ -26,7 +30,7 @@ const userAnswer = ref('')
 const logs = ref([])
 const logContainer = ref(null)
 
-// --- СЧЕТ МАТЧА ---
+
 const myScore = ref(0)
 const opponentScore = ref(0)
 
@@ -34,26 +38,23 @@ const availableEmojis = ['😎', '🔥', '😱', '🤔', '😭', '😂']
 const showEmojiPicker = ref(false)
 const floatingEmojis = ref([])
 
-// --- ТАЙМЕР МЕЖДУ ЗАДАЧАМИ ---
 const isNextTaskTimerActive = ref(false)
 const nextTaskTimer = ref(3)
 let taskTimerInterval = null
 
-// --- ТАЙМЕР РЕКОННЕКТА ---
 let reconnectButtonTimer = null
 const RECONNECT_WINDOW_MS = 5000
 
-// --- СТАТИСТИКА И ИСТОРИЯ ---
 const stats = ref({ rank: 'Loading...', points: 0, username: '' })
 const matchHistory = ref([])
 const isHistoryLoading = ref(true)
 
-// --- MODAL STATE ---
+
 const showRankModal = ref(false)
 const openRankModal = () => (showRankModal.value = true)
 const closeRankModal = () => (showRankModal.value = false)
 
-// --- ЛОГИКА СОХРАНЕНИЯ СЧЕТА (LOCAL STORAGE) ---
+
 const saveScoreState = () => {
   const scoreData = {
     me: myScore.value,
@@ -81,14 +82,13 @@ const clearScoreState = () => {
   opponentScore.value = 0
 }
 
-// Следим за изменениями счета и сохраняем
+
 watch([myScore, opponentScore], () => {
   if (gameState.value === 'playing') {
     saveScoreState()
   }
 })
 
-// --- ВЫЧИСЛЕНИЯ ДЛЯ РАНГОВ ---
 const currentRankObj = computed(() => {
   if (ELO_RANKS.value.length === 0) {
     return { name: '...', min_elo: 0, emoji: '⏳', label: 'Loading...', color: 'from-gray-500' }
@@ -178,7 +178,7 @@ const resultTitleClass = computed(() => {
   }
 })
 
-// --- ЗАГРУЗКА ДАННЫХ ---
+
 const loadUserData = async () => {
   try {
     if (ELO_RANKS.value.length === 0) {
@@ -214,15 +214,6 @@ const loadHistory = async () => {
   }
 }
 
-const formatDate = (dateString) => {
-  const date = new Date(dateString)
-  return date.toLocaleString('ru-RU', {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
 
 const formatEloRaw = (change) => {
   const val = parseFloat(change)
@@ -245,7 +236,7 @@ const getResultClass = (resultStr) => {
   return 'res-text-neutral'
 }
 
-// --- ТАЙМЕР МЕЖДУ РАУНДАМИ ---
+
 const startNextTaskTimer = () => {
   isNextTaskTimerActive.value = true
   nextTaskTimer.value = 3
@@ -261,7 +252,7 @@ const startNextTaskTimer = () => {
   }, 1000)
 }
 
-// --- НАВИГАЦИЯ ПОСЛЕ МАТЧА ---
+
 const goToTasks = () => {
   router.push('/tasks')
 }
@@ -272,7 +263,7 @@ const goBackToLobby = () => {
   gameState.value = 'idle'
 }
 
-// --- WEBSOCKET ---
+
 const isReconnecting = ref(false)
 
 const connectPvp = () => {
@@ -286,19 +277,17 @@ const connectPvp = () => {
   if (reconnectButtonTimer) clearTimeout(reconnectButtonTimer)
 
   if (!isReconnecting.value) {
-    // НОВАЯ ИГРА - СБРОС ВСЕГО
     gameState.value = 'searching'
     gameResult.value = null
     activeTask.value = null
     logs.value = []
     userAnswer.value = ''
     isNextTaskTimerActive.value = false
-    clearScoreState() // Очищаем старый счет
+    clearScoreState() 
   } else {
-    // РЕКОННЕКТ
     gameState.value = 'playing'
     addLog('system', 'Восстановление соединения...')
-    restoreScoreState() // Восстанавливаем счет из памяти
+    restoreScoreState() 
   }
 
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
@@ -382,7 +371,7 @@ const connectPvp = () => {
       gameState.value = 'playing'
       isReconnecting.value = true
       addLog('system', 'Вы вернулись в игру!')
-      restoreScoreState() // Попытка восстановить счет
+      restoreScoreState() 
     } else if (msg.includes('emoji ')) {
       const emojiChar = msg.split(' ')[1]
       triggerFloatingEmoji(emojiChar, 'opponent')
@@ -412,7 +401,7 @@ const startReconnectExpirationTimer = (duration) => {
   reconnectButtonTimer = setTimeout(() => {
     if (gameState.value === 'idle' && isReconnecting.value) {
       isReconnecting.value = false
-      clearScoreState() // Время вышло, сбрасываем счет
+      clearScoreState() 
       localStorage.removeItem('pvp_reconnect')
       localStorage.removeItem('pvp_disconnect_time')
     }
@@ -449,7 +438,7 @@ const finishGame = (result) => {
 
   localStorage.removeItem('pvp_reconnect')
   localStorage.removeItem('pvp_disconnect_time')
-  clearScoreState() // Очищаем счет при завершении
+  clearScoreState() 
 }
 
 const disconnect = () => {
@@ -479,7 +468,7 @@ onMounted(() => {
 
   if (wasInMatch && now - disconnectTime < RECONNECT_WINDOW_MS) {
     isReconnecting.value = true
-    restoreScoreState() // Восстанавливаем счет при рефреше
+    restoreScoreState() 
 
     const remainingTime = RECONNECT_WINDOW_MS - (now - disconnectTime)
     startReconnectExpirationTimer(remainingTime)
@@ -495,7 +484,7 @@ window.addEventListener('beforeunload', () => {
   if (gameState.value === 'playing' || gameState.value === 'searching') {
     localStorage.setItem('pvp_reconnect', 'true')
     localStorage.setItem('pvp_disconnect_time', Date.now().toString())
-    saveScoreState() // Сохраняем счет перед уходом
+    saveScoreState() 
   } else {
     localStorage.removeItem('pvp_reconnect')
     localStorage.removeItem('pvp_disconnect_time')

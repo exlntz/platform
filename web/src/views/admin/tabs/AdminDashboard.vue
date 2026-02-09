@@ -8,7 +8,7 @@ const notify = useNotificationStore()
 const stats = ref({
   total_users: 0,
   total_tasks: 0,
-  total_pvp_matches: 0, // Заменили average_rating на total_pvp_matches
+  total_pvp_matches: 0, 
   new_users_24h: 0,
   most_popular_subject: 'Загрузка...',
 })

@@ -1,5 +1,4 @@
 import axios from 'axios'
-// УБРАЛИ: import router from '@/router' — это вызывало ошибку
 import { useNotificationStore } from '@/pinia/NotificationStore'
 
 const api = axios.create({
@@ -7,7 +6,7 @@ const api = axios.create({
   timeout: 10000,
 })
 
-// --- НОВЫЕ ПЕРЕМЕННЫЕ ДЛЯ REFRESH TOKEN ---
+
 let isRefreshing = false
 let failedQueue = []
 
@@ -22,7 +21,7 @@ const processQueue = (error, token = null) => {
   failedQueue = []
 }
 
-// --- 1. ПЕРЕХВАТЧИК ЗАПРОСОВ (Вставляем токен) ---
+
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('user-token')
@@ -36,15 +35,14 @@ api.interceptors.request.use(
   },
 )
 
-// Флаг защиты от спама редиректов
+
 let isRedirecting = false
 
-// --- 2. ПЕРЕХВАТЧИК ОТВЕТОВ ---
+
 api.interceptors.response.use(
   (response) => {
     const data = response.data
 
-    // Логика ачивок
     if (data && Array.isArray(data.achievements) && data.achievements.length > 0) {
       const notify = useNotificationStore()
       data.achievements.forEach((achievementText) => {
@@ -97,7 +95,6 @@ api.interceptors.response.use(
 
         try {
           const refreshToken = localStorage.getItem('refresh-token')
-          // ВАЖНО: Используем axios (чистый), чтобы не зациклить интерцепторы
           const response = await axios.post(`${api.defaults.baseURL}/auth/refresh`, {
             refresh_token: refreshToken,
           })
@@ -125,7 +122,6 @@ api.interceptors.response.use(
         localStorage.removeItem('user-token')
         localStorage.removeItem('refresh-token')
 
-        // ИЗМЕНЕНИЕ: Используем window.location вместо router.push для разрыва зависимости
         setTimeout(() => {
           window.location.href = '/auth'
         }, 500)

@@ -3,7 +3,6 @@ export default {
   name: "HomeView",
   data() {
     return {
-      // Проверяем наличие токена для управления отображением кнопок
       isLoggedIn: !!localStorage.getItem('user-token')
     }
   }
@@ -14,7 +13,6 @@ export default {
   <div class="home-container">
     <main class="home-main">
       <div class="home-content">
-        <!-- Основной контент -->
         <div class="hero-section">
           <h1 class="hero-title">Платформа для будущих чемпионов</h1>
           
@@ -40,7 +38,6 @@ export default {
           </div>
         </div>
 
-        <!-- Блок регистрации/входа -->
         <div class="cta-section">
           <div class="cta-card">
             <h2 class="cta-title">Начни путь к успеху</h2>

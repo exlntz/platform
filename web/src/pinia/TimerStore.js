@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 
 const STORAGE_KEY = 'task_timer'
-const AFK_LIMIT = 60 * 60 * 1000 // 1 hour!!!
+const AFK_LIMIT = 60 * 60 * 1000 
 
 export const useTimerStore = defineStore('timer', {
   state: () => ({
@@ -9,16 +9,12 @@ export const useTimerStore = defineStore('timer', {
     isRunning: false,
     isAfkAlertVisible: false,
 
-    // internal state (persisted)
     taskStartTime: null,
     accumulatedSeconds: 0,
     lastActivityTime: Date.now()
   }),
 
   actions: {
-    // ----------------------
-    // PERSISTENCE
-    // ----------------------
     saveState() {
       localStorage.setItem(
         STORAGE_KEY,
@@ -44,9 +40,6 @@ export const useTimerStore = defineStore('timer', {
       localStorage.removeItem(STORAGE_KEY)
     },
 
-    // ----------------------
-    // TIMER
-    // ----------------------
     startTimer() {
       if (this.isRunning) return
 
@@ -80,9 +73,6 @@ export const useTimerStore = defineStore('timer', {
         Math.floor((Date.now() - this.taskStartTime) / 1000)
     },
 
-    // ----------------------
-    // AFK
-    // ----------------------
     updateActivity() {
       this.lastActivityTime = Date.now()
       this.saveState()
@@ -105,9 +95,7 @@ export const useTimerStore = defineStore('timer', {
       this.startTimer()
     },
 
-    // ----------------------
-    // TASK
-    // ----------------------
+
     startTask() {
       this.elapsedSeconds = 0
       this.accumulatedSeconds = 0

@@ -13,7 +13,7 @@ const loading = ref(false)
 const users = ref([])
 const activeMenuId = ref(null)
 
-// --- ДЕТАЛИ И РЕДАКТИРОВАНИЕ ПОЛЬЗОВАТЕЛЯ ---
+
 const showUserDetailsModal = ref(false)
 const userDetailsLoading = ref(false)
 const isUserEditMode = ref(false)
@@ -27,7 +27,6 @@ const userForm = ref({
   is_admin: false,
   is_banned: false,
   avatar_url: '',
-  achievements: [],
 })
 const selectedUserStats = ref(null)
 const selectedUserEloHistory = ref([])
@@ -43,6 +42,7 @@ const RANKS_INFO = {
 }
 const ranksList = Object.keys(RANKS_INFO)
 
+
 const formatDate = (dateString) => {
   if (!dateString) return '-'
   const dateValue = dateString.endsWith('Z') ? dateString : dateString + 'Z'
@@ -57,6 +57,14 @@ const formatDate = (dateString) => {
   } catch (e) {
     return dateString
   }
+}
+
+
+const getAvatarUrl = (url) => {
+  if (!url) return ''
+  if (url.startsWith('http') || url.startsWith('/api')) return url
+  if (url.startsWith('/static')) return `/api${url}`
+  return url
 }
 
 const fetchUsers = async () => {
@@ -86,28 +94,21 @@ const openUserDetails = async (user) => {
   selectedUserStats.value = null
   selectedUserEloHistory.value = []
 
-  userForm.value = { ...user, achievements: user.achievements || [] }
+  userForm.value = { ...user }
 
   try {
-    try {
-      const detailRes = await api.get(`/admin/users/${user.id}`)
-      userForm.value = { ...userForm.value, ...detailRes.data }
-    } catch (e) {
-      console.warn('GET /admin/users/{id} not supported or failed, using list data', e)
-    }
-
-    const statsRes = await api.get(`/admin/users/${user.id}/full_details`)
-    const data = statsRes.data
+    const response = await api.get(`/admin/users/${user.id}/full_details`)
+    const data = response.data
 
     if (data.profile) {
       userForm.value = { ...userForm.value, ...data.profile }
     }
 
     selectedUserStats.value = data.stats
-    selectedUserEloHistory.value = data.elo_history
+    selectedUserEloHistory.value = data.elo_history || []
   } catch (err) {
     console.error('API Error:', err)
-    notify.show('Ошибка: ' + (err.response?.data?.detail || err.message))
+    notify.show('Ошибка загрузки деталей: ' + (err.response?.data?.detail || err.message))
   } finally {
     userDetailsLoading.value = false
   }
@@ -124,12 +125,6 @@ const onRankChange = () => {
   }
 }
 
-const toggleAchievement = (achKey) => {
-  const idx = userForm.value.achievements.indexOf(achKey)
-  if (idx === -1) userForm.value.achievements.push(achKey)
-  else userForm.value.achievements.splice(idx, 1)
-}
-
 const saveUserChanges = async () => {
   const payload = {
     username: userForm.value.username,
@@ -137,15 +132,12 @@ const saveUserChanges = async () => {
     rating: Number(userForm.value.rating),
     rank: userForm.value.rank,
     xp: Number(userForm.value.xp),
-    is_admin: Boolean(userForm.value.is_admin),
-    is_banned: Boolean(userForm.value.is_banned),
     avatar_url: userForm.value.avatar_url || '',
-    achievements: userForm.value.achievements || [],
   }
 
   try {
-    await api.patch(`/admin/users/${userForm.value.id}`, payload)
-    notify.show('Пользователь обновлен!', 'succes')
+    await api.patch(`/admin/users/${userForm.value.id}/change`, payload)
+    notify.show('Пользователь обновлен!')
     isUserEditMode.value = false
     fetchUsers()
   } catch (err) {
@@ -190,28 +182,21 @@ const toggleUserStatus = async (field) => {
 }
 
 const deleteUser = async (user) => {
-  // 1. Ждем, что ответит админ
   const isConfirmed = await confirm({
     title: 'Удаление пользователя',
     message: `Вы уверены, что хотите безвозвратно удалить пользователя ${user.username}? Это действие нельзя отменить.`,
     confirmText: 'Удалить',
     cancelText: 'Отмена',
-    isDanger: true // 🔥 Красная кнопка для опасного действия
+    isDanger: true,
   })
 
-  // 2. Если передумал — выходим
   if (!isConfirmed) return
 
-  // 3. Если подтвердил — сносим
   try {
-    await api.delete(`/admin/users/${user.id}`)
-    
-    // Обновляем список локально, чтобы не дергать API лишний раз
+    await api.delete(`/admin/users/${user.id}/delete`)
     users.value = users.value.filter((u) => u.id !== user.id)
-    
-    // Закрываем модалку деталей юзера, если она была открыта
     showUserDetailsModal.value = false
-    notify.show(`Пользователь ${user.username} удален`, 'success')
+    notify.show(`Пользователь ${user.username} удален`)
   } catch (err) {
     console.error('API Error:', err)
     notify.show('Ошибка: ' + (err.response?.data?.detail || err.message))
@@ -223,7 +208,9 @@ onMounted(() => {
     activeMenuId.value = null
   })
   fetchUsers()
-  if (constants.subjects.length === 0) constants.fetchConstants()
+  if (!constants.subjects || constants.subjects.length === 0) {
+    constants.fetchConstants()
+  }
 })
 </script>
 
@@ -250,7 +237,15 @@ onMounted(() => {
             <tr v-for="user in users" :key="user.id" class="table-row">
               <td class="user-id">#{{ user.id }}</td>
               <td class="user-cell">
-                <div class="user-avatar">{{ user.username.charAt(0).toUpperCase() }}</div>
+                <div class="user-avatar">
+                  <img
+                    v-if="user.avatar_url"
+                    :src="getAvatarUrl(user.avatar_url)"
+                    class="avatar-img"
+                    alt="avatar"
+                  />
+                  <span v-else>{{ user.username.charAt(0).toUpperCase() }}</span>
+                </div>
                 <div class="user-details">
                   <p class="user-name">{{ user.username }}</p>
                   <p class="user-email">{{ user.email }}</p>
@@ -306,7 +301,11 @@ onMounted(() => {
           <div v-if="!isUserEditMode && userForm">
             <div class="dossier-header">
               <div class="dossier-avatar">
-                <img v-if="userForm.avatar_url" :src="userForm.avatar_url" class="avatar-img" />
+                <img
+                  v-if="userForm.avatar_url"
+                  :src="getAvatarUrl(userForm.avatar_url)"
+                  class="avatar-img"
+                />
                 <span v-else>{{ userForm.username.charAt(0).toUpperCase() }}</span>
               </div>
               <div class="dossier-main-info">
@@ -344,26 +343,68 @@ onMounted(() => {
               </div>
             </div>
 
-            <div class="dossier-section" v-if="selectedUserStats">
-              <h4>Статистика</h4>
-              <div class="stats-grid-mini">
-                <div
-                  v-for="(stat, subject) in selectedUserStats.subjects"
-                  :key="subject"
-                  class="mini-stat-card"
-                >
-                  <div class="mini-stat-title">{{ constants.getSubjectLabel(subject) }}</div>
-                  <div class="mini-stat-row">
-                    <span>{{ stat.solved }}/{{ stat.total_attempts }}</span>
-                    <span class="winrate"
-                      >{{
-                        stat.total_attempts
-                          ? Math.round((stat.solved / stat.total_attempts) * 100)
-                          : 0
-                      }}%</span
-                    >
+            <div class="dossier-body">
+              <div class="dossier-section" v-if="selectedUserStats && selectedUserStats.stats">
+                <h4>Статистика по предметам</h4>
+                <div class="stats-grid-mini">
+                  <div
+                    v-for="stat in selectedUserStats.stats"
+                    :key="stat.subject"
+                    class="mini-stat-card"
+                  >
+                    <div class="mini-stat-title">{{ constants.getSubjectLabel(stat.subject) }}</div>
+                    <div class="mini-stat-row">
+                      <span>{{ stat.correct_count }}/{{ stat.total_attempts }}</span>
+                      <span class="winrate" :class="{ high: stat.accuracy_percent >= 70 }">
+                        {{ Math.round(stat.accuracy_percent) }}%
+                      </span>
+                    </div>
+                    <div class="progress-bar-bg">
+                      <div
+                        class="progress-bar-fill"
+                        :style="{ width: stat.accuracy_percent + '%' }"
+                      ></div>
+                    </div>
                   </div>
                 </div>
+              </div>
+
+              <div
+                class="dossier-section"
+                v-if="selectedUserEloHistory && selectedUserEloHistory.length > 0"
+              >
+                <h4>История матчей (PvP)</h4>
+                <div class="history-table-wrapper">
+                  <table class="mini-table">
+                    <thead>
+                      <tr>
+                        <th>Дата</th>
+                        <th>Рейтинг</th>
+                        <th>Изменение</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="(record, index) in selectedUserEloHistory" :key="index">
+                        <td>{{ formatDate(record.created_at) }}</td>
+                        <td>{{ record.rating }}</td>
+                        <td>
+                          <span
+                            :class="{
+                              'text-green': record.change > 0,
+                              'text-red': record.change < 0,
+                            }"
+                          >
+                            {{ record.change > 0 ? '+' : '' }}{{ record.change }}
+                          </span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="dossier-section empty-section" v-else>
+                <h4>История матчей</h4>
+                <p class="empty-text">История изменений рейтинга пуста</p>
               </div>
             </div>
           </div>
@@ -377,7 +418,12 @@ onMounted(() => {
                 </div>
                 <div class="form-group">
                   <label class="form-label">Рейтинг ELO</label>
-                  <input v-model.number="userForm.rating" type="number" class="form-input" />
+                  <input
+                    v-model.number="userForm.rating"
+                    type="number"
+                    step="0.1"
+                    class="form-input"
+                  />
                 </div>
               </div>
 
@@ -407,32 +453,6 @@ onMounted(() => {
                 <div class="form-group">
                   <label class="form-label">Опыт (XP)</label>
                   <input v-model.number="userForm.xp" type="number" class="form-input" />
-                </div>
-              </div>
-
-              <div class="form-group checkboxes-group">
-                <label class="checkbox-label">
-                  <input type="checkbox" v-model="userForm.is_admin" /> Администратор
-                </label>
-                <label class="checkbox-label">
-                  <input type="checkbox" v-model="userForm.is_banned" /> Заблокирован
-                </label>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label">Достижения</label>
-                <div class="tags-selector">
-                  <button
-                    type="button"
-                    v-for="ach in constants.achievements"
-                    :key="ach.key"
-                    @click="toggleAchievement(ach.key)"
-                    class="tag-choice-btn"
-                    :class="{ active: userForm.achievements.includes(ach.key) }"
-                  >
-                    {{ ach.label }}
-                    <span v-if="userForm.achievements.includes(ach.key)" class="tag-check">✓</span>
-                  </button>
                 </div>
               </div>
 
@@ -492,6 +512,8 @@ onMounted(() => {
   border: 1px solid #f1f5f9;
   overflow: auto;
   max-width: 100%;
+  /* Чтобы меню не обрезалось, если оно последнее */
+  min-height: 300px;
 }
 
 /* Users Table */
@@ -523,6 +545,7 @@ onMounted(() => {
 .table-row {
   transition: background-color 0.2s ease;
   border-bottom: 1px solid #f8fafc;
+  position: relative; /* Нужно для z-index контекста */
 }
 .table-row:hover {
   background-color: #f8fafc;
@@ -554,6 +577,7 @@ onMounted(() => {
   color: #64748b;
   transition: all 0.2s ease;
   flex-shrink: 0;
+  overflow: hidden;
 }
 .avatar-img {
   width: 100%;
@@ -657,19 +681,29 @@ onMounted(() => {
 .actions-btn:hover {
   background-color: #e2e8f0;
 }
+
+/* --- ВЫПАДАЮЩЕЕ МЕНЮ (Fix для последних элементов) --- */
 .actions-dropdown {
   position: absolute;
   right: 16px;
-  top: 45px;
+  top: 40px; /* По умолчанию открывается вниз */
   width: 200px;
   background-color: white;
   border-radius: 12px;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25);
   border: 1px solid #f1f5f9;
-  z-index: 50;
+  z-index: 100;
   padding: 8px 0;
   animation: fadeIn 0.2s ease-out;
 }
+
+/* МАГИЯ: Последние 3 элемента открывают меню ВВЕРХ */
+.table-row:nth-last-child(-n + 3) .actions-dropdown {
+  top: auto;
+  bottom: 40px; /* Отступ снизу, чтобы меню не перекрывало кнопку */
+  transform-origin: bottom right;
+}
+
 .dropdown-item {
   width: 100%;
   text-align: left;
@@ -757,8 +791,9 @@ onMounted(() => {
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25);
   padding: 24px;
   border: 1px solid #f1f5f9;
-  max-height: 90vh;
-  overflow-y: auto;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
   animation: fadeInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .user-modal {
@@ -768,15 +803,33 @@ onMounted(() => {
   max-width: 600px;
 }
 .user-details-modal {
-  max-width: 500px;
+  max-width: 600px;
 }
+.user-dossier-content {
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* Скроллбар */
+.user-dossier-content::-webkit-scrollbar {
+  width: 6px;
+}
+.user-dossier-content::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 3px;
+}
+:root.dark .user-dossier-content::-webkit-scrollbar-thumb {
+  background-color: #475569;
+}
+
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   padding-bottom: 16px;
-  border-bottom: 1px solid #f8fafc;
+  border-bottom: 1px solid #f1f5f9;
+  flex-shrink: 0;
 }
 .modal-header h2 {
   font-size: 20px;
@@ -888,61 +941,6 @@ onMounted(() => {
   background-color: #e2e8f0;
 }
 
-/* --- TAGS SELECTOR --- */
-.tags-selector {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 4px;
-}
-.tag-choice-btn {
-  padding: 6px 12px;
-  border-radius: 20px;
-  border: 1px solid #e2e8f0;
-  background-color: white;
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.tag-choice-btn:hover {
-  background-color: #f8fafc;
-  border-color: #cbd5e1;
-}
-.tag-choice-btn.active {
-  background-color: #e0e7ff;
-  color: #4f46e5;
-  border-color: #4f46e5;
-}
-.tag-check {
-  font-weight: 900;
-}
-.form-hint {
-  font-size: 11px;
-  color: #94a3b8;
-  margin-top: 6px;
-}
-
-/* --- Checkboxes Group --- */
-.checkboxes-group {
-  flex-direction: row;
-  gap: 20px;
-  margin-top: 8px;
-}
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #334155;
-  cursor: pointer;
-}
-
 /* --- USER DOSSIER --- */
 .user-dossier {
   display: flex;
@@ -955,6 +953,7 @@ onMounted(() => {
   align-items: flex-start;
   padding-bottom: 20px;
   border-bottom: 1px solid #f1f5f9;
+  flex-shrink: 0;
 }
 .dossier-avatar {
   width: 80px;
@@ -969,6 +968,7 @@ onMounted(() => {
   justify-content: center;
   box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
   overflow: hidden;
+  flex-shrink: 0;
 }
 .dossier-main-info {
   flex: 1;
@@ -999,6 +999,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 140px;
 }
 .action-btn {
   padding: 8px 16px;
@@ -1022,10 +1023,17 @@ onMounted(() => {
   background-color: #f1f5f9;
   color: #475569;
 }
+/* Sections */
+.dossier-body {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding-top: 16px;
+}
 .dossier-section h4 {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 800;
-  color: #334155;
+  color: #94a3b8;
   margin-bottom: 12px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -1072,6 +1080,13 @@ onMounted(() => {
   background-color: #4f46e5;
   border-radius: 2px;
 }
+
+/* History Table */
+.history-table-wrapper {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+}
 .mini-table {
   width: 100%;
   font-size: 13px;
@@ -1079,17 +1094,22 @@ onMounted(() => {
 }
 .mini-table th {
   text-align: left;
-  color: #94a3b8;
+  color: #64748b;
   font-size: 11px;
   text-transform: uppercase;
-  padding-bottom: 8px;
+  padding: 12px;
   border-bottom: 1px solid #f1f5f9;
+  background-color: #f8fafc;
+  font-weight: 800;
 }
 .mini-table td {
-  padding: 8px 0;
-  border-bottom: 1px solid #f8fafc;
+  padding: 10px 12px;
+  border-bottom: 1px solid #f1f5f9;
   color: #334155;
   font-weight: 500;
+}
+.mini-table tr:last-child td {
+  border-bottom: none;
 }
 .text-green {
   color: #10b981;
@@ -1098,6 +1118,11 @@ onMounted(() => {
 .text-red {
   color: #ef4444;
   font-weight: 700;
+}
+.empty-text {
+  font-size: 13px;
+  color: #94a3b8;
+  font-style: italic;
 }
 
 /* Animations */
@@ -1297,22 +1322,6 @@ onMounted(() => {
   background-color: #475569;
 }
 
-:root.dark .tag-choice-btn {
-  background-color: #334155;
-  border-color: #475569;
-  color: #cbd5e1;
-}
-
-:root.dark .tag-choice-btn:hover {
-  background-color: #475569;
-}
-
-:root.dark .tag-choice-btn.active {
-  background-color: #1e3a8a;
-  border-color: #3b82f6;
-  color: #93c5fd;
-}
-
 :root.dark .dossier-header {
   border-bottom-color: #334155;
 }
@@ -1341,6 +1350,7 @@ onMounted(() => {
 :root.dark .mini-table th {
   color: #94a3b8;
   border-bottom-color: #475569;
+  background-color: #334155;
 }
 
 :root.dark .mini-table td {
@@ -1352,8 +1362,8 @@ onMounted(() => {
   background-color: #475569;
 }
 
-:root.dark .checkbox-label {
-  color: #cbd5e1;
+:root.dark .history-table-wrapper {
+  border-color: #334155;
 }
 
 :root.dark .tab-header h1 {
@@ -1388,8 +1398,6 @@ onMounted(() => {
     font-size: 18px;
   }
 }
-@media (min-width: 481px) {
-}
 @media (min-width: 641px) {
   .form-row {
     grid-template-columns: repeat(2, 1fr);
@@ -1416,44 +1424,6 @@ onMounted(() => {
     max-width: 700px;
     padding: 32px;
     border-radius: 24px;
-  }
-}
-@media (min-width: 1025px) {
-  .tab-header h1 {
-    font-size: 30px;
-  }
-  .table-wrapper {
-    border-radius: 24px;
-  }
-  .task-modal {
-    max-width: 800px;
-    border-radius: 28px;
-  }
-}
-@media (min-width: 1281px) {
-  .tab-header h1 {
-    font-size: 34px;
-  }
-  .table-wrapper {
-    border-radius: 28px;
-  }
-  .table-head th {
-    padding: 24px 32px;
-  }
-  .table-row td {
-    padding: 24px 32px;
-  }
-  .task-modal {
-    max-width: 900px;
-    border-radius: 32px;
-  }
-}
-@media (min-width: 1537px) {
-  .tab-header h1 {
-    font-size: 38px;
-  }
-  .task-modal {
-    max-width: 1000px;
   }
 }
 </style>

@@ -8,11 +8,9 @@ const typeClasses = {
   success: 'bg-green-600 border-green-800',
   error: 'bg-red-600 border-red-800',
   warning: 'bg-yellow-600 border-yellow-800',
-  // 🔥 ДОБАВИЛИ СТИЛЬ ДЛЯ АЧИВКИ (Золотой/Янтарный)
   achievement: 'bg-amber-500 border-amber-700 text-white shadow-lg shadow-amber-500/50'
 }
 
-// Функция для эмодзи
 const getIcon = (type) => {
   if (type === 'achievement') return '🏆'
   if (type === 'success') return '✅'

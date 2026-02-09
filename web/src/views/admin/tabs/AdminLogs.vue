@@ -2,13 +2,15 @@
 import { ref, onMounted } from 'vue'
 import api from '@/api/axios.js'
 import { useNotificationStore } from '@/pinia/NotificationStore.js'
+import { useDateFormatter } from '@/composables/useDateFormatter' 
+
+const { formatDate } = useDateFormatter() 
 
 const notify = useNotificationStore()
 
 const loading = ref(false)
 const logs = ref([])
 
-// --- МОДАЛЬНОЕ ОКНО ---
 const showLogModal = ref(false)
 const selectedLog = ref(null)
 
@@ -30,21 +32,7 @@ const getBadgeClass = (action) => {
   return ''
 }
 
-const formatDate = (dateString) => {
-  if (!dateString) return '-'
-  const dateValue = dateString.endsWith('Z') ? dateString : dateString + 'Z'
-  try {
-    return new Date(dateValue).toLocaleString('ru-RU', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  } catch (e) {
-    return dateString
-  }
-}
+
 
 const fetchLogs = async () => {
   loading.value = true

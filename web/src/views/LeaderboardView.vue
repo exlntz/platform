@@ -1,37 +1,32 @@
 <script setup>
 import { ref, onMounted, computed, onUnmounted } from 'vue'
-import api from '@/api/axios' // Наш настроенный инстанс
+import api from '@/api/axios' 
 
 const topUsers = ref([])
 const loading = ref(true)
 const error = ref(null)
 
-// Отслеживаем ширину экрана
+
 const screenWidth = ref(window.innerWidth)
 
-// Обновляем ширину экрана при изменении размера окна
 const updateScreenSize = () => {
   screenWidth.value = window.innerWidth
 }
 
-/**
- * Определяем максимальную длину ника в зависимости от ширины экрана
- * @param {number} width - ширина экрана
- * @returns {object} настройки обрезки: maxLength и threshold
- */
+
 const getUsernameTruncationConfig = (width) => {
   if (width < 360) {
     return { maxLength: 4, threshold: 5 }
   } else if (width < 480) {
     return { maxLength: 5, threshold: 6 }
   } else if (width < 640) {
-    return { maxLength: 12, threshold: 13 } // Большие мобильные/маленькие планшеты
+    return { maxLength: 12, threshold: 13 } 
   } else {
-    return { maxLength: 20, threshold: 21 } // Большие экраны
+    return { maxLength: 20, threshold: 21 } 
   }
 }
 
-// Вычисляемое свойство для обрезанных ников
+
 const truncatedUsers = computed(() => {
   const config = getUsernameTruncationConfig(screenWidth.value)
 
@@ -44,34 +39,29 @@ const truncatedUsers = computed(() => {
     return {
       ...user,
       truncatedUsername,
-      originalUsername: user.username, // Сохраняем оригинальный ник для тултипа
+      originalUsername: user.username, 
     }
   })
 })
 
-/**
- * Загрузка данных таблицы лидеров с бэкенда
- * URL: /leaderboard/
- */
+
 const fetchLeaderboard = async () => {
   loading.value = true
   error.value = null
   try {
     const response = await api.get('/leaderboard/')
-    // Бэкенд возвращает список моделей LeaderboardPlayer
     topUsers.value = response.data
   } catch (err) {
     console.error('Ошибка загрузки таблицы лидеров:', err)
     error.value = 'Не удалось загрузить список лучших'
   } finally {
-    // Искусственная задержка для плавности анимации
     setTimeout(() => {
       loading.value = false
     }, 500)
   }
 }
 
-// Функция для скролла наверх при переходе
+
 const scrollToTop = () => {
   window.scrollTo(0, 0)
 }

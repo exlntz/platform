@@ -1,38 +1,40 @@
 <script setup>
 import { ref, reactive, watch, onMounted, onUnmounted, shallowRef, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import api from '@/api/axios' // Наш настроенный инстанс
+import api from '@/api/axios' 
 import { useConstantsStore } from '@/pinia/ConstantsStore'
+import { useNotificationStore } from '@/pinia/NotificationStore.js'
 
-// --- Config & Store ---
+const notify = useNotificationStore()
+
 const API_URL = '/tasks/'
 const constantsStore = useConstantsStore()
 const router = useRouter()
 const route = useRoute()
 
-// --- State ---
+
 const tasks = shallowRef([])
 const totalTasks = ref(0)
 const loading = ref(true)
 const error = ref(null)
 
-const isAiMode = ref(false) // Активен ли режим решения
-const aiTask = ref(null) // Объект сгенерированной задачи
-const aiAnswer = ref('') // Ответ пользователя
+const isAiMode = ref(false) 
+const aiTask = ref(null) 
+const aiAnswer = ref('') 
 const aiCheckLoading = ref(false)
 const aiCheckResult = ref(null)
 const aiIsSolved = ref(false)
 const aiShowHint = ref(false)
 
-// --- Filters State ---
+
 const filters = reactive({
   search: route.query.search || '',
   subject: route.query.subject || '',
   difficulty: route.query.difficulty || '',
-  tags: route.query.tags || '', // Храним выбранный тег
+  tags: route.query.tags || '', 
 })
 
-// Состояние для списка доступных тегов (зависит от предмета)
+
 const availableTags = shallowRef([])
 const tagsLoading = ref(false)
 
@@ -74,26 +76,26 @@ const selectOption = (dropdownName, value) => {
   dropdownOpen[dropdownName] = false
 }
 
-// --- Pagination State ---
+
 const pagination = reactive({
   page: Number(route.query.page) || 1,
-  limit: 32, // Лимит 32 задачи
+  limit: 32, 
 })
 
-// --- State (AI Mode) ---
+
 const showAiMenu = ref(false)
 
 const openAiMenu = () => {
   showAiMenu.value = true
-  console.log('AI Menu Opened') // Для проверки
+  console.log('AI Menu Opened') 
 }
 
-// --- State (AI Mode Settings) ---
-const aiSubject = ref('MATH') // По умолчанию Математика
-const aiDifficulty = ref('EASY') // По умолчанию Легко
-const aiLoading = ref(false) // Статус загрузки (крутилка на кнопке)
 
-// Функция закрытия меню
+const aiSubject = ref('MATH') 
+const aiDifficulty = ref('EASY') 
+const aiLoading = ref(false) 
+
+
 const closeAiMenu = () => {
   showAiMenu.value = false
 }
@@ -101,7 +103,6 @@ const closeAiMenu = () => {
 const generateAiTask = async () => {
   aiLoading.value = true
 
-  // Сбрасываем состояния
   aiTask.value = null
   aiAnswer.value = ''
   aiCheckResult.value = null
@@ -109,7 +110,6 @@ const generateAiTask = async () => {
   aiShowHint.value = false
 
   try {
-    // 1. Делаем запрос к твоему эндпоинту
     const response = await api.get('/tasks/generate', {
       params: {
         subject: aiSubject.value,
@@ -118,14 +118,13 @@ const generateAiTask = async () => {
       headers: { Authorization: `Bearer ${localStorage.getItem('user-token')}` },
     })
 
-    // 2. Получаем задачу и переключаем режим
+
     aiTask.value = response.data
-    showAiMenu.value = false // Закрываем меню
-    isAiMode.value = true // Включаем режим задачи
+    showAiMenu.value = false 
+    isAiMode.value = true 
   } catch (err) {
     console.error('AI Generation Error:', err)
-    // Здесь можно добавить красивый тост с ошибкой
-    alert('ИИ устал или нет связи. Попробуйте позже.')
+    notify.show('ИИ устал или нет связи. Попробуйте позже.')
   } finally {
     aiLoading.value = false
   }
@@ -134,10 +133,9 @@ const generateAiTask = async () => {
 const exitAiMode = () => {
   isAiMode.value = false
   aiTask.value = null
-  // Возвращаемся к списку задач
 }
 
-// --- Функция проверки ответа ---
+
 const submitAiAnswer = async () => {
   if (!aiAnswer.value) return
 
@@ -165,11 +163,11 @@ const submitAiAnswer = async () => {
   }
 }
 
-// --- Utils ---
+
 let searchTimeout = null
 let abortController = null
 
-// --- Responsive ---
+
 const screenSize = ref('mobile')
 const updateScreenSize = () => {
   const width = window.innerWidth
@@ -180,7 +178,7 @@ const updateScreenSize = () => {
   else screenSize.value = 'large'
 }
 
-// --- Helpers (Логика отображения) ---
+
 
 const getDisplayTags = (taskData) => {
   let rawTags = []
@@ -221,16 +219,15 @@ const getSubjectLabel = (subjKey) => {
 }
 
 const navigateToTask = (id) => {
-  // Сохраняем текущие фильтры в URL при переходе
   const query = { ...route.query }
-  delete query.id // Убираем id текущей задачи, если есть
+  delete query.id 
   router.push({
     path: `/tasks/${id}`,
-    query, // Передаем текущие фильтры
+    query, 
   })
 }
 
-// --- Dynamic Tags Logic ---
+
 
 const updateAvailableTags = async () => {
   if (!filters.subject) {
@@ -258,7 +255,6 @@ const updateAvailableTags = async () => {
   }
 }
 
-// --- Fetch Actions ---
 
 const fetchTasks = async () => {
   if (abortController) abortController.abort()
@@ -320,7 +316,7 @@ const updateUrl = () => {
 
   router.replace({
     query,
-    hash: route.hash, // Сохраняем якорь если есть
+    hash: route.hash, 
   })
 }
 
@@ -345,7 +341,7 @@ const resetFilters = () => {
   fetchTasks()
 }
 
-// --- FIX: Client-Side Pagination Logic ---
+
 const paginatedTasks = computed(() => {
   if (tasks.value.length > pagination.limit) {
     const start = (pagination.page - 1) * pagination.limit
@@ -355,12 +351,11 @@ const paginatedTasks = computed(() => {
   return tasks.value
 })
 
-// --- Watchers ---
+
 
 watch(
   () => route.query,
   (newQuery) => {
-    // Синхронизируем фильтры с URL при изменении роута (например, при возврате назад)
     filters.search = newQuery.search || ''
     filters.subject = newQuery.subject || ''
     filters.difficulty = newQuery.difficulty || ''
@@ -401,7 +396,7 @@ watch(
   },
 )
 
-// --- Lifecycle ---
+
 
 onMounted(async () => {
   updateScreenSize()
@@ -422,8 +417,8 @@ onMounted(async () => {
 
   await fetchTasks()
   
-  // Убрали принудительное включение тёмной темы
-  // Теперь тема определяется системными настройками или переключателем
+
+  document.documentElement.classList.add('dark')
 })
 
 onUnmounted(() => {
@@ -589,7 +584,6 @@ onUnmounted(() => {
       </div>
 
       <div class="filters-container">
-        <!-- Поиск - всегда отдельная строка -->
         <div class="search-row">
           <div class="search-group">
             <div class="search-icon">🔍</div>
@@ -597,7 +591,6 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- Фильтры - всегда отдельная строка -->
         <div class="filters-row">
           <div class="filter-group">
             <!-- Предмет Dropdown -->
