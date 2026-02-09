@@ -2,6 +2,8 @@
 import { ref, onMounted, computed, reactive } from 'vue'
 import api from '@/api/axios' // Наш настроенный инстанс
 import { useConstantsStore } from '@/pinia/ConstantsStore.js'
+import { useNotificationStore } from '@/pinia/NotificationStore'
+const notify = useNotificationStore()
 
 const constants = useConstantsStore()
 
@@ -110,7 +112,7 @@ const handleApiError = (err) => {
     accessDenied.value = true
   } else {
     console.error('API Error:', err)
-    // Можно добавить всплывающее уведомление об ошибке
+    notify.show(err)
   }
 }
 
@@ -206,7 +208,7 @@ const openUserDetails = async (user) => {
 const updateUserAction = async (userId, data, successMessage = null) => {
   try {
     await api.patch(`/admin/users/${userId}`, data)
-    if (successMessage) alert(successMessage)
+    if (successMessage) notify.show(successMessage)
 
     // Обновляем список пользователей
     await fetchUsers()
@@ -284,7 +286,7 @@ const saveTask = async () => {
     // Используем api вместо axios
     await api[method](finalUrl, taskForm.value)
 
-    alert(isEditMode.value ? 'Задача обновлена!' : 'Задача создана!')
+    notify.show(isEditMode.value ? 'Задача обновлена!' : 'Задача создана!')
     showTaskModal.value = false
     fetchTasks()
     fetchStats()
@@ -325,7 +327,7 @@ const handleImport = async (event) => {
     const response = await api.post('/admin/tasks/import', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
-    alert(`Импорт завершен!\nСоздано: ${response.data.created}\nОбновлено: ${response.data.updated}`)
+    notify.show(`Импорт завершен!\nСоздано: ${response.data.created}\nОбновлено: ${response.data.updated}`)
     fetchTasks(); fetchStats()
   } catch (err) { handleApiError(err) }
   finally { loading.value = false; event.target.value = '' }
