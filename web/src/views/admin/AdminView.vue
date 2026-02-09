@@ -92,24 +92,29 @@ const isActive = (pathPart) => {
 </template>
 
 <style scoped>
+/* --- БАЗОВЫЙ КОНТЕЙНЕР --- */
 .admin-container {
   min-height: 100vh;
-  background-color: #f8fafc;
+  background-color: #f1f5f9; /* Светлый фон по умолчанию */
   font-family:
     -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   position: relative;
   display: flex;
+  transition: background-color 0.2s ease;
 }
 
 :root.dark .admin-container {
-  background-color: #0f172a;
+  background-color: #0f172a; /* Темный фон всего контейнера */
 }
 
-/* Sidebar */
+/* --- SIDEBAR (Меню) --- */
 .admin-sidebar {
   width: 256px;
-  background-color: #0f172a;
-  color: white;
+  /* СВЕТЛАЯ ТЕМА ПО УМОЛЧАНИЮ */
+  background-color: white;
+  color: #0f172a;
+  border-right: 1px solid #e2e8f0;
+
   display: flex;
   flex-direction: column;
   position: fixed;
@@ -117,13 +122,19 @@ const isActive = (pathPart) => {
   bottom: 0;
   left: 0;
   z-index: 95;
-  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s ease;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.05);
+  transition:
+    transform 0.3s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease;
 }
 
+/* ТЕМНАЯ ТЕМА ДЛЯ МЕНЮ */
 :root.dark .admin-sidebar {
-  background-color: #1e293b;
-  border-right: 1px solid #334155;
+  background-color: #1e293b; /* Ваш цвет фона для темных панелей */
+  color: #f1f5f9;
+  border-right: 1px solid #334155; /* Цвет рамок в темной теме */
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.2);
 }
 
 @media (max-width: 640px) {
@@ -135,25 +146,32 @@ const isActive = (pathPart) => {
   }
 }
 
+/* --- HEADER МЕНЮ --- */
 .sidebar-header {
   padding: 24px;
-  border-bottom: 1px solid #1e293b;
+  border-bottom: 1px solid #e2e8f0;
   display: flex;
   align-items: center;
   gap: 12px;
+  transition: border-color 0.2s ease;
+}
+
+:root.dark .sidebar-header {
+  border-bottom: 1px solid #334155;
 }
 
 .sidebar-logo {
   width: 32px;
   height: 32px;
-  background-color: #6366f1;
+  background-color: #4f46e5;
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 900;
-  box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 0 15px rgba(79, 70, 229, 0.4);
   font-size: 16px;
+  color: white;
 }
 
 .sidebar-title {
@@ -177,6 +195,7 @@ const isActive = (pathPart) => {
   }
 }
 
+/* --- НАВИГАЦИЯ --- */
 .sidebar-nav {
   flex: 1;
   padding: 24px 16px;
@@ -193,52 +212,92 @@ const isActive = (pathPart) => {
   padding: 12px 16px;
   border-radius: 12px;
   transition: all 0.2s ease;
-  font-weight: 500;
+  font-weight: 600;
   font-size: 14px;
   border: none;
   cursor: pointer;
   background: none;
-  color: #94a3b8;
+
+  /* Цвета кнопок в СВЕТЛОЙ теме */
+  color: #64748b;
   text-align: left;
 }
 
+/* Цвета кнопок в ТЕМНОЙ теме */
+:root.dark .nav-btn {
+  color: #94a3b8; /* Используем ваш цвет для неактивного текста */
+}
+
+/* --- Стили для АКТИВНОЙ кнопки (одинаковые для обеих тем, но можно менять) --- */
 .nav-btn.active {
   background-color: #4f46e5;
   color: white;
   box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
 }
-.nav-btn:not(.active):hover {
-  background-color: #1e293b;
-  color: white;
+:root.dark .nav-btn.active {
+  color: white; /* Убеждаемся, что текст белый */
 }
+
+/* --- HOVER (Наведение) --- */
+.nav-btn:not(.active):hover {
+  background-color: #f1f5f9; /* Светлый ховер */
+  color: #0f172a;
+}
+
+:root.dark .nav-btn:not(.active):hover {
+  background-color: #334155; /* Ваш темный цвет фона (как у инпутов) */
+  color: #f1f5f9;
+}
+
 .nav-icon {
   font-size: 18px;
 }
 
+/* --- FOOTER МЕНЮ --- */
 .sidebar-footer {
   padding: 24px;
-  border-top: 1px solid #1e293b;
+  border-top: 1px solid #e2e8f0;
+  transition: border-color 0.2s ease;
+}
+
+:root.dark .sidebar-footer {
+  border-top: 1px solid #334155;
 }
 
 .back-to-site {
   display: block;
   text-align: center;
-  color: #94a3b8;
   font-size: 13px;
   font-weight: 700;
   text-decoration: none;
-  transition: color 0.2s ease;
+  transition: all 0.2s ease;
   padding: 10px;
   border-radius: 8px;
-  border: 1px solid #1e293b;
-}
-.back-to-site:hover {
-  color: white;
-  background-color: #1e293b;
-  border-color: #334155;
+
+  /* Светлая тема */
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  background-color: transparent;
 }
 
-/* Main Content */
+/* Темная тема */
+:root.dark .back-to-site {
+  color: #94a3b8;
+  border-color: #475569; /* Ваш цвет бордера */
+}
+
+.back-to-site:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+:root.dark .back-to-site:hover {
+  background-color: #334155;
+  color: white;
+}
+
+/* --- MAIN CONTENT --- */
 .admin-main {
   flex: 1;
   padding: 24px;
@@ -246,9 +305,6 @@ const isActive = (pathPart) => {
   width: calc(100% - 256px);
   min-height: 100vh;
   box-sizing: border-box;
-}
-:root.dark .admin-main {
-  background-color: #0f172a;
 }
 
 @media (max-width: 640px) {
@@ -260,7 +316,7 @@ const isActive = (pathPart) => {
   }
 }
 
-/* Mobile Menu */
+/* --- MOBILE BUTTON --- */
 .mobile-menu-btn {
   position: fixed;
   top: 16px;
@@ -268,9 +324,7 @@ const isActive = (pathPart) => {
   z-index: 100;
   width: 40px;
   height: 40px;
-  background: white;
   border-radius: 12px;
-  border: 1px solid #e2e8f0;
   display: none;
   flex-direction: column;
   justify-content: center;
@@ -278,7 +332,12 @@ const isActive = (pathPart) => {
   gap: 5px;
   cursor: pointer;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+
+  /* Светлая тема */
+  background: white;
+  border: 1px solid #e2e8f0;
 }
+
 :root.dark .mobile-menu-btn {
   background-color: #1e293b;
   border-color: #334155;
@@ -296,6 +355,7 @@ const isActive = (pathPart) => {
   background-color: #0f172a;
   border-radius: 1px;
 }
+
 :root.dark .burger-line {
   background-color: #f8fafc;
 }
