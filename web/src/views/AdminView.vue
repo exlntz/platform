@@ -341,6 +341,100 @@ const handleImport = async (event) => {
 
 const toggleSidebar = () => { isSidebarCollapsed.value = !isSidebarCollapsed.value }
 
+// --- УПРАВЛЕНИЕ РЕЖИМОМ РЕДАКТИРОВАНИЯ ---
+const toggleUserEditMode = () => {
+  isUserEditMode.value = !isUserEditMode.value
+  // Если отменили редактирование, сбрасываем форму к текущим значениям пользователя (можно добавить watch или просто переоткрыть)
+}
+
+// --- УПРАВЛЕНИЕ АЧИВКАМИ (Выбор тегов) ---
+const toggleAchievement = (achKey) => {
+  const index = userForm.value.achievements.indexOf(achKey)
+  if (index === -1) {
+    userForm.value.achievements.push(achKey)
+  } else {
+    userForm.value.achievements.splice(index, 1)
+  }
+}
+
+// --- УПРАВЛЕНИЕ РАНГОМ ---
+const onRankChange = () => {
+  // Логика при смене ранга, если нужна (например, сброс рейтинга)
+  // Пока можно оставить пустым, v-model делает свою работу
+}
+
+// --- СОХРАНЕНИЕ ИЗМЕНЕНИЙ ПРОФИЛЯ ---
+const saveUserChanges = async () => {
+  if (!userForm.value.id) return
+  
+  userDetailsLoading.value = true
+  try {
+    // Формируем payload только из необходимых полей
+    const payload = {
+      username: userForm.value.username,
+      email: userForm.value.email,
+      rating: userForm.value.rating,
+      rank: userForm.value.rank,
+      avatar_url: userForm.value.avatar_url,
+      xp: userForm.value.xp,
+      achievements: userForm.value.achievements
+    }
+
+    await api.patch(`/admin/users/${userForm.value.id}`, payload)
+    
+    notify.show(`Пользователь ${userForm.value.username} обновлен`)
+    isUserEditMode.value = false
+    
+    // Обновляем список, чтобы данные были актуальны везде
+    await fetchUsers()
+  } catch (err) {
+    handleApiError(err)
+  } finally {
+    userDetailsLoading.value = false
+  }
+}
+
+// --- БАН И ПОВЫШЕНИЕ ПРАВ ---
+// Используем специальные эндпоинты, так как основной PATCH их не обрабатывает (судя по UserAdminUpdate схеме)
+const toggleUserStatus = async (field) => {
+  if (!userForm.value.id) return
+  
+  const userId = userForm.value.id
+  let url = ''
+  let payload = {}
+  
+  // Определяем эндпоинт и данные
+  if (field === 'is_banned') {
+     url = `/admin/users/${userId}/ban`
+     payload = { is_banned: !userForm.value.is_banned }
+  } else if (field === 'is_admin') {
+     url = `/admin/users/${userId}/promote`
+     payload = { is_admin: !userForm.value.is_admin }
+  } else {
+    return 
+  }
+
+  try {
+    const response = await api.patch(url, payload)
+    
+    // Обновляем локальное состояние формы
+    if (field === 'is_banned') userForm.value.is_banned = response.data.is_banned
+    if (field === 'is_admin') userForm.value.is_admin = response.data.is_admin
+    
+    // Находим и обновляем пользователя в общем списке без перезагрузки
+    const userInList = users.value.find(u => u.id === userId)
+    if (userInList) {
+      userInList[field] = response.data[field]
+    }
+    
+    notify.show(response.data.message)
+  } catch (err) {
+    handleApiError(err)
+  }
+}
+
+
+
 onMounted(() => {
   window.addEventListener('click', () => { activeMenuId.value = null })
   fetchStats()
