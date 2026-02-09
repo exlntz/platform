@@ -1,15 +1,15 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import api from '@/api/axios' // Наш настроенный инстанс
+import api from '@/api/axios' 
 import { Line, Radar, Bar } from 'vue-chartjs'
 
-import { useConstantsStore } from '@/pinia/ConstantsStore.js' // 1. Импорт стора
+import { useConstantsStore } from '@/pinia/ConstantsStore.js' 
 
 
 
 const router = useRouter()
-const constants = useConstantsStore() // 2. Инициализация стора
+const constants = useConstantsStore() 
 
 const loading = ref(true)
 const error = ref(null)
@@ -18,7 +18,7 @@ const subjectStats = ref([])
 const eloHistory = ref([])
 const profile = ref(null)
 
-// --- API ---
+
 const fetchStats = async () => {
   loading.value = true
   try {
@@ -48,23 +48,20 @@ const fetchStats = async () => {
   }
 }
 
-// --- RADAR CHART (Навыки) ---
+
 const radarChartData = computed(() => {
   const currentStats = subjectStats.value || []
   const statsMap = {}
-  // Создаем карту: 'MATH' -> { correct_count: 10, ... }
   currentStats.forEach(s => { statsMap[s.subject] = s })
 
-  const subjectsList = constants.subjects // Берем список из стора
+  const subjectsList = constants.subjects 
   const labels = []
   const rawSolved = []
   const rawAccuracy = []
 
   subjectsList.forEach(subj => {
-    // 3. Формируем подписи (Labels)
     labels.push(subj.label)
 
-    // 4. Ищем данные по Ключу (Key)
     const stat = statsMap[subj.key]
 
     if (stat) {
@@ -79,7 +76,7 @@ const radarChartData = computed(() => {
   const maxSolved = Math.max(...rawSolved) || 1
 
   return {
-    labels: labels, // Динамические лейблы
+    labels: labels, 
     datasets: [
       {
         label: 'Решено задач по предмету',
@@ -128,7 +125,7 @@ const radarChartOptions = {
   }
 }
 
-// --- BAR CHART (Время) ---
+
 const barChartData = computed(() => {
   if (!subjectStats.value || subjectStats.value.length === 0) return null
 
@@ -148,7 +145,6 @@ const barChartData = computed(() => {
 
   if (timeData.every(t => t === 0)) return null
 
-  // Генерируем массив цветов (циклично), так как количество предметов теперь динамическое
   const bgColors = []
   const borderColors = []
   const baseColors = [
@@ -188,7 +184,7 @@ const barChartOptions = {
   plugins: { legend: { display: false } }
 }
 
-// --- LINE CHART (История ELO) ---
+
 const lineChartData = computed(() => {
   if (!eloHistory.value || eloHistory.value.length === 0) return null
   const sortedHistory = [...eloHistory.value].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
@@ -216,8 +212,6 @@ const lineChartOptions = {
 
 onMounted(() => {
   fetchStats()
-  // Если константы еще не загружены (например, прямой заход на страницу),
-  // стоит их подгрузить.
   if (constants.subjects.length === 0) {
     constants.fetchConstants()
   }

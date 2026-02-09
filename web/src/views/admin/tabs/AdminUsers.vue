@@ -13,7 +13,7 @@ const loading = ref(false)
 const users = ref([])
 const activeMenuId = ref(null)
 
-// --- ДЕТАЛИ И РЕДАКТИРОВАНИЕ ПОЛЬЗОВАТЕЛЯ ---
+
 const showUserDetailsModal = ref(false)
 const userDetailsLoading = ref(false)
 const isUserEditMode = ref(false)
@@ -27,7 +27,6 @@ const userForm = ref({
   is_admin: false,
   is_banned: false,
   avatar_url: '',
-  // achievements убрали из редактирования
 })
 const selectedUserStats = ref(null)
 const selectedUserEloHistory = ref([])
@@ -43,7 +42,7 @@ const RANKS_INFO = {
 }
 const ranksList = Object.keys(RANKS_INFO)
 
-// Хелпер для форматирования даты
+
 const formatDate = (dateString) => {
   if (!dateString) return '-'
   const dateValue = dateString.endsWith('Z') ? dateString : dateString + 'Z'
@@ -60,7 +59,7 @@ const formatDate = (dateString) => {
   }
 }
 
-// Хелпер для правильной ссылки на аватарку
+
 const getAvatarUrl = (url) => {
   if (!url) return ''
   if (url.startsWith('http') || url.startsWith('/api')) return url
@@ -83,7 +82,6 @@ const fetchUsers = async () => {
 
 const toggleMenu = (event, id) => {
   event.stopPropagation()
-  // Если нажали на того же, закрываем. Если на другого — открываем.
   activeMenuId.value = activeMenuId.value === id ? null : id
 }
 
@@ -96,11 +94,9 @@ const openUserDetails = async (user) => {
   selectedUserStats.value = null
   selectedUserEloHistory.value = []
 
-  // Сброс формы
   userForm.value = { ...user }
 
   try {
-    // 2. Грузим данные пользователя
     const response = await api.get(`/admin/users/${user.id}/full_details`)
     const data = response.data
 
@@ -137,7 +133,6 @@ const saveUserChanges = async () => {
     rank: userForm.value.rank,
     xp: Number(userForm.value.xp),
     avatar_url: userForm.value.avatar_url || '',
-    // achievements не отправляем, так как убрали возможность их менять
   }
 
   try {

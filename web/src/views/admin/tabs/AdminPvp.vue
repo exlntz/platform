@@ -2,9 +2,9 @@
 import { ref, onMounted } from 'vue'
 import api from '@/api/axios.js'
 import { useNotificationStore } from '@/pinia/NotificationStore.js'
-import { useDateFormatter } from '@/composables/useDateFormatter' // <--- Импортируем
+import { useDateFormatter } from '@/composables/useDateFormatter' 
 
-const { formatDate } = useDateFormatter() // <--- Достаем функцию
+const { formatDate } = useDateFormatter() 
 const notify = useNotificationStore()
 
 const loading = ref(false)
@@ -15,7 +15,6 @@ const hasMore = ref(true)
 
 
 
-// Форматирование результата для отображения
 const formatResult = (result, p1, p2) => {
   if (result === 'player1_win') return `Победа ${p1}`
   if (result === 'player2_win') return `Победа ${p2}`

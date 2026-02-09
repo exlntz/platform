@@ -4,14 +4,13 @@ import { useConfirm } from '@/composables/useConfirm'
 
 const { visible, modalData, handleConfirm, handleCancel } = useConfirm()
 
-// Обработка нажатия ESC для закрытия
+
 const handleKeydown = (e) => {
   if (visible.value && e.key === 'Escape') {
     handleCancel()
   }
 }
 
-// Блокировка скролла страницы, когда модалка открыта
 watch(visible, (isShown) => {
   if (isShown) {
     document.body.style.overflow = 'hidden'
@@ -20,14 +19,14 @@ watch(visible, (isShown) => {
   }
 })
 
-// Вешаем слушатели (Clean Code: не забываем чистить за собой)
+
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
-  document.body.style.overflow = '' // На случай, если компонент удалится открытым
+  document.body.style.overflow = '' 
 })
 </script>
 

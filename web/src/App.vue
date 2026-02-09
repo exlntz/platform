@@ -2,37 +2,28 @@
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { ref, onMounted, watch, computed } from 'vue'
 import { useTimerRunner } from '@/pinia/TimerRunner.js'
-import { useConstantsStore } from '@/pinia/ConstantsStore.js' // <--- Импортируем
-import ToastContainer from '@/components/ToastContainer.vue' // <-- Импорт
+import { useConstantsStore } from '@/pinia/ConstantsStore.js' 
+import ToastContainer from '@/components/ToastContainer.vue' 
 import ConfirmModal from '@/components/ConfirmModal.vue'
-// runs once for entire SPA
 
-const constantsStore = useConstantsStore() // <--- Инициализируем
+
+const constantsStore = useConstantsStore() 
 useTimerRunner()
 
-/**
- * Состояние авторизации для динамического переключения
- * между кнопкой "Войти" и блоком "Мой профиль"
- */
+
 const isLoggedIn = ref(false)
 const route = useRoute()
 const isMenuOpen = ref(false)
 
-/**
- * Состояние тёмной темы
- */
+
 const darkTheme = ref(false)
 
-/**
- * Функция проверки наличия токена в локальном хранилище
- */
+
 const checkAuth = () => {
   isLoggedIn.value = !!localStorage.getItem('user-token')
 }
 
-/**
- * Функция для проверки и применения сохранённой темы
- */
+
 const checkSavedTheme = () => {
   const savedTheme = localStorage.getItem('dark-theme')
   if (savedTheme === 'true') {
@@ -44,9 +35,7 @@ const checkSavedTheme = () => {
   }
 }
 
-/**
- * Функция переключения темы
- */
+
 const toggleTheme = () => {
   darkTheme.value = !darkTheme.value
   if (darkTheme.value) {
@@ -58,26 +47,22 @@ const toggleTheme = () => {
   }
 }
 
-/**
- * Иконка для кнопки переключения темы
- */
+
 const themeIcon = computed(() => {
   return darkTheme.value ? '🌙' : '☀️'
 })
 
-/**
- * Текст для кнопки переключения темы (для скринридеров)
- */
+
 const themeLabel = computed(() => {
   return darkTheme.value ? 'Переключить на светлую тему' : 'Переключить на тёмную тему'
 })
 
-// Инициализация проверки при первой загрузке компонента
+
 onMounted(async () => {
   checkAuth()
   checkSavedTheme()
   
-  // Проверяем системные настройки темы, если в localStorage нет сохранённой темы
+
   if (!localStorage.getItem('dark-theme')) {
     if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
       darkTheme.value = true
@@ -88,26 +73,18 @@ onMounted(async () => {
   await constantsStore.fetchConstants()
 })
 
-/**
- * Реактивное отслеживание смены маршрута.
- * Позволяет обновлять статус входа сразу после редиректа из формы логина
- */
+
 watch(() => route.path, () => {
   checkAuth()
-  // Закрываем меню при смене маршрута на мобильных устройствах
   isMenuOpen.value = false
 })
 
-/**
- * Функция переключения меню
- */
+
 const toggleMenu = () => {
   isMenuOpen.value = !isMenuOpen.value
 }
 
-/**
- * Функция закрытия меню
- */
+
 const closeMenu = () => {
   isMenuOpen.value = false
 }
@@ -116,7 +93,6 @@ const closeMenu = () => {
 <template>
   <header class="header">
     <nav class="menu">
-      <!-- Логотип -->
       <RouterLink to="/" class="logo-container" @click="closeMenu">
         <div class="logo">
           L
@@ -124,7 +100,7 @@ const closeMenu = () => {
         <span class="text-logo">Platform</span>
       </RouterLink>
 
-      <!-- Навигация для десктопа (только на больших экранах) -->
+
       <div class="desktop-navigation">
         <RouterLink to="/" class="nav-link">
           Главная
@@ -141,8 +117,7 @@ const closeMenu = () => {
         <RouterLink to="/statistics" class="nav-link">
           Статистика
         </RouterLink>
-        
-        <!-- Кнопка переключения темы (только для десктопа) -->
+
         <button 
           @click="toggleTheme" 
           class="desktop-theme-toggle"
@@ -154,9 +129,7 @@ const closeMenu = () => {
         </button>
       </div>
 
-      <!-- Правая часть шапки -->
       <div class="header-right">
-        <!-- Кнопка переключения темы (для мобильных) -->
         <button 
           @click="toggleTheme" 
           class="mobile-theme-icon-button"
@@ -166,7 +139,6 @@ const closeMenu = () => {
           <span class="theme-icon-small">{{ themeIcon }}</span>
         </button>
 
-        <!-- Блок авторизации/профиля -->
         <div class="auth-block">
           <RouterLink v-if="isLoggedIn" to="/profile" class="profile-link">
             <div class="profile-button">
@@ -183,7 +155,6 @@ const closeMenu = () => {
           </RouterLink>
         </div>
 
-        <!-- Бургер-меню для мобильных (только на маленьких экранах) -->
         <button 
           class="burger-menu" 
           @click="toggleMenu"
@@ -196,7 +167,6 @@ const closeMenu = () => {
         </button>
       </div>
 
-      <!-- Мобильное меню (появляется при клике на бургер) -->
       <div v-if="isMenuOpen" class="mobile-menu">
         <div class="mobile-menu-overlay" @click="closeMenu"></div>
         <div class="mobile-menu-content">
@@ -208,7 +178,6 @@ const closeMenu = () => {
               <span class="text-logo">Platform</span>
             </RouterLink>
             <div class="mobile-header-actions">
-              <!-- Кнопка переключения темы в мобильном меню -->
               <button 
                 @click="toggleTheme" 
                 class="mobile-menu-theme-button"
@@ -222,7 +191,6 @@ const closeMenu = () => {
             </div>
           </div>
 
-          <!-- Переключатель темы в мобильном меню -->
           <div class="mobile-theme-toggle-section">
             <button 
               @click="toggleTheme" 
