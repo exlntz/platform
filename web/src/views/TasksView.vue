@@ -317,6 +317,37 @@ const paginatedTasks = computed(() => {
   return tasks.value
 })
 
+// --- Tag Dropdown State ---
+const showTagDropdown = ref(false)
+
+const toggleTagDropdown = () => {
+  if (!tagsLoading.value && !constantsStore.loading) {
+    showTagDropdown.value = !showTagDropdown.value
+  }
+}
+
+const selectTag = (tagKey) => {
+  filters.tags = tagKey
+  showTagDropdown.value = false
+  pagination.page = 1
+  fetchTasks()
+}
+
+const clearTag = () => {
+  filters.tags = ''
+  showTagDropdown.value = false
+  pagination.page = 1
+  fetchTasks()
+}
+
+// Закрытие dropdown при клике вне его области
+const handleClickOutside = (event) => {
+  const tagWrapper = document.querySelector('.tag-wrapper')
+  if (tagWrapper && !tagWrapper.contains(event.target)) {
+    showTagDropdown.value = false
+  }
+}
+
 // --- Watchers ---
 
 watch(
@@ -338,6 +369,7 @@ watch(
   () => filters.subject,
   async () => {
     filters.tags = ''
+    showTagDropdown.value = false
     pagination.page = 1
     await updateAvailableTags()
     fetchTasks()
@@ -368,6 +400,7 @@ watch(
 onMounted(async () => {
   updateScreenSize()
   window.addEventListener('resize', updateScreenSize)
+  document.addEventListener('click', handleClickOutside)
 
   if (!constantsStore.isLoaded) {
     await constantsStore.fetchConstants()
@@ -380,6 +413,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener('resize', updateScreenSize)
+  document.removeEventListener('click', handleClickOutside)
   if (abortController) abortController.abort()
   clearTimeout(searchTimeout)
 })
@@ -550,6 +584,7 @@ onUnmounted(() => {
                 class="filter-select"
                 :class="{ compact: screenSize === 'mobile' }"
                 :disabled="constantsStore.loading"
+                size="1"
               >
                 <option value="">Все предметы</option>
                 <option v-for="subj in constantsStore.subjects" :key="subj.key" :value="subj.key">
@@ -559,21 +594,46 @@ onUnmounted(() => {
               <div class="select-arrow">▼</div>
             </div>
 
-            <div class="select-wrapper tag-wrapper">
-              <select
-                v-model="filters.tags"
-                class="filter-select"
-                :class="{ compact: screenSize === 'mobile' }"
+            <!-- Кастомный dropdown для тегов -->
+            <div class="select-wrapper tag-wrapper" :class="{ compact: screenSize === 'mobile' }">
+              <div
+                class="filter-select tag-select"
+                :class="{ compact: screenSize === 'mobile', 'is-open': showTagDropdown }"
+                @click="toggleTagDropdown"
                 :disabled="tagsLoading || constantsStore.loading"
               >
-                <option value="">
-                  {{ tagsLoading ? 'Загрузка...' : 'Все темы' }}
-                </option>
-                <option v-for="tag in availableTags" :key="tag.key || tag" :value="tag.key || tag">
-                  {{ tag.label || tag }}
-                </option>
-              </select>
-              <div class="select-arrow">▼</div>
+                <span class="tag-select-text">
+                  {{ 
+                    tagsLoading ? 'Загрузка...' : 
+                    filters.tags ? 
+                      (availableTags.find(t => (t.key || t) === filters.tags)?.label || filters.tags) : 
+                      'Все темы'
+                  }}
+                </span>
+                <div class="select-arrow">▼</div>
+              </div>
+              
+              <!-- Dropdown меню -->
+              <div v-if="showTagDropdown" class="tag-dropdown">
+                <div class="tag-dropdown-content">
+                  <div 
+                    class="tag-dropdown-item" 
+                    :class="{ active: !filters.tags }"
+                    @click="clearTag"
+                  >
+                    Все темы
+                  </div>
+                  <div 
+                    v-for="tag in availableTags" 
+                    :key="tag.key || tag"
+                    class="tag-dropdown-item"
+                    :class="{ active: (tag.key || tag) === filters.tags }"
+                    @click="selectTag(tag.key || tag)"
+                  >
+                    {{ tag.label || tag }}
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div class="select-wrapper difficulties-wrapper">
@@ -1052,6 +1112,140 @@ onUnmounted(() => {
   color: #ef4444;
   background-color: var(--bg-input);
   border-color: #fecaca;
+}
+
+/* ==================== TAG DROPDOWN STYLES ==================== */
+.tag-select {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 36px 12px 16px;
+  border: 2px solid var(--border-light);
+  border-radius: 12px;
+  background-color: var(--bg-input);
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+  min-height: 48px;
+  user-select: none;
+}
+
+.tag-select.compact {
+  padding: 10px 32px 10px 12px;
+  font-size: 13px;
+  min-height: 44px;
+}
+
+.tag-select:hover:not(:disabled) {
+  border-color: var(--border-medium);
+}
+
+.tag-select.is-open {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.tag-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: var(--bg-tag);
+}
+
+.tag-select-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  text-align: left;
+}
+
+/* Dropdown menu */
+.tag-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background-color: var(--bg-card);
+  border: 2px solid var(--border-light);
+  overflow: hidden;
+  animation: slideDown 0.2s ease-out;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.tag-dropdown-content {
+  padding: 8px 0;
+}
+
+.tag-dropdown-item {
+  padding: 4px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  border: none;
+  background: none;
+  width: 100%;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tag-dropdown-item:hover {
+  background-color: var(--bg-input);
+  color: var(--accent-color);
+}
+
+.tag-dropdown-item.active {
+  background-color: var(--accent-color);
+  color: white;
+}
+
+.tag-dropdown-item.active:hover {
+  background-color: var(--accent-hover);
+}
+
+/* Dark theme for dropdown */
+:root.dark .tag-dropdown {
+  background-color: #334155;
+  border-color: #475569;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+}
+
+:root.dark .tag-dropdown-item {
+  color: #cbd5e1;
+}
+
+:root.dark .tag-dropdown-item:hover {
+  background-color: #334155;
+  color: #60a5fa;
+}
+
+:root.dark .tag-dropdown-item.active {
+  background-color: #3b82f6;
+  color: white;
+}
+
+:root.dark .tag-dropdown-item.active:hover {
+  background-color: #2563eb;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ==================== ERROR STATE ==================== */
@@ -2201,7 +2395,7 @@ onUnmounted(() => {
 /* Хедер */
 .task-header-full {
   background-color: #0f172a;
-  padding: 28px;
+  padding: 28px 28px 8px;
   color: white;
   position: relative;
   overflow: hidden;
