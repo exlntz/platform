@@ -2201,7 +2201,7 @@ onUnmounted(() => {
 /* Хедер */
 .task-header-full {
   background-color: #0f172a;
-  padding: 0;
+  padding: 28px;
   color: white;
   position: relative;
   overflow: hidden;
