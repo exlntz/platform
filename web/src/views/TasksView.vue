@@ -75,7 +75,7 @@ const generateAiTask = async () => {
     const response = await api.get('/tasks/generate', {
       params: {
         subject: aiSubject.value,
-        difficulties: aiDifficulty.value,
+        difficulty: aiDifficulty.value,
       },
       headers: { Authorization: `Bearer ${localStorage.getItem('user-token')}` },
     })
@@ -445,7 +445,7 @@ onUnmounted(() => {
           <div class="task-header-full">
             <div class="header-tags">
               <span class="subject-tag-full">{{ getSubjectLabel(aiTask.subject) }}</span>
-              <span class="difficulties-tag-full">{{ getDifficultyLabel(aiTask.difficulties) }}</span>
+              <span class="difficulties-tag-full">{{ getDifficultyLabel(aiTask.difficulty) }}</span>
               <span class="ai-badge">🤖 AI Generated</span>
             </div>
             <h1 class="task-title-full">{{ aiTask.title }}</h1>
