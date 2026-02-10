@@ -28,7 +28,7 @@ const aiShowHint = ref(false)
 const filters = reactive({
   search: route.query.search || '',
   subject: route.query.subject || '',
-  difficulty: route.query.difficulty || '',
+  difficulties: route.query.difficulties || '',
   tags: route.query.tags || '', // Храним выбранный тег
 })
 
@@ -75,7 +75,7 @@ const generateAiTask = async () => {
     const response = await api.get('/tasks/generate', {
       params: {
         subject: aiSubject.value,
-        difficulty: aiDifficulty.value,
+        difficulties: aiDifficulty.value,
       },
       headers: { Authorization: `Bearer ${localStorage.getItem('user-token')}` },
     })
@@ -239,7 +239,7 @@ const fetchTasks = async () => {
       limit: pagination.limit,
       ...(filters.search ? { search: filters.search } : {}),
       ...(filters.subject ? { subject: filters.subject } : {}),
-      ...(filters.difficulty ? { difficulty: filters.difficulty } : {}),
+      ...(filters.difficulties ? { difficulties: filters.difficulties } : {}),
       ...(filters.tags ? { tag: filters.tags } : {}),
     }
 
@@ -277,7 +277,7 @@ const updateUrl = () => {
   const query = {}
   if (filters.search) query.search = filters.search
   if (filters.subject) query.subject = filters.subject
-  if (filters.difficulty) query.difficulty = filters.difficulty
+  if (filters.difficulties) query.difficulties = filters.difficulties
   if (filters.tags) query.tags = filters.tags
   if (pagination.page > 1) query.page = pagination.page
 
@@ -300,7 +300,7 @@ const handlePageChange = (newPage) => {
 const resetFilters = () => {
   filters.search = ''
   filters.subject = ''
-  filters.difficulty = ''
+  filters.difficulties = ''
   filters.tags = ''
   availableTags.value = constantsStore.tags
   pagination.page = 1
@@ -325,7 +325,7 @@ watch(
     // Синхронизируем фильтры с URL при изменении роута (например, при возврате назад)
     filters.search = newQuery.search || ''
     filters.subject = newQuery.subject || ''
-    filters.difficulty = newQuery.difficulty || ''
+    filters.difficulties = newQuery.difficulties || ''
     filters.tags = newQuery.tags || ''
     pagination.page = Number(newQuery.page) || 1
 
@@ -345,7 +345,7 @@ watch(
 )
 
 watch(
-  () => [filters.difficulty, filters.tags],
+  () => [filters.difficulties, filters.tags],
   () => {
     pagination.page = 1
     fetchTasks()
@@ -416,7 +416,7 @@ onUnmounted(() => {
             <label>Сложность</label>
             <div class="select-wrapper-ai">
               <select v-model="aiDifficulty" class="ai-select">
-                <option v-for="diff in constantsStore.difficulty" :key="diff.key" :value="diff.key">
+                <option v-for="diff in constantsStore.difficulties" :key="diff.key" :value="diff.key">
                   {{ diff.label }}
                 </option>
               </select>
@@ -445,7 +445,7 @@ onUnmounted(() => {
           <div class="task-header-full">
             <div class="header-tags">
               <span class="subject-tag-full">{{ getSubjectLabel(aiTask.subject) }}</span>
-              <span class="difficulty-tag-full">{{ getDifficultyLabel(aiTask.difficulty) }}</span>
+              <span class="difficulties-tag-full">{{ getDifficultyLabel(aiTask.difficulties) }}</span>
               <span class="ai-badge">🤖 AI Generated</span>
             </div>
             <h1 class="task-title-full">{{ aiTask.title }}</h1>
@@ -576,15 +576,15 @@ onUnmounted(() => {
               <div class="select-arrow">▼</div>
             </div>
 
-            <div class="select-wrapper difficulty-wrapper">
+            <div class="select-wrapper difficulties-wrapper">
               <select
-                v-model="filters.difficulty"
+                v-model="filters.difficulties"
                 class="filter-select"
                 :class="{ compact: screenSize === 'mobile' }"
                 :disabled="constantsStore.loading"
               >
                 <option value="">Сложность</option>
-                <option v-for="diff in constantsStore.difficulty" :key="diff.key" :value="diff.key">
+                <option v-for="diff in constantsStore.difficulties" :key="diff.key" :value="diff.key">
                   {{ diff.label }}
                 </option>
               </select>
@@ -615,7 +615,7 @@ onUnmounted(() => {
           <div v-for="i in screenSize === 'mobile' ? 4 : 8" :key="i" class="task-card-skeleton">
             <div class="skeleton-header">
               <div class="skeleton-tag" :class="{ mobile: screenSize === 'mobile' }"></div>
-              <div class="skeleton-difficulty" :class="{ mobile: screenSize === 'mobile' }"></div>
+              <div class="skeleton-difficulties" :class="{ mobile: screenSize === 'mobile' }"></div>
             </div>
             <div class="skeleton-title" :class="{ mobile: screenSize === 'mobile' }"></div>
             <div class="skeleton-description">
@@ -655,16 +655,16 @@ onUnmounted(() => {
               </span>
 
               <span
-                class="difficulty-badge"
+                class="difficulties-badge"
                 :class="[
-                  getDifficultyColorClass(task.difficulty),
+                  getDifficultyColorClass(task.difficulties),
                   { mobile: screenSize === 'mobile' },
                 ]"
               >
                 {{
                   screenSize === 'mobile'
-                    ? getDifficultyLabel(task.difficulty).charAt(0)
-                    : getDifficultyLabel(task.difficulty)
+                    ? getDifficultyLabel(task.difficulties).charAt(0)
+                    : getDifficultyLabel(task.difficulties)
                 }}
               </span>
             </div>
@@ -967,7 +967,7 @@ onUnmounted(() => {
     flex-basis: 180px;
     max-width: 200px;
   }
-  .difficulty-wrapper {
+  .difficulties-wrapper {
     flex-basis: 150px;
     max-width: 170px;
   }
@@ -1196,14 +1196,14 @@ onUnmounted(() => {
   height: 20px;
 }
 
-.skeleton-difficulty {
+.skeleton-difficulties {
   height: 24px;
   width: 60px;
   background-color: var(--skeleton-base);
   border-radius: 9999px;
 }
 
-.skeleton-difficulty.mobile {
+.skeleton-difficulties.mobile {
   width: 40px;
   height: 20px;
 }
@@ -1394,7 +1394,7 @@ onUnmounted(() => {
   font-size: 11px;
 }
 
-.difficulty-badge {
+.difficulties-badge {
   display: inline-flex;
   align-items: center;
   padding: 6px 12px;
@@ -1406,7 +1406,7 @@ onUnmounted(() => {
   border: 2px solid;
 }
 
-.difficulty-badge.mobile {
+.difficulties-badge.mobile {
   padding: 4px 8px;
   font-size: 11px;
   min-width: 24px;
@@ -1819,7 +1819,7 @@ onUnmounted(() => {
 }
 
 :root.dark .skeleton-tag,
-:root.dark .skeleton-difficulty,
+:root.dark .skeleton-difficulties,
 :root.dark .skeleton-title,
 :root.dark .skeleton-line,
 :root.dark .skeleton-tags,
@@ -2245,7 +2245,7 @@ onUnmounted(() => {
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.difficulty-tag-full {
+.difficulties-tag-full {
   padding: 6px 12px;
   border-radius: 8px;
   font-size: 12px;
@@ -2507,7 +2507,7 @@ onUnmounted(() => {
   color: #93c5fd;
   border-color: rgba(255, 255, 255, 0.2);
 }
-:root.dark .difficulty-tag-full {
+:root.dark .difficulties-tag-full {
   background-color: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.2);
   color: #cbd5e1;
