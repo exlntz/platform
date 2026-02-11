@@ -47,7 +47,7 @@ class AttemptModel(Model):
     __tablename__ = 'attempts'
 
     id: Mapped[int] = mapped_column(primary_key=True,init=False)
-    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'),index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     task_id: Mapped[int] = mapped_column(ForeignKey('tasks.id'))
     user_answer: Mapped[str] = mapped_column()
     is_correct: Mapped[bool] = mapped_column()
@@ -72,7 +72,7 @@ class AuditLogModel(Model):
     __tablename__ = 'audit_logs'
 
     id: Mapped[int] = mapped_column(primary_key=True,init=False)
-    admin_id: Mapped[int] = mapped_column(ForeignKey('users.id'),index=True)
+    admin_id: Mapped[int] = mapped_column(ForeignKey('users.id', ondelete="CASCADE"),index=True)
     action: Mapped[str] = mapped_column()
     target_id: Mapped[int | None] = mapped_column(default=None)
     details: Mapped[str | None] = mapped_column(default=None)
@@ -83,8 +83,8 @@ class PvPMatchModel(Model):
     __tablename__ = 'pvp_matches'
 
     id: Mapped[int] = mapped_column(primary_key=True, init=False)
-    player1_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
-    player2_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
+    player1_id: Mapped[int] = mapped_column(ForeignKey('users.id', ondelete="CASCADE")) # если проект пройдет, то сделаю норм удаление
+    player2_id: Mapped[int] = mapped_column(ForeignKey('users.id', ondelete="CASCADE")) # если проект пройдет, то сделаю норм удаление
     p1_elo_change: Mapped[float] = mapped_column()
     p2_elo_change: Mapped[float] = mapped_column()
     result: Mapped[str] = mapped_column()
@@ -95,7 +95,7 @@ class EloHistoryModel(Model):
     __tablename__ = 'elo_history'
 
     id: Mapped[int] = mapped_column(primary_key=True, init=False)
-    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id', ondelete="CASCADE"), index=True)
     rating: Mapped[float] = mapped_column() #рейтинг после матча
     change: Mapped[float] = mapped_column()
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),insert_default=lambda: datetime.now(timezone.utc),init=False)
@@ -105,8 +105,7 @@ class GeneratedTasksModel(Model):
     __tablename__ = "generated_tasks"
 
     id: Mapped[int] = mapped_column(primary_key=True,init=False)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True)
-
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
     title: Mapped[str] = mapped_column(index=True)
     description: Mapped[str] = mapped_column(Text)
     subject: Mapped[Subject] = mapped_column(SQLEnum(Subject, native_enum=False), index=True)
