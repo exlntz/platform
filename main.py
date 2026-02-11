@@ -70,6 +70,6 @@ app.include_router(constants_router)
 
 @app.get('/',tags=['Система'])
 async def check() -> str:
-    return {"message": "Сайт запущен"}
+    return "Сайт запущен"
 
 
