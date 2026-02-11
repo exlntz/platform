@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+
 from contextlib import asynccontextmanager
 from app.api.auth import router as auth_router
 from app.api.tasks import router as tasks_router
@@ -8,20 +10,25 @@ from app.api.profile import router as profile_router
 from app.api.leaderboard import router as leaderboard_router
 from app.api.admin import router as admin_router
 from app.api.constants import router as constants_router
-from fastapi.staticfiles import StaticFiles
+
 import os
+from app.core.database import new_session
+from app.core.init_db import create_first_superuser
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Теперь здесь не нужно вызывать Model.metadata.create_all
-    print('Приложение запущено, база данных управляется через Alembic')
+    print("Сайт запускается")
+    async with new_session() as session:
+        await create_first_superuser(session)
+
+    print("База данных управляется через Alembic")
     yield
     print('Выключение сервера')
 
 IS_PROD = os.getenv('VITE_IS_PROD') == 'true'
 app=FastAPI(title='Платформа для подготовки к олимпиадам',
-            version='666.666.666',
+            version='1.0.0',
             lifespan=lifespan,
             root_path="/api" if IS_PROD else '',
             docs_url="/docs",
@@ -61,8 +68,8 @@ app.include_router(admin_router)
 app.include_router(constants_router)
 
 
-@app.get('/',tags=['Главная страница'])
-async def home() -> str:
-    return 'главная страница'
+@app.get('/',tags=['Система'])
+async def check() -> str:
+    return {"message": "Сайт запущен"}
 
 
