@@ -2,6 +2,8 @@ import axios from 'axios'
 import { useNotificationStore } from '@/pinia/NotificationStore'
 
 // Базовый URL. В Vite/Docker используем относительный путь /api
+// Если нужно локально стучаться на 8000, можно раскомментировать строку ниже:
+// const BASE_URL = import.meta.env.VITE_API_URL || '/api'
 const BASE_URL = '/api'
 
 // 1. Основной инстанс (для всех запросов приложения)
@@ -66,6 +68,28 @@ api.interceptors.response.use(
     const notify = useNotificationStore()
     const status = error.response ? error.response.status : null
 
+    // Получаем текст ошибки для проверки бана
+    const detail = error.response?.data?.detail
+
+    // ---------------------------------------------------------
+    // 0. ОБРАБОТКА БЛОКИРОВКИ (БАНА)
+    // ---------------------------------------------------------
+    if (status === 403 && detail === 'Ваш аккаунт заблокирован.') {
+      // Чистим токены
+      localStorage.removeItem('user-token')
+      localStorage.removeItem('refresh-token')
+
+      // Показываем уведомление
+      notify.show('Ваш аккаунт был заблокирован администратором', 'error')
+
+      // Жесткий редирект на авторизацию
+      setTimeout(() => {
+        window.location.href = '/auth'
+      }, 1500)
+
+      return Promise.reject(error)
+    }
+
     // 1. Игнорируем 401 при ЛОГИНЕ (это просто неверный пароль, рефреш не нужен)
     if (
       status === 401 &&
@@ -100,6 +124,8 @@ api.interceptors.response.use(
         }
 
         // ВАЖНО: Делаем запрос через authApi (чистый инстанс)
+        // Если пользователь УДАЛЕН, этот запрос вернет 401 или 404,
+        // и мы попадем в блок catch (refreshError), где произойдет логаут.
         const response = await authApi.post('/auth/refresh', {
           refresh_token: refreshToken,
         })
@@ -125,11 +151,11 @@ api.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null)
 
-        // Если рефреш не удался — полный выход
+        // Если рефреш не удался (или юзер удален) — полный выход
         localStorage.removeItem('user-token')
         localStorage.removeItem('refresh-token')
 
-        notify.show('Сессия истекла. Войдите снова.', 'error')
+        notify.show('Сессия истекла или пользователь не найден.', 'error')
 
         // Используем window.location для жесткого редиректа без импорта роутера
         setTimeout(() => {
@@ -142,20 +168,21 @@ api.interceptors.response.use(
       }
     }
 
-    // Обработка остальных ошибок (не 401)
+    // Обработка остальных ошибок (не 401 и не бан)
     let message = 'Произошла ошибка'
     if (error.response?.data?.detail) {
-      const detail = error.response.data.detail
-      message = Array.isArray(detail) ? detail.map((e) => e.msg).join('; ') : detail
+      const det = error.response.data.detail
+      message = Array.isArray(det) ? det.map((e) => e.msg).join('; ') : det
     } else if (error.message === 'Network Error') {
       message = 'Нет связи с сервером'
     }
 
     // Показываем уведомление, если это не 401 (401 обрабатывается выше)
     if (status !== 401) {
-      if (status === 403) notify.show('Доступ запрещен', 'warning')
+      // 403 обрабатываем тут только если это НЕ бан (например, просто нет прав доступа)
+      if (status === 403) notify.show(message || 'Доступ запрещен', 'error')
       else if (status === 422) notify.show(`Ошибка данных: ${message}`, 'warning')
-      else if (status >= 500) notify.show('Ошибка сервера', 'error')
+      else if (status >= 500) notify.show(message || 'Ошибка сервера', 'error')
       else if (!status) notify.show(message, 'error')
     }
 

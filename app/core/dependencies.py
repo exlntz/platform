@@ -18,28 +18,30 @@ async def get_current_user(
 
     unauthorized_error = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail='Некорректный токен или время сессии истекло'
+        detail='Некорректный токен или время сессии истекло',
+        headers={"WWW-Authenticate": "Bearer"},  # Помогает браузеру понять тип авторизации
     )
 
     try:
         payload = jwt.decode(token,SECRET_KEY,algorithms=[ALGORITHM])
 
-        id: int | None = payload.get('sub')
+        user_id: int | None = payload.get('sub')
 
-        if id is None:
+        if user_id is None:
             raise unauthorized_error
     except:
         raise unauthorized_error
 
-    query=select(UserModel).where(UserModel.id == int(id))
+    query=select(UserModel).where(UserModel.id == int(user_id))
     result = await session.execute(query)
     user = result.scalar_one_or_none()
+
+    if not user:
+        raise unauthorized_error
 
     if user.is_banned:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,detail='Ваш аккаунт заблокирован.')
 
-    if not user:
-        raise unauthorized_error
     return user
 
 

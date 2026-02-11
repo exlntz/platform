@@ -77,7 +77,13 @@ async def refresh_token_endpoint(
     user = await session.get(UserModel, user_id)
 
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Пользователь удален")
+
+    if user.is_banned:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Ваш аккаунт заблокирован."
+        )
 
     payload = {"sub": str(user.id)}
     new_access_token = create_access_token(payload)

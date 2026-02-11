@@ -72,7 +72,7 @@ class AuditLogModel(Model):
     __tablename__ = 'audit_logs'
 
     id: Mapped[int] = mapped_column(primary_key=True,init=False)
-    admin_id: Mapped[int] = mapped_column(ForeignKey('users.id', ondelete="CASCADE"),index=True)
+    admin_id: Mapped[int] = mapped_column(ForeignKey('users.id', ondelete="CASCADE"),index=True) # тоже сделать если проект выйдет
     action: Mapped[str] = mapped_column()
     target_id: Mapped[int | None] = mapped_column(default=None)
     details: Mapped[str | None] = mapped_column(default=None)
