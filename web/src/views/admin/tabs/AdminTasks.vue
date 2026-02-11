@@ -22,7 +22,7 @@ const taskForm = ref({
   description: '',
   subject: '',
   tags: [],
-  difficulty: 'EASY',
+  difficulties: 'EASY',
   correct_answer: '',
   hint: '',
 })
@@ -38,7 +38,7 @@ const sortedTasks = computed(() => {
     let valA = a[sortKey.value]
     let valB = b[sortKey.value]
 
-    if (sortKey.value === 'difficulty') {
+    if (sortKey.value === 'difficulties') {
       const weights = { EASY: 1, MEDIUM: 2, HARD: 3 }
       valA = weights[valA] || 0
       valB = weights[valB] || 0
@@ -99,7 +99,7 @@ const openCreateModal = () => {
     description: '',
     subject: '', 
     tags: [],
-    difficulty: 'EASY',
+    difficulties: 'EASY',
     correct_answer: '',
     hint: '',
   }
@@ -309,9 +309,9 @@ onMounted(() => {
                 sortOrder === 'asc' ? '↑' : '↓'
               }}</span>
             </th>
-            <th @click="sortBy('difficulty')" class="sortable-column">
+            <th @click="sortBy('difficulties')" class="sortable-column">
               Сложность
-              <span v-if="sortKey === 'difficulty'" class="sort-indicator">{{
+              <span v-if="sortKey === 'difficulties'" class="sort-indicator">{{
                 sortOrder === 'asc' ? '↑' : '↓'
               }}</span>
             </th>
@@ -330,8 +330,8 @@ onMounted(() => {
               <span class="subject-badge">{{ constants.getSubjectLabel(task.subject) }}</span>
             </td>
             <td>
-              <span class="difficulty-badge" :class="task.difficulty.toLowerCase()">{{
-                constants.getDifficultyLabel(task.difficulty)
+              <span class="difficulties-badge" :class="task.difficulties.toLowerCase()">{{
+                constants.getDifficultyLabel(task.difficulties)
               }}</span>
             </td>
             <td class="answer-cell">
@@ -383,8 +383,8 @@ onMounted(() => {
             </div>
             <div class="form-group">
               <label class="form-label">Сложность</label>
-              <select v-model="taskForm.difficulty" required class="form-select">
-                <option v-for="d in constants.difficulty" :key="d.key" :value="d.key">
+              <select v-model="taskForm.difficulties" required class="form-select">
+                <option v-for="d in constants.difficulties" :key="d.key" :value="d.key">
                   {{ d.label }}
                 </option>
               </select>
@@ -701,7 +701,7 @@ onMounted(() => {
   border-color: #475569;
 }
 
-.difficulty-badge {
+.difficulties-badge {
   font-size: 10px;
   font-weight: 900;
   text-transform: uppercase;
@@ -712,34 +712,34 @@ onMounted(() => {
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   white-space: nowrap;
 }
-.difficulty-badge.easy {
+.difficulties-badge.easy {
   color: #059669;
   background-color: #d1fae5;
   border-color: #a7f3d0;
 }
-:root.dark .difficulty-badge.easy {
+:root.dark .difficulties-badge.easy {
   background-color: #064e3b;
   color: #a7f3d0;
   border-color: #065f46;
 }
 
-.difficulty-badge.medium {
+.difficulties-badge.medium {
   color: #d97706;
   background-color: #fef3c7;
   border-color: #fde68a;
 }
-:root.dark .difficulty-badge.medium {
+:root.dark .difficulties-badge.medium {
   background-color: #78350f;
   color: #fcd34d;
   border-color: #92400e;
 }
 
-.difficulty-badge.hard {
+.difficulties-badge.hard {
   color: #dc2626;
   background-color: #fee2e2;
   border-color: #fecaca;
 }
-:root.dark .difficulty-badge.hard {
+:root.dark .difficulties-badge.hard {
   background-color: #7f1d1d;
   color: #fecaca;
   border-color: #991b1b;
