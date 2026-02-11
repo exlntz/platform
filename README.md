@@ -48,7 +48,7 @@ docker-compose up -d --build
 
 После успешного запуска проект будет доступен по адресам:
 
-* **Frontend (Сайт):** `http://localhost:5173`
+* **Frontend (Сайт):** `http://localhost:8080`
 * **Backend (API):** `http://localhost:8000`
 * **Документация API:** `http://localhost:8000/docs`
 
