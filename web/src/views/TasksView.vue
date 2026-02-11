@@ -28,7 +28,7 @@ const aiShowHint = ref(false)
 const filters = reactive({
   search: route.query.search || '',
   subject: route.query.subject || '',
-  difficulties: route.query.difficulties || '',
+  difficulty: route.query.difficulty || '',
   tags: route.query.tags || '', // Храним выбранный тег
 })
 
@@ -239,7 +239,7 @@ const fetchTasks = async () => {
       limit: pagination.limit,
       ...(filters.search ? { search: filters.search } : {}),
       ...(filters.subject ? { subject: filters.subject } : {}),
-      ...(filters.difficulties ? { difficulties: filters.difficulties } : {}),
+      ...(filters.difficulty ? { difficulty : filters.difficulty } : {}),
       ...(filters.tags ? { tag: filters.tags } : {}),
     }
 
@@ -277,7 +277,7 @@ const updateUrl = () => {
   const query = {}
   if (filters.search) query.search = filters.search
   if (filters.subject) query.subject = filters.subject
-  if (filters.difficulties) query.difficulties = filters.difficulties
+  if (filters.difficulty) query.difficulty = filters.difficulty
   if (filters.tags) query.tags = filters.tags
   if (pagination.page > 1) query.page = pagination.page
 
@@ -300,7 +300,7 @@ const handlePageChange = (newPage) => {
 const resetFilters = () => {
   filters.search = ''
   filters.subject = ''
-  filters.difficulties = ''
+  filters.difficulty = ''
   filters.tags = ''
   availableTags.value = constantsStore.tags
   pagination.page = 1
@@ -356,7 +356,7 @@ watch(
     // Синхронизируем фильтры с URL при изменении роута (например, при возврате назад)
     filters.search = newQuery.search || ''
     filters.subject = newQuery.subject || ''
-    filters.difficulties = newQuery.difficulties || ''
+    filters.difficulty = newQuery.difficulties || ''
     filters.tags = newQuery.tags || ''
     pagination.page = Number(newQuery.page) || 1
 
@@ -450,7 +450,7 @@ onUnmounted(() => {
             <label>Сложность</label>
             <div class="select-wrapper-ai">
               <select v-model="aiDifficulty" class="ai-select">
-                <option v-for="diff in constantsStore.difficulties" :key="diff.key" :value="diff.key">
+                <option v-for="diff in constantsStore.difficulty" :key="diff.key" :value="diff.key">
                   {{ diff.label }}
                 </option>
               </select>
@@ -638,7 +638,7 @@ onUnmounted(() => {
 
             <div class="select-wrapper difficulties-wrapper">
               <select
-                v-model="filters.difficulties"
+                v-model="filters.difficulty"
                 class="filter-select"
                 :class="{ compact: screenSize === 'mobile' }"
                 :disabled="constantsStore.loading"
@@ -717,14 +717,14 @@ onUnmounted(() => {
               <span
                 class="difficulties-badge"
                 :class="[
-                  getDifficultyColorClass(task.difficulties),
+                  getDifficultyColorClass(task.difficulty),
                   { mobile: screenSize === 'mobile' },
                 ]"
               >
                 {{
                   screenSize === 'mobile'
-                    ? getDifficultyLabel(task.difficulties).charAt(0)
-                    : getDifficultyLabel(task.difficulties)
+                    ? getDifficultyLabel(task.difficulty).charAt(0)
+                    : getDifficultyLabel(task.difficulty)
                 }}
               </span>
             </div>

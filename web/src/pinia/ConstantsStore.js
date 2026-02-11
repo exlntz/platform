@@ -10,18 +10,21 @@ export const useConstantsStore = defineStore('constants', () => {
   
   const loading = ref(false)
   const isLoaded = ref(false)
+  const error = ref(null)
 
   const fetchConstants = async () => {
     if (loading.value || isLoaded.value) return
 
     loading.value = true
+    error.value = null
+
     try {
       // Бэкенд возвращает всё сразу в GET /constants/
       const { data } = await api.get('/constants/')
       
       subjects.value = data.subjects || []
       tags.value = data.tags || []
-      difficulties.value = data.difficulty || []
+      difficulties.value = data.difficulties  || []
       achievements.value = data.constant_achievements || []
 
       isLoaded.value = true
