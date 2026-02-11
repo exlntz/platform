@@ -66,8 +66,6 @@ docker-compose up -d --build
 * **Username:** `superuser` (или то, что указано в `SUPERUSER`)
 * **Пароль:** `superuser` (или то, что указано в `SUPERUSER_PASSWORD`)
 
-
-3. После входа в шапке сайта появится кнопка **"Админ панель"**.
-4. Прямая ссылка: `http://localhost:5173/admin`
+3. Cсылка на админ панель: `http://localhost:5173/admin`
 
 ---
