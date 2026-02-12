@@ -1921,6 +1921,13 @@ onUnmounted(() => {
   border: none !important;
   outline: none !important;
 }
+:root.dark .title {
+  color: #f8fafc; /* Белый цвет для заголовка */
+}
+
+:root.dark .description {
+  color: #cbd5e1; /* Светло-серый для описания под заголовком */
+}
 
 /* ==================== AI BUTTON STYLES ==================== */
 .header-actions {
