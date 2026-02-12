@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import api from '@/api/axios'
 
 export const useConstantsStore = defineStore('constants', () => {
+  // Состояние
   const subjects = ref([])
   const tags = ref([])
   const difficulties = ref([])
@@ -12,19 +13,20 @@ export const useConstantsStore = defineStore('constants', () => {
   const isLoaded = ref(false)
   const error = ref(null)
 
+  // Инициализация данных одним запросом (как требует бэкенд)
   const fetchConstants = async () => {
     if (loading.value || isLoaded.value) return
 
     loading.value = true
     error.value = null
-
+    
     try {
       // Бэкенд возвращает всё сразу в GET /constants/
       const { data } = await api.get('/constants/')
       
       subjects.value = data.subjects || []
       tags.value = data.tags || []
-      difficulties.value = data.difficulties  || []
+      difficulties.value = data.difficulties || []
       achievements.value = data.constant_achievements || []
 
       isLoaded.value = true
@@ -53,6 +55,8 @@ export const useConstantsStore = defineStore('constants', () => {
     difficulties,
     achievements,
     loading,
+    isLoaded,
+    error,
     fetchConstants,
     getSubjectLabel,
     getDifficultyLabel
