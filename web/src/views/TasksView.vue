@@ -28,7 +28,7 @@ const aiShowHint = ref(false)
 const filters = reactive({
   search: route.query.search || '',
   subject: route.query.subject || '',
-  difficulties: route.query.difficulties || '',
+  difficulty: route.query.difficulty || '',
   tags: route.query.tags || '', // Храним выбранный тег
 })
 
@@ -54,7 +54,7 @@ const openAiMenu = () => {
 const aiSubject = ref('MATH') // По умолчанию Математика
 const aiDifficulty = ref('EASY') // По умолчанию Легко
 const aiLoading = ref(false) // Статус загрузки (крутилка на кнопке)
-
+const aiError = ref(null)
 // Функция закрытия меню
 const closeAiMenu = () => {
   showAiMenu.value = false
@@ -62,35 +62,42 @@ const closeAiMenu = () => {
 
 const generateAiTask = async () => {
   aiLoading.value = true
-
-  // Сбрасываем состояния
+  aiError.value = null // Сбрасываем старую ошибку
   aiTask.value = null
   aiAnswer.value = ''
   aiCheckResult.value = null
   aiIsSolved.value = false
   aiShowHint.value = false
 
+  // СРАЗУ переключаем UI в режим загрузки задачи
+  isAiMode.value = true
+  showAiMenu.value = false
+
   try {
-    // 1. Делаем запрос к твоему эндпоинту
     const response = await api.get('/tasks/generate', {
       params: {
         subject: aiSubject.value,
         difficulty: aiDifficulty.value,
       },
       headers: { Authorization: `Bearer ${localStorage.getItem('user-token')}` },
+      timeout: 60000, // Ждем до 60 секунд (важно для цепочки ретраев на бэке)
     })
 
-    // 2. Получаем задачу и переключаем режим
     aiTask.value = response.data
-    showAiMenu.value = false // Закрываем меню
-    isAiMode.value = true // Включаем режим задачи
   } catch (err) {
     console.error('AI Generation Error:', err)
     // Здесь можно добавить красивый тост с ошибкой
-    alert('ИИ устал или нет связи. Попробуйте позже.')
+    notify.show('ИИ устал или нет связи. Попробуйте позже.')
   } finally {
     aiLoading.value = false
   }
+}
+
+// Добавь функцию для возврата из ошибки в меню
+const retryAiMenu = () => {
+  isAiMode.value = false
+  aiError.value = null
+  showAiMenu.value = true
 }
 
 const exitAiMode = () => {
@@ -239,7 +246,7 @@ const fetchTasks = async () => {
       limit: pagination.limit,
       ...(filters.search ? { search: filters.search } : {}),
       ...(filters.subject ? { subject: filters.subject } : {}),
-      ...(filters.difficulties ? { difficulties: filters.difficulties } : {}),
+      ...(filters.difficulty ? { difficulty: filters.difficulty } : {}),
       ...(filters.tags ? { tag: filters.tags } : {}),
     }
 
@@ -277,7 +284,7 @@ const updateUrl = () => {
   const query = {}
   if (filters.search) query.search = filters.search
   if (filters.subject) query.subject = filters.subject
-  if (filters.difficulties) query.difficulties = filters.difficulties
+  if (filters.difficulty) query.difficulty = filters.difficulty
   if (filters.tags) query.tags = filters.tags
   if (pagination.page > 1) query.page = pagination.page
 
@@ -300,7 +307,7 @@ const handlePageChange = (newPage) => {
 const resetFilters = () => {
   filters.search = ''
   filters.subject = ''
-  filters.difficulties = ''
+  filters.difficulty = ''
   filters.tags = ''
   availableTags.value = constantsStore.tags
   pagination.page = 1
@@ -317,37 +324,6 @@ const paginatedTasks = computed(() => {
   return tasks.value
 })
 
-// --- Tag Dropdown State ---
-const showTagDropdown = ref(false)
-
-const toggleTagDropdown = () => {
-  if (!tagsLoading.value && !constantsStore.loading) {
-    showTagDropdown.value = !showTagDropdown.value
-  }
-}
-
-const selectTag = (tagKey) => {
-  filters.tags = tagKey
-  showTagDropdown.value = false
-  pagination.page = 1
-  fetchTasks()
-}
-
-const clearTag = () => {
-  filters.tags = ''
-  showTagDropdown.value = false
-  pagination.page = 1
-  fetchTasks()
-}
-
-// Закрытие dropdown при клике вне его области
-const handleClickOutside = (event) => {
-  const tagWrapper = document.querySelector('.tag-wrapper')
-  if (tagWrapper && !tagWrapper.contains(event.target)) {
-    showTagDropdown.value = false
-  }
-}
-
 // --- Watchers ---
 
 watch(
@@ -356,7 +332,7 @@ watch(
     // Синхронизируем фильтры с URL при изменении роута (например, при возврате назад)
     filters.search = newQuery.search || ''
     filters.subject = newQuery.subject || ''
-    filters.difficulties = newQuery.difficulties || ''
+    filters.difficulty = newQuery.difficulty || ''
     filters.tags = newQuery.tags || ''
     pagination.page = Number(newQuery.page) || 1
 
@@ -369,7 +345,6 @@ watch(
   () => filters.subject,
   async () => {
     filters.tags = ''
-    showTagDropdown.value = false
     pagination.page = 1
     await updateAvailableTags()
     fetchTasks()
@@ -377,7 +352,7 @@ watch(
 )
 
 watch(
-  () => [filters.difficulties, filters.tags],
+  () => [filters.difficulty, filters.tags],
   () => {
     pagination.page = 1
     fetchTasks()
@@ -400,7 +375,6 @@ watch(
 onMounted(async () => {
   updateScreenSize()
   window.addEventListener('resize', updateScreenSize)
-  document.addEventListener('click', handleClickOutside)
 
   if (!constantsStore.isLoaded) {
     await constantsStore.fetchConstants()
@@ -413,7 +387,6 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener('resize', updateScreenSize)
-  document.removeEventListener('click', handleClickOutside)
   if (abortController) abortController.abort()
   clearTimeout(searchTimeout)
 })
@@ -450,7 +423,11 @@ onUnmounted(() => {
             <label>Сложность</label>
             <div class="select-wrapper-ai">
               <select v-model="aiDifficulty" class="ai-select">
-                <option v-for="diff in constantsStore.difficulties" :key="diff.key" :value="diff.key">
+                <option
+                  v-for="diff in constantsStore.difficulties"
+                  :key="diff.key"
+                  :value="diff.key"
+                >
                   {{ diff.label }}
                 </option>
               </select>
@@ -475,11 +452,19 @@ onUnmounted(() => {
           <p>Нейросеть придумывает задачу...</p>
         </div>
 
+        <div v-else-if="aiError" class="error-placeholder-ai">
+          <div class="error-icon">⚠️</div>
+          <p>{{ aiError }}</p>
+          <button @click="retryAiMenu" class="ai-generate-btn" style="margin-top: 20px">
+            Попробовать снова
+          </button>
+        </div>
+
         <div v-else-if="aiTask" class="task-card-full">
           <div class="task-header-full">
             <div class="header-tags">
               <span class="subject-tag-full">{{ getSubjectLabel(aiTask.subject) }}</span>
-              <span class="difficulties-tag-full">{{ getDifficultyLabel(aiTask.difficulty) }}</span>
+              <span class="difficulty-tag-full">{{ getDifficultyLabel(aiTask.difficulty) }}</span>
               <span class="ai-badge">🤖 AI Generated</span>
             </div>
             <h1 class="task-title-full">{{ aiTask.title }}</h1>
@@ -584,7 +569,6 @@ onUnmounted(() => {
                 class="filter-select"
                 :class="{ compact: screenSize === 'mobile' }"
                 :disabled="constantsStore.loading"
-                size="1"
               >
                 <option value="">Все предметы</option>
                 <option v-for="subj in constantsStore.subjects" :key="subj.key" :value="subj.key">
@@ -594,57 +578,36 @@ onUnmounted(() => {
               <div class="select-arrow">▼</div>
             </div>
 
-            <!-- Кастомный dropdown для тегов -->
-            <div class="select-wrapper tag-wrapper" :class="{ compact: screenSize === 'mobile' }">
-              <div
-                class="filter-select tag-select"
-                :class="{ compact: screenSize === 'mobile', 'is-open': showTagDropdown }"
-                @click="toggleTagDropdown"
+            <div class="select-wrapper tag-wrapper">
+              <select
+                v-model="filters.tags"
+                class="filter-select"
+                :class="{ compact: screenSize === 'mobile' }"
                 :disabled="tagsLoading || constantsStore.loading"
               >
-                <span class="tag-select-text">
-                  {{ 
-                    tagsLoading ? 'Загрузка...' : 
-                    filters.tags ? 
-                      (availableTags.find(t => (t.key || t) === filters.tags)?.label || filters.tags) : 
-                      'Все темы'
-                  }}
-                </span>
-                <div class="select-arrow">▼</div>
-              </div>
-              
-              <!-- Dropdown меню -->
-              <div v-if="showTagDropdown" class="tag-dropdown">
-                <div class="tag-dropdown-content">
-                  <div 
-                    class="tag-dropdown-item" 
-                    :class="{ active: !filters.tags }"
-                    @click="clearTag"
-                  >
-                    Все темы
-                  </div>
-                  <div 
-                    v-for="tag in availableTags" 
-                    :key="tag.key || tag"
-                    class="tag-dropdown-item"
-                    :class="{ active: (tag.key || tag) === filters.tags }"
-                    @click="selectTag(tag.key || tag)"
-                  >
-                    {{ tag.label || tag }}
-                  </div>
-                </div>
-              </div>
+                <option value="">
+                  {{ tagsLoading ? 'Загрузка...' : 'Все темы' }}
+                </option>
+                <option v-for="tag in availableTags" :key="tag.key || tag" :value="tag.key || tag">
+                  {{ tag.label || tag }}
+                </option>
+              </select>
+              <div class="select-arrow">▼</div>
             </div>
 
-            <div class="select-wrapper difficulties-wrapper">
+            <div class="select-wrapper difficulty-wrapper">
               <select
-                v-model="filters.difficulties"
+                v-model="filters.difficulty"
                 class="filter-select"
                 :class="{ compact: screenSize === 'mobile' }"
                 :disabled="constantsStore.loading"
               >
                 <option value="">Сложность</option>
-                <option v-for="diff in constantsStore.difficulties" :key="diff.key" :value="diff.key">
+                <option
+                  v-for="diff in constantsStore.difficulties"
+                  :key="diff.key"
+                  :value="diff.key"
+                >
                   {{ diff.label }}
                 </option>
               </select>
@@ -675,7 +638,7 @@ onUnmounted(() => {
           <div v-for="i in screenSize === 'mobile' ? 4 : 8" :key="i" class="task-card-skeleton">
             <div class="skeleton-header">
               <div class="skeleton-tag" :class="{ mobile: screenSize === 'mobile' }"></div>
-              <div class="skeleton-difficulties" :class="{ mobile: screenSize === 'mobile' }"></div>
+              <div class="skeleton-difficulty" :class="{ mobile: screenSize === 'mobile' }"></div>
             </div>
             <div class="skeleton-title" :class="{ mobile: screenSize === 'mobile' }"></div>
             <div class="skeleton-description">
@@ -715,16 +678,16 @@ onUnmounted(() => {
               </span>
 
               <span
-                class="difficulties-badge"
+                class="difficulty-badge"
                 :class="[
-                  getDifficultyColorClass(task.difficulties),
+                  getDifficultyColorClass(task.difficulty),
                   { mobile: screenSize === 'mobile' },
                 ]"
               >
                 {{
                   screenSize === 'mobile'
-                    ? getDifficultyLabel(task.difficulties).charAt(0)
-                    : getDifficultyLabel(task.difficulties)
+                    ? getDifficultyLabel(task.difficulty).charAt(0)
+                    : getDifficultyLabel(task.difficulty)
                 }}
               </span>
             </div>
@@ -949,6 +912,11 @@ onUnmounted(() => {
   gap: 16px;
   transition: all 0.2s ease;
   margin-bottom: 24px;
+
+  /* ИСПРАВЛЕНИЕ: Добавляем отступ снизу.
+     Это заставляет браузер думать, что в контейнере еще много места,
+     и он открывает выпадающий список ВНИЗ, а не вверх. */
+  padding-bottom: 50px;
 }
 
 /* Поиск - всегда отдельная строка */
@@ -969,6 +937,7 @@ onUnmounted(() => {
   color: var(--text-tertiary);
   font-size: 18px;
   transition: color 0.2s ease;
+  pointer-events: none;
 }
 
 .search-group:focus-within .search-icon {
@@ -999,37 +968,44 @@ onUnmounted(() => {
   color: var(--text-tertiary);
 }
 
-/* Фильтры - всегда отдельная строка */
+/* Фильтры */
 .filters-row {
   width: 100%;
 }
 
 .filter-group {
   display: flex;
+  flex-wrap: wrap; /* Разрешаем перенос, чтобы не сжимались */
   gap: 12px;
-  flex-wrap: wrap;
   width: 100%;
+  align-items: center;
 }
 
 .select-wrapper {
   position: relative;
-  flex: 1;
+  /* Гибкость, но с базовым размером */
+  flex: 1 1 auto;
   min-width: 140px;
-  flex-shrink: 0;
 }
 
-@media (min-width: 1024px) {
+/* ИСПРАВЛЕНИЕ: Возвращаем max-width на ПК, чтобы они были компактными (не растянутыми) */
+@media (min-width: 768px) {
   .subject-wrapper {
-    flex-basis: 200px;
-    max-width: 220px;
+    flex-grow: 2;
+    max-width: 240px;
   }
   .tag-wrapper {
-    flex-basis: 180px;
-    max-width: 200px;
+    flex-grow: 2;
+    max-width: 240px;
   }
-  .difficulties-wrapper {
-    flex-basis: 150px;
-    max-width: 170px;
+  .difficulty-wrapper {
+    flex-grow: 1;
+    max-width: 180px;
+  }
+
+  .reset-btn {
+    flex-grow: 0;
+    width: 48px; /* Квадратная кнопка на ПК */
   }
 }
 
@@ -1051,11 +1027,7 @@ onUnmounted(() => {
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
-}
-
-.filter-select.compact {
-  padding: 10px 32px 10px 12px;
-  font-size: 13px;
+  height: 48px; /* Фиксируем высоту */
 }
 
 .filter-select:hover {
@@ -1087,7 +1059,6 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
   height: 48px;
   border: 2px solid var(--border-light);
   border-radius: 12px;
@@ -1096,14 +1067,10 @@ onUnmounted(() => {
   cursor: pointer;
   transition: all 0.2s ease;
   font-size: 18px;
-  flex-shrink: 0;
+  padding: 0 16px;
 }
 
 .reset-btn.compact {
-  width: auto;
-  min-width: 60px;
-  height: 44px;
-  padding: 0 12px;
   font-size: 13px;
   font-weight: 600;
 }
@@ -1114,140 +1081,39 @@ onUnmounted(() => {
   border-color: #fecaca;
 }
 
-/* ==================== TAG DROPDOWN STYLES ==================== */
-.tag-select {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 36px 12px 16px;
-  border: 2px solid var(--border-light);
-  border-radius: 12px;
-  background-color: var(--bg-input);
-  color: var(--text-primary);
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: var(--shadow-sm);
-  min-height: 48px;
-  user-select: none;
-}
-
-.tag-select.compact {
-  padding: 10px 32px 10px 12px;
-  font-size: 13px;
-  min-height: 44px;
-}
-
-.tag-select:hover:not(:disabled) {
-  border-color: var(--border-medium);
-}
-
-.tag-select.is-open {
-  border-color: var(--accent-color);
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-}
-
-.tag-select:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  background-color: var(--bg-tag);
-}
-
-.tag-select-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-  text-align: left;
-}
-
-/* Dropdown menu */
-.tag-dropdown {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  z-index: 1000;
-  background-color: var(--bg-card);
-  border: 2px solid var(--border-light);
-  overflow: hidden;
-  animation: slideDown 0.2s ease-out;
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.tag-dropdown-content {
-  padding: 8px 0;
-}
-
-.tag-dropdown-item {
-  padding: 4px;
-  color: var(--text-primary);
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-align: left;
-  border: none;
-  background: none;
-  width: 100%;
-  display: block;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.tag-dropdown-item:hover {
-  background-color: var(--bg-input);
-  color: var(--accent-color);
-}
-
-.tag-dropdown-item.active {
-  background-color: var(--accent-color);
-  color: white;
-}
-
-.tag-dropdown-item.active:hover {
-  background-color: var(--accent-hover);
-}
-
-/* Dark theme for dropdown */
-:root.dark .tag-dropdown {
-  background-color: #334155;
-  border-color: #475569;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
-}
-
-:root.dark .tag-dropdown-item {
-  color: #cbd5e1;
-}
-
-:root.dark .tag-dropdown-item:hover {
-  background-color: #334155;
-  color: #60a5fa;
-}
-
-:root.dark .tag-dropdown-item.active {
-  background-color: #3b82f6;
-  color: white;
-}
-
-:root.dark .tag-dropdown-item.active:hover {
-  background-color: #2563eb;
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
+/* МОБИЛЬНАЯ ВЕРСИЯ */
+@media (max-width: 640px) {
+  .filters-container {
+    padding: 16px;
+    /* На мобильных еще больше места снизу, чтобы клавиатура/меню не перекрывали */
+    padding-bottom: 60px;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+
+  .filter-group {
+    /* На мобилке используем сетку 2 колонки - это самое стабильное решение */
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .select-wrapper {
+    width: 100%;
+    min-width: 0;
+    max-width: none; /* Убираем ограничение ширины */
+  }
+
+  .filter-select {
+    padding: 10px 32px 10px 12px;
+    font-size: 13px;
+    height: 44px;
+  }
+
+  .reset-btn {
+    width: 100%;
+    height: 44px;
+    font-size: 13px;
   }
 }
-
 /* ==================== ERROR STATE ==================== */
 .error-state {
   background-color: #fef2f2;
@@ -1390,14 +1256,14 @@ onUnmounted(() => {
   height: 20px;
 }
 
-.skeleton-difficulties {
+.skeleton-difficulty {
   height: 24px;
   width: 60px;
   background-color: var(--skeleton-base);
   border-radius: 9999px;
 }
 
-.skeleton-difficulties.mobile {
+.skeleton-difficulty.mobile {
   width: 40px;
   height: 20px;
 }
@@ -1588,7 +1454,7 @@ onUnmounted(() => {
   font-size: 11px;
 }
 
-.difficulties-badge {
+.difficulty-badge {
   display: inline-flex;
   align-items: center;
   padding: 6px 12px;
@@ -1600,7 +1466,7 @@ onUnmounted(() => {
   border: 2px solid;
 }
 
-.difficulties-badge.mobile {
+.difficulty-badge.mobile {
   padding: 4px 8px;
   font-size: 11px;
   min-width: 24px;
@@ -2013,7 +1879,7 @@ onUnmounted(() => {
 }
 
 :root.dark .skeleton-tag,
-:root.dark .skeleton-difficulties,
+:root.dark .skeleton-difficulty,
 :root.dark .skeleton-title,
 :root.dark .skeleton-line,
 :root.dark .skeleton-tags,
@@ -2395,7 +2261,7 @@ onUnmounted(() => {
 /* Хедер */
 .task-header-full {
   background-color: #0f172a;
-  padding: 28px 28px 8px;
+  padding: 28px;
   color: white;
   position: relative;
   overflow: hidden;
@@ -2439,7 +2305,7 @@ onUnmounted(() => {
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.difficulties-tag-full {
+.difficulty-tag-full {
   padding: 6px 12px;
   border-radius: 8px;
   font-size: 12px;
@@ -2701,7 +2567,7 @@ onUnmounted(() => {
   color: #93c5fd;
   border-color: rgba(255, 255, 255, 0.2);
 }
-:root.dark .difficulties-tag-full {
+:root.dark .difficulty-tag-full {
   background-color: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.2);
   color: #cbd5e1;

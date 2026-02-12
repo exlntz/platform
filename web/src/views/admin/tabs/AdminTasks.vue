@@ -13,7 +13,7 @@ const loading = ref(false)
 const tasks = ref([])
 const showTaskModal = ref(false)
 const isEditMode = ref(false)
-const showExportMenu = ref(false) 
+const showExportMenu = ref(false)
 
 const availableTags = ref([])
 
@@ -22,7 +22,7 @@ const taskForm = ref({
   description: '',
   subject: '',
   tags: [],
-  difficulties: 'EASY',
+  difficulty: 'EASY',
   correct_answer: '',
   hint: '',
 })
@@ -38,7 +38,7 @@ const sortedTasks = computed(() => {
     let valA = a[sortKey.value]
     let valB = b[sortKey.value]
 
-    if (sortKey.value === 'difficulties') {
+    if (sortKey.value === 'difficulty') {
       const weights = { EASY: 1, MEDIUM: 2, HARD: 3 }
       valA = weights[valA] || 0
       valB = weights[valB] || 0
@@ -97,13 +97,13 @@ const openCreateModal = () => {
   taskForm.value = {
     title: '',
     description: '',
-    subject: '', 
+    subject: '',
     tags: [],
-    difficulties: 'EASY',
+    difficulty: 'EASY',
     correct_answer: '',
     hint: '',
   }
-  availableTags.value = [] 
+  availableTags.value = []
   showTaskModal.value = true
 }
 
@@ -152,7 +152,7 @@ const deleteTask = async (taskId) => {
     message: `Вы уверены, что хотите удалить задачу #${taskId}? Это действие нельзя будет отменить.`,
     confirmText: 'Удалить',
     cancelText: 'Отмена',
-    isDanger: true, 
+    isDanger: true,
   })
 
   if (!isConfirmed) return
@@ -309,9 +309,9 @@ onMounted(() => {
                 sortOrder === 'asc' ? '↑' : '↓'
               }}</span>
             </th>
-            <th @click="sortBy('difficulties')" class="sortable-column">
+            <th @click="sortBy('difficulty')" class="sortable-column">
               Сложность
-              <span v-if="sortKey === 'difficulties'" class="sort-indicator">{{
+              <span v-if="sortKey === 'difficulty'" class="sort-indicator">{{
                 sortOrder === 'asc' ? '↑' : '↓'
               }}</span>
             </th>
@@ -330,8 +330,8 @@ onMounted(() => {
               <span class="subject-badge">{{ constants.getSubjectLabel(task.subject) }}</span>
             </td>
             <td>
-              <span class="difficulties-badge" :class="task.difficulties.toLowerCase()">{{
-                constants.getDifficultyLabel(task.difficulties)
+              <span class="difficulty-badge" :class="task.difficulty.toLowerCase()">{{
+                constants.getDifficultyLabel(task.difficulty)
               }}</span>
             </td>
             <td class="answer-cell">
@@ -383,7 +383,7 @@ onMounted(() => {
             </div>
             <div class="form-group">
               <label class="form-label">Сложность</label>
-              <select v-model="taskForm.difficulties" required class="form-select">
+              <select v-model="taskForm.difficulty" required class="form-select">
                 <option v-for="d in constants.difficulties" :key="d.key" :value="d.key">
                   {{ d.label }}
                 </option>
@@ -701,7 +701,7 @@ onMounted(() => {
   border-color: #475569;
 }
 
-.difficulties-badge {
+.difficulty-badge {
   font-size: 10px;
   font-weight: 900;
   text-transform: uppercase;
@@ -712,34 +712,34 @@ onMounted(() => {
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   white-space: nowrap;
 }
-.difficulties-badge.easy {
+.difficulty-badge.easy {
   color: #059669;
   background-color: #d1fae5;
   border-color: #a7f3d0;
 }
-:root.dark .difficulties-badge.easy {
+:root.dark .difficulty-badge.easy {
   background-color: #064e3b;
   color: #a7f3d0;
   border-color: #065f46;
 }
 
-.difficulties-badge.medium {
+.difficulty-badge.medium {
   color: #d97706;
   background-color: #fef3c7;
   border-color: #fde68a;
 }
-:root.dark .difficulties-badge.medium {
+:root.dark .difficulty-badge.medium {
   background-color: #78350f;
   color: #fcd34d;
   border-color: #92400e;
 }
 
-.difficulties-badge.hard {
+.difficulty-badge.hard {
   color: #dc2626;
   background-color: #fee2e2;
   border-color: #fecaca;
 }
-:root.dark .difficulties-badge.hard {
+:root.dark .difficulty-badge.hard {
   background-color: #7f1d1d;
   color: #fecaca;
   border-color: #991b1b;

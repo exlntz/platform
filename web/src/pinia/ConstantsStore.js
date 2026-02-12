@@ -7,7 +7,7 @@ export const useConstantsStore = defineStore('constants', () => {
   const tags = ref([])
   const difficulties = ref([])
   const achievements = ref([])
-  
+
   const loading = ref(false)
   const isLoaded = ref(false)
 
@@ -18,10 +18,10 @@ export const useConstantsStore = defineStore('constants', () => {
     try {
       // Бэкенд возвращает всё сразу в GET /constants/
       const { data } = await api.get('/constants/')
-      
+
       subjects.value = data.subjects || []
       tags.value = data.tags || []
-      difficulties.value = data.difficulty || []
+      difficulties.value = data.difficulties || []
       achievements.value = data.constant_achievements || []
 
       isLoaded.value = true

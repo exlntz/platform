@@ -8,7 +8,7 @@ async def get_constants():
     return {
         "subjects": Subject.to_list(),
         "tags": Tag.to_list(),
-        "difficulty": DifficultyLevel.to_list(),
+        "difficulties": DifficultyLevel.to_list(),
         "ranks": RankName.to_list(),
         "constant_achievements": Achievement.to_list()
     }
