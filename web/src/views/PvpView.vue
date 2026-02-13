@@ -10,7 +10,7 @@ const { formatDate } = useDateFormatter()
 const notify = useNotificationStore()
 const router = useRouter()
 
-// Конфигурация визуалов рангов (только цвета и эмодзи, данные берутся с бека)
+// Конфигурация визуалов рангов
 const RANK_VISUALS = {
   LEGEND: { emoji: '🐲', color: 'from-purple-500 to-pink-500' },
   SENSEI: { emoji: '🥋', color: 'from-red-500 to-orange-500' },
@@ -43,10 +43,12 @@ let taskTimerInterval = null
 let reconnectButtonTimer = null
 const RECONNECT_WINDOW_MS = 5000
 
-// Данные профиля (загружаются из /profile)
+// Данные профиля
 const stats = ref({ rank: 'Loading...', points: 0, username: '' })
 const matchHistory = ref([])
 const isHistoryLoading = ref(true)
+// Глобальный статус загрузки страницы
+const loading = ref(true)
 
 const showRankModal = ref(false)
 const openRankModal = () => (showRankModal.value = true)
@@ -85,26 +87,15 @@ watch([myScore, opponentScore], () => {
   }
 })
 
-// === ОБНОВЛЕННАЯ ЛОГИКА РАНГОВ ===
-
-// 1. Текущий объект ранга теперь ищется строго по названию ранга из профиля (stats.rank)
+// === ЛОГИКА РАНГОВ ===
 const currentRankObj = computed(() => {
-  // Если список рангов еще не загружен
   if (ELO_RANKS.value.length === 0) {
     return { name: '...', min_elo: 0, emoji: '⏳', label: 'Loading...', color: 'from-gray-500' }
   }
-
-  // Берем название ранга, которое прислал бэкенд (например, "GOLD")
   const backendRankName = stats.value.rank
-
-  // Ищем этот ранг в списке конфигураций, чтобы взять эмодзи и лейбл
   const foundRank = ELO_RANKS.value.find((r) => r.name === backendRankName)
+  if (foundRank) return foundRank
 
-  if (foundRank) {
-    return foundRank
-  }
-
-  // Фолбэк: если название ранга с бека не совпало (редкий кейс), ищем по очкам
   const points = stats.value.points || 0
   const sortedRanks = [...ELO_RANKS.value].sort((a, b) => a.min_elo - b.min_elo)
   return (
@@ -112,39 +103,26 @@ const currentRankObj = computed(() => {
   )
 })
 
-// 2. Следующий ранг ищем в отсортированном списке относительно текущего
 const nextRankObj = computed(() => {
   if (ELO_RANKS.value.length === 0) return null
-
-  // Сортируем ранги по возрастанию ELO
   const sorted = [...ELO_RANKS.value].sort((a, b) => a.min_elo - b.min_elo)
-
-  // Находим индекс текущего ранга
   const currentIndex = sorted.findIndex((r) => r.name === currentRankObj.value.name)
-
-  // Если текущий ранг найден и он не последний в списке, возвращаем следующий
   if (currentIndex !== -1 && currentIndex < sorted.length - 1) {
     return sorted[currentIndex + 1]
   }
-
-  return null // Максимальный ранг
+  return null
 })
 
-// 3. Прогресс бар (логика расчета процентов остается математической)
 const progressToNextRank = computed(() => {
   if (ELO_RANKS.value.length === 0) return 0
-  if (!nextRankObj.value) return 100 // Максимальный уровень
+  if (!nextRankObj.value) return 100
 
   const currentPoints = stats.value.points || 0
   const currentRankMinElo = currentRankObj.value.min_elo
   const nextRankMinElo = nextRankObj.value.min_elo
-
-  // Сколько всего очков нужно набрать на этом уровне
   const totalDiff = nextRankMinElo - currentRankMinElo
-  // Сколько уже набрано сверх минимума текущего уровня
   const currentDiff = currentPoints - currentRankMinElo
 
-  // Защита от деления на ноль
   if (totalDiff <= 0) return 100
 
   let percent = (currentDiff / totalDiff) * 100
@@ -211,8 +189,8 @@ const resultTitleClass = computed(() => {
 })
 
 const loadUserData = async () => {
+  loading.value = true
   try {
-    // 1. Загружаем информацию о всех рангах (если еще нет)
     if (ELO_RANKS.value.length === 0) {
       const ranksRes = await api.get('/pvp/ranks_info')
       ELO_RANKS.value = ranksRes.data.map((rank) => ({
@@ -222,18 +200,17 @@ const loadUserData = async () => {
         color: RANK_VISUALS[rank.name]?.color || 'from-gray-500 to-gray-700',
       }))
     }
-
-    // 2. Загружаем профиль пользователя (тут приходит его rank и rating)
     const profileRes = await api.get('/profile/')
     stats.value = {
-      rank: profileRes.data.rank, // Например: "GOLD"
-      points: profileRes.data.rating, // Например: 1540
+      rank: profileRes.data.rank,
+      points: profileRes.data.rating,
       username: profileRes.data.username,
     }
-
     await loadHistory()
   } catch (e) {
     console.error('Ошибка загрузки данных:', e)
+  } finally {
+    loading.value = false
   }
 }
 
@@ -533,7 +510,28 @@ onUnmounted(() => {
 
 <template>
   <div class="pvp-container">
-    <div class="pvp-grid">
+    <div v-if="loading" class="pvp-grid">
+      <div class="main-section">
+        <div class="idle-state skeleton-box">
+          <div class="skeleton-badge"></div>
+          <div class="skeleton-title"></div>
+          <div class="skeleton-text"></div>
+          <div class="skeleton-text short"></div>
+          <div class="skeleton-btn"></div>
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <div class="rank-card-vertical skeleton-box">
+          <div class="skeleton-label"></div>
+          <div class="skeleton-icon-circle"></div>
+          <div class="skeleton-rank-name"></div>
+          <div class="skeleton-elo"></div>
+          <div class="skeleton-progress"></div>
+        </div>
+      </div>
+    </div>
+
+    <div v-else class="pvp-grid">
       <div class="main-section">
         <div v-if="gameState === 'idle'" class="idle-state">
           <div class="idle-content">
@@ -704,10 +702,19 @@ onUnmounted(() => {
 
     <div v-if="gameState === 'idle'" class="history-full-container">
       <h3 class="history-full-title">История матчей</h3>
-      <div v-if="isHistoryLoading" class="loading-history">Загрузка истории...</div>
+
+      <div v-if="loading || isHistoryLoading" class="history-skeleton-list">
+        <div v-for="n in 3" :key="n" class="skeleton-history-row">
+          <div class="sk-hist-players"></div>
+          <div class="sk-hist-res"></div>
+          <div class="sk-hist-meta"></div>
+        </div>
+      </div>
+
       <div v-else-if="matchHistory.length === 0" class="loading-history">
         Матчей пока не найдено
       </div>
+
       <div v-else class="history-full-list">
         <div v-for="match in matchHistory" :key="match.id" class="history-full-item">
           <div class="history-players">
@@ -774,9 +781,178 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-/* ==================== БАЗОВЫЕ СТИЛИ ==================== */
+/* ==================== SKELETON STYLES ==================== */
+/* Базовый блок скелетона (карточка) */
+.skeleton-box {
+  background-color: white;
+  border-radius: 16px;
+  border: 1px solid #f1f5f9;
+  padding: 24px;
+  min-height: 280px; /* Чтобы по высоте не прыгало */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
 
-/* СТИЛИ КНОПКИ РЕКОННЕКТА */
+/* Мерцание */
+.skeleton-badge,
+.skeleton-title,
+.skeleton-text,
+.skeleton-btn,
+.skeleton-label,
+.skeleton-icon-circle,
+.skeleton-rank-name,
+.skeleton-elo,
+.skeleton-progress,
+.skeleton-history-row,
+.sk-hist-players,
+.sk-hist-res,
+.sk-hist-meta {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  border-radius: 8px;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Элементы внутри скелетонов */
+.skeleton-badge {
+  width: 80px;
+  height: 24px;
+  margin-bottom: 16px;
+  border-radius: 20px;
+}
+
+.skeleton-title {
+  width: 60%;
+  height: 36px;
+  margin-bottom: 12px;
+}
+
+.skeleton-text {
+  width: 90%;
+  height: 16px;
+  margin-bottom: 8px;
+}
+
+.skeleton-text.short {
+  width: 50%;
+  margin-bottom: 24px;
+}
+
+.skeleton-btn {
+  width: 140px;
+  height: 48px;
+  border-radius: 12px;
+}
+
+/* Скелетон сайдбара (ранг) */
+.rank-skeleton {
+  align-items: center;
+}
+
+.skeleton-label {
+  width: 80px;
+  height: 12px;
+  margin-bottom: 20px;
+}
+
+.skeleton-icon-circle {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  margin-bottom: 16px;
+}
+
+.skeleton-rank-name {
+  width: 100px;
+  height: 24px;
+  margin-bottom: 8px;
+}
+
+.skeleton-elo {
+  width: 60px;
+  height: 16px;
+  margin-bottom: 20px;
+}
+
+.skeleton-progress {
+  width: 100%;
+  height: 8px;
+}
+
+/* Скелетон истории */
+.history-skeleton-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.skeleton-history-row {
+  height: 70px;
+  width: 100%;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  background: white; /* Фон самой карточки */
+}
+
+/* Внутренности строки истории */
+.sk-hist-players {
+  width: 150px;
+  height: 20px;
+  background: #e2e8f0;
+}
+
+.sk-hist-res {
+  width: 80px;
+  height: 20px;
+  background: #e2e8f0;
+}
+
+.sk-hist-meta {
+  width: 100px;
+  height: 30px;
+  background: #e2e8f0;
+}
+
+/* === DARK MODE SKELETONS === */
+:root.dark .skeleton-box,
+:root.dark .skeleton-history-row {
+  background-color: #1e293b;
+  border-color: #334155;
+}
+
+:root.dark .skeleton-badge,
+:root.dark .skeleton-title,
+:root.dark .skeleton-text,
+:root.dark .skeleton-btn,
+:root.dark .skeleton-label,
+:root.dark .skeleton-icon-circle,
+:root.dark .skeleton-rank-name,
+:root.dark .skeleton-elo,
+:root.dark .skeleton-progress,
+:root.dark .sk-hist-players,
+:root.dark .sk-hist-res,
+:root.dark .sk-hist-meta {
+  background: linear-gradient(90deg, #334155 25%, #475569 50%, #334155 75%);
+  background-size: 200% 100%;
+}
+
+/* ==================== ОСТАЛЬНЫЕ СТИЛИ (Без изменений) ==================== */
+
 .reconnect-btn {
   background-color: #ef4444 !important;
   box-shadow: 0 6px 12px -3px rgba(239, 68, 68, 0.3) !important;
@@ -795,7 +971,6 @@ onUnmounted(() => {
   }
 }
 
-/* СТИЛИ СЧЕТА */
 .match-score {
   font-size: 20px;
   font-weight: 800;
@@ -825,7 +1000,6 @@ onUnmounted(() => {
   color: #818cf8;
 }
 
-/* СТИЛИ КНОПОК ПОСЛЕ МАТЧА */
 .result-actions {
   display: flex;
   flex-direction: column;
@@ -870,7 +1044,6 @@ onUnmounted(() => {
   color: #f1f5f9;
 }
 
-/* СТИЛИ ДЛЯ ТАЙМЕРА СЛЕДУЮЩЕГО РАУНДА */
 .next-task-overlay {
   height: 100%;
   display: flex;
@@ -903,7 +1076,6 @@ onUnmounted(() => {
   color: #94a3b8;
 }
 
-/* ОТКЛЮЧЕННЫЕ КНОПКИ */
 .answer-input:disabled,
 .submit-answer-btn:disabled,
 .emoji-btn:disabled {
@@ -962,7 +1134,6 @@ onUnmounted(() => {
   background-color: #f1f5f9;
 }
 
-/* === АНИМАЦИЯ ЛЕТАЮЩИХ ЭМОДЗИ === */
 .emoji-layer {
   position: absolute;
   top: 0;
@@ -1004,7 +1175,6 @@ onUnmounted(() => {
   }
 }
 
-/* Dark mode fixes for emoji */
 :root.dark .emoji-picker {
   background-color: #1e293b;
   border-color: #334155;
@@ -1013,7 +1183,6 @@ onUnmounted(() => {
   background-color: #334155;
 }
 
-/* === MAIN LAYOUT === */
 .pvp-container {
   min-height: 100vh;
   background: linear-gradient(135deg, #f8fafc 0%, #f0f9ff 100%);
@@ -1031,14 +1200,12 @@ onUnmounted(() => {
   gap: 16px;
 }
 
-/* Основная секция */
 .main-section {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-/* Состояние ожидания (IDLE) */
 .idle-state {
   position: relative;
   overflow: hidden;
@@ -1052,7 +1219,6 @@ onUnmounted(() => {
   justify-content: center;
 }
 
-/* Idle content inside */
 .idle-content {
   display: flex;
   flex-direction: column;
@@ -1119,10 +1285,9 @@ onUnmounted(() => {
   transform: translateY(0);
 }
 
-/* RANK CARD (Now in Sidebar) */
 .rank-card-vertical {
   width: 100%;
-  background: white; /* Light theme bg */
+  background: white;
   border: 1px solid #f1f5f9;
   border-radius: 16px;
   padding: 20px;
@@ -1249,7 +1414,6 @@ onUnmounted(() => {
   color: #94a3b8;
 }
 
-/* === MODAL RANK SYSTEM === */
 .rank-modal-overlay {
   position: fixed;
   top: 0;
@@ -1356,10 +1520,9 @@ onUnmounted(() => {
   flex-direction: column;
 }
 
-/* Стиль элемента пути славы */
 .rank-road-item {
   display: flex;
-  height: 80px; /* Фиксированная высота шага */
+  height: 80px;
 }
 
 .rank-road-left {
@@ -1384,7 +1547,7 @@ onUnmounted(() => {
 .rank-road-line {
   position: absolute;
   top: 50%;
-  bottom: -50%; /* Линия идет вниз */
+  bottom: -50%;
   width: 4px;
   background-color: #e2e8f0;
   z-index: 1;
@@ -1395,7 +1558,7 @@ onUnmounted(() => {
 }
 
 .rank-road-item:last-child .rank-road-line {
-  display: none; /* У последнего элемента нет линии вниз */
+  display: none;
 }
 
 .rank-road-dot {
@@ -1483,7 +1646,6 @@ onUnmounted(() => {
   margin-left: 8px;
 }
 
-/* Состояние поиска */
 .searching-state {
   background-color: white;
   border-radius: 16px;
@@ -1556,7 +1718,6 @@ onUnmounted(() => {
   background-color: #fef2f2;
 }
 
-/* Состояние игры */
 .playing-state {
   background-color: white;
   border-radius: 16px;
@@ -1764,7 +1925,6 @@ onUnmounted(() => {
   transform: translateY(0);
 }
 
-/* Состояние результата */
 .result-state {
   background-color: white;
   border-radius: 16px;
@@ -1841,7 +2001,6 @@ onUnmounted(() => {
   transform: translateY(0);
 }
 
-/* Сайдбар */
 .sidebar-section {
   display: flex;
   flex-direction: column;
@@ -1898,7 +2057,6 @@ onUnmounted(() => {
   color: #0f172a;
 }
 
-/* === НОВЫЕ СТИЛИ ДЛЯ ИСТОРИИ (FULL WIDTH) === */
 .history-full-container {
   margin-top: 24px;
   max-width: 1000px;
@@ -2047,7 +2205,6 @@ onUnmounted(() => {
   color: #0f172a;
 }
 
-/* Анимации */
 @keyframes spin {
   0% {
     transform: rotate(0deg);
@@ -2075,8 +2232,6 @@ onUnmounted(() => {
     opacity: 1;
   }
 }
-
-/* ==================== ТЁМНАЯ ТЕМА ==================== */
 
 :root.dark .pvp-container {
   background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
@@ -2178,7 +2333,6 @@ onUnmounted(() => {
   color: #f1f5f9;
 }
 
-/* History dark */
 :root.dark .history-full-container {
   background-color: #1e293b;
   border-color: #334155;
@@ -2219,12 +2373,10 @@ onUnmounted(() => {
   color: #f1f5f9;
 }
 
-/* Loading task */
 :root.dark .loading-task {
   color: #94a3b8;
 }
 
-/* Game logs */
 :root.dark .log-system {
   color: #60a5fa;
 }
@@ -2236,8 +2388,6 @@ onUnmounted(() => {
 :root.dark .log-user {
   color: #cbd5e1;
 }
-
-/* ==================== АДАПТИВНЫЕ СТИЛИ ==================== */
 
 @media (min-width: 321px) and (max-width: 375px) {
   .arena-title {
