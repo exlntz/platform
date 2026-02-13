@@ -4,13 +4,13 @@ import api from '@/api/axios'
 import { useRouter } from 'vue-router'
 import { useNotificationStore } from '@/pinia/NotificationStore'
 
-import { useDateFormatter } from '@/composables/useDateFormatter' 
+import { useDateFormatter } from '@/composables/useDateFormatter'
 
-const { formatDate } = useDateFormatter() 
+const { formatDate } = useDateFormatter()
 const notify = useNotificationStore()
 const router = useRouter()
 
-
+// Конфигурация визуалов рангов (только цвета и эмодзи, данные берутся с бека)
 const RANK_VISUALS = {
   LEGEND: { emoji: '🐲', color: 'from-purple-500 to-pink-500' },
   SENSEI: { emoji: '🥋', color: 'from-red-500 to-orange-500' },
@@ -20,7 +20,6 @@ const RANK_VISUALS = {
   BRONZE: { emoji: '🥉', color: 'from-amber-700 to-amber-900' },
 }
 
-
 const ELO_RANKS = ref([])
 const socket = ref(null)
 const gameState = ref('idle')
@@ -29,7 +28,6 @@ const activeTask = ref(null)
 const userAnswer = ref('')
 const logs = ref([])
 const logContainer = ref(null)
-
 
 const myScore = ref(0)
 const opponentScore = ref(0)
@@ -45,15 +43,14 @@ let taskTimerInterval = null
 let reconnectButtonTimer = null
 const RECONNECT_WINDOW_MS = 5000
 
+// Данные профиля (загружаются из /profile)
 const stats = ref({ rank: 'Loading...', points: 0, username: '' })
 const matchHistory = ref([])
 const isHistoryLoading = ref(true)
 
-
 const showRankModal = ref(false)
 const openRankModal = () => (showRankModal.value = true)
 const closeRankModal = () => (showRankModal.value = false)
-
 
 const saveScoreState = () => {
   const scoreData = {
@@ -82,17 +79,32 @@ const clearScoreState = () => {
   opponentScore.value = 0
 }
 
-
 watch([myScore, opponentScore], () => {
   if (gameState.value === 'playing') {
     saveScoreState()
   }
 })
 
+// === ОБНОВЛЕННАЯ ЛОГИКА РАНГОВ ===
+
+// 1. Текущий объект ранга теперь ищется строго по названию ранга из профиля (stats.rank)
 const currentRankObj = computed(() => {
+  // Если список рангов еще не загружен
   if (ELO_RANKS.value.length === 0) {
     return { name: '...', min_elo: 0, emoji: '⏳', label: 'Loading...', color: 'from-gray-500' }
   }
+
+  // Берем название ранга, которое прислал бэкенд (например, "GOLD")
+  const backendRankName = stats.value.rank
+
+  // Ищем этот ранг в списке конфигураций, чтобы взять эмодзи и лейбл
+  const foundRank = ELO_RANKS.value.find((r) => r.name === backendRankName)
+
+  if (foundRank) {
+    return foundRank
+  }
+
+  // Фолбэк: если название ранга с бека не совпало (редкий кейс), ищем по очкам
   const points = stats.value.points || 0
   const sortedRanks = [...ELO_RANKS.value].sort((a, b) => a.min_elo - b.min_elo)
   return (
@@ -100,21 +112,41 @@ const currentRankObj = computed(() => {
   )
 })
 
+// 2. Следующий ранг ищем в отсортированном списке относительно текущего
 const nextRankObj = computed(() => {
   if (ELO_RANKS.value.length === 0) return null
-  const points = stats.value.points || 0
+
+  // Сортируем ранги по возрастанию ELO
   const sorted = [...ELO_RANKS.value].sort((a, b) => a.min_elo - b.min_elo)
-  return sorted.find((r) => r.min_elo > points) || null
+
+  // Находим индекс текущего ранга
+  const currentIndex = sorted.findIndex((r) => r.name === currentRankObj.value.name)
+
+  // Если текущий ранг найден и он не последний в списке, возвращаем следующий
+  if (currentIndex !== -1 && currentIndex < sorted.length - 1) {
+    return sorted[currentIndex + 1]
+  }
+
+  return null // Максимальный ранг
 })
 
+// 3. Прогресс бар (логика расчета процентов остается математической)
 const progressToNextRank = computed(() => {
   if (ELO_RANKS.value.length === 0) return 0
-  if (!nextRankObj.value) return 100
-  const current = stats.value.points || 0
-  const prevLimit = currentRankObj.value.min_elo
-  const nextLimit = nextRankObj.value.min_elo
-  const totalDiff = nextLimit - prevLimit
-  const currentDiff = current - prevLimit
+  if (!nextRankObj.value) return 100 // Максимальный уровень
+
+  const currentPoints = stats.value.points || 0
+  const currentRankMinElo = currentRankObj.value.min_elo
+  const nextRankMinElo = nextRankObj.value.min_elo
+
+  // Сколько всего очков нужно набрать на этом уровне
+  const totalDiff = nextRankMinElo - currentRankMinElo
+  // Сколько уже набрано сверх минимума текущего уровня
+  const currentDiff = currentPoints - currentRankMinElo
+
+  // Защита от деления на ноль
+  if (totalDiff <= 0) return 100
+
   let percent = (currentDiff / totalDiff) * 100
   return Math.min(Math.max(percent, 0), 100).toFixed(1)
 })
@@ -178,9 +210,9 @@ const resultTitleClass = computed(() => {
   }
 })
 
-
 const loadUserData = async () => {
   try {
+    // 1. Загружаем информацию о всех рангах (если еще нет)
     if (ELO_RANKS.value.length === 0) {
       const ranksRes = await api.get('/pvp/ranks_info')
       ELO_RANKS.value = ranksRes.data.map((rank) => ({
@@ -190,12 +222,15 @@ const loadUserData = async () => {
         color: RANK_VISUALS[rank.name]?.color || 'from-gray-500 to-gray-700',
       }))
     }
+
+    // 2. Загружаем профиль пользователя (тут приходит его rank и rating)
     const profileRes = await api.get('/profile/')
     stats.value = {
-      rank: profileRes.data.rank,
-      points: profileRes.data.rating,
+      rank: profileRes.data.rank, // Например: "GOLD"
+      points: profileRes.data.rating, // Например: 1540
       username: profileRes.data.username,
     }
+
     await loadHistory()
   } catch (e) {
     console.error('Ошибка загрузки данных:', e)
@@ -213,7 +248,6 @@ const loadHistory = async () => {
     isHistoryLoading.value = false
   }
 }
-
 
 const formatEloRaw = (change) => {
   const val = parseFloat(change)
@@ -236,7 +270,6 @@ const getResultClass = (resultStr) => {
   return 'res-text-neutral'
 }
 
-
 const startNextTaskTimer = () => {
   isNextTaskTimerActive.value = true
   nextTaskTimer.value = 3
@@ -252,7 +285,6 @@ const startNextTaskTimer = () => {
   }, 1000)
 }
 
-
 const goToTasks = () => {
   router.push('/tasks')
 }
@@ -262,7 +294,6 @@ const goBackToLobby = () => {
   isReconnecting.value = false
   gameState.value = 'idle'
 }
-
 
 const isReconnecting = ref(false)
 
@@ -283,11 +314,11 @@ const connectPvp = () => {
     logs.value = []
     userAnswer.value = ''
     isNextTaskTimerActive.value = false
-    clearScoreState() 
+    clearScoreState()
   } else {
     gameState.value = 'playing'
     addLog('system', 'Восстановление соединения...')
-    restoreScoreState() 
+    restoreScoreState()
   }
 
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
@@ -371,7 +402,7 @@ const connectPvp = () => {
       gameState.value = 'playing'
       isReconnecting.value = true
       addLog('system', 'Вы вернулись в игру!')
-      restoreScoreState() 
+      restoreScoreState()
     } else if (msg.includes('emoji ')) {
       const emojiChar = msg.split(' ')[1]
       triggerFloatingEmoji(emojiChar, 'opponent')
@@ -401,7 +432,7 @@ const startReconnectExpirationTimer = (duration) => {
   reconnectButtonTimer = setTimeout(() => {
     if (gameState.value === 'idle' && isReconnecting.value) {
       isReconnecting.value = false
-      clearScoreState() 
+      clearScoreState()
       localStorage.removeItem('pvp_reconnect')
       localStorage.removeItem('pvp_disconnect_time')
     }
@@ -438,7 +469,7 @@ const finishGame = (result) => {
 
   localStorage.removeItem('pvp_reconnect')
   localStorage.removeItem('pvp_disconnect_time')
-  clearScoreState() 
+  clearScoreState()
 }
 
 const disconnect = () => {
@@ -468,7 +499,7 @@ onMounted(() => {
 
   if (wasInMatch && now - disconnectTime < RECONNECT_WINDOW_MS) {
     isReconnecting.value = true
-    restoreScoreState() 
+    restoreScoreState()
 
     const remainingTime = RECONNECT_WINDOW_MS - (now - disconnectTime)
     startReconnectExpirationTimer(remainingTime)
@@ -484,7 +515,7 @@ window.addEventListener('beforeunload', () => {
   if (gameState.value === 'playing' || gameState.value === 'searching') {
     localStorage.setItem('pvp_reconnect', 'true')
     localStorage.setItem('pvp_disconnect_time', Date.now().toString())
-    saveScoreState() 
+    saveScoreState()
   } else {
     localStorage.removeItem('pvp_reconnect')
     localStorage.removeItem('pvp_disconnect_time')
