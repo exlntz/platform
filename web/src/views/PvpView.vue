@@ -810,10 +810,10 @@ onUnmounted(() => {
 .sk-hist-players,
 .sk-hist-res,
 .sk-hist-meta {
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
-  background-size: 200% 100%;
+  background-color: #e2e8f0;
   border-radius: 8px;
-  animation: shimmer 1.5s infinite;
+  /* Убираем animation: shimmer ... */
+  animation: none;
 }
 
 @keyframes shimmer {
@@ -947,8 +947,9 @@ onUnmounted(() => {
 :root.dark .sk-hist-players,
 :root.dark .sk-hist-res,
 :root.dark .sk-hist-meta {
-  background: linear-gradient(90deg, #334155 25%, #475569 50%, #334155 75%);
-  background-size: 200% 100%;
+  background: #334155;
+  background-size: auto;
+  animation: none;
 }
 
 /* ==================== ОСТАЛЬНЫЕ СТИЛИ (Без изменений) ==================== */
